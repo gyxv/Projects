@@ -12,22 +12,65 @@ import { Info, Lock, Play, Pause, RotateCcw, Sparkles, Eye, EyeOff, Check, X, Do
 import { WORDLISTS, WordlistMeta } from "./wordlists";
 
 // ---- utils (condensed) ----
-const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
+const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 const DIGITS="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const SYMBOLS="!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
-const getCharsetForPassword=p=>{let s="";if(/[a-z]/.test(p))s+="abcdefghijklmnopqrstuvwxyz";if(/[A-Z]/.test(p))s+="ABCDEFGHIJKLMNOPQRSTUVWXYZ";if(/[0-9]/.test(p))s+="0123456789";if(/[^a-zA-Z0-9]/.test(p))s+=SYMBOLS;return s||DIGITS+SYMBOLS};
-const pow10=x=>Math.pow(10,x);
-const fmtPow10=x=>{if(!isFinite(x))return"∞";if(x===0)return"0";const e=Math.floor(Math.log10(Math.abs(x))),m=x/Math.pow(10,e);return`${m.toFixed(2)}e${e>=0?"+":""}${e}`};
-const fmtTime=s=>s<60?`${Math.floor(s)}s`:s<3600?`${(s/60).toFixed(1)}m`:s<86400?`${(s/3600).toFixed(1)}h`:`${(s/86400).toFixed(1)}d`;
-const fmtLong=s=>{if(!isFinite(s))return"(effectively impossible)";const u=[{s:1,l:"s"},{s:60,l:"min"},{s:3600,l:"h"},{s:86400,l:"d"},{s:31536000,l:"yr"},{s:31536000000,l:"millennia"}];let i=0;while(i<u.length-1&&s>=u[i+1].s)i++;const v=s/u[i].s;return`${v.toFixed(v>=100?0:v>=10?1:2)} ${u[i].l}`};
-const log10Space=(len,cs)=>len*Math.log10(cs);
-const rand=(n,ch)=>Array.from({length:n},()=>ch[Math.floor(Math.random()*ch.length)]).join("");
-const fmtCommas=n=>{if(!isFinite(n))return"∞";return Math.floor(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g,",")};
+const getCharsetForPassword = (p: string) => {
+  let s = "";
+  if (/[a-z]/.test(p)) s += "abcdefghijklmnopqrstuvwxyz";
+  if (/[A-Z]/.test(p)) s += "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  if (/[0-9]/.test(p)) s += "0123456789";
+  if (/[^a-zA-Z0-9]/.test(p)) s += SYMBOLS;
+  return s || DIGITS + SYMBOLS;
+};
+const pow10 = (x: number) => Math.pow(10, x);
+const fmtPow10 = (x: number) => {
+  if (!isFinite(x)) return "∞";
+  if (x === 0) return "0";
+  const e = Math.floor(Math.log10(Math.abs(x)));
+  const m = x / Math.pow(10, e);
+  return `${m.toFixed(2)}e${e >= 0 ? "+" : ""}${e}`;
+};
+const fmtTime = (s: number) =>
+  s < 60
+    ? `${Math.floor(s)}s`
+    : s < 3600
+    ? `${(s / 60).toFixed(1)}m`
+    : s < 86400
+    ? `${(s / 3600).toFixed(1)}h`
+    : `${(s / 86400).toFixed(1)}d`;
+const fmtLong = (s: number) => {
+  if (!isFinite(s)) return "(effectively impossible)";
+  const u = [
+    { s: 1, l: "s" },
+    { s: 60, l: "min" },
+    { s: 3600, l: "h" },
+    { s: 86400, l: "d" },
+    { s: 31536000, l: "yr" },
+    { s: 31536000000, l: "millennia" },
+  ];
+  let i = 0;
+  while (i < u.length - 1 && s >= u[i + 1].s) i++;
+  const v = s / u[i].s;
+  return `${v.toFixed(v >= 100 ? 0 : v >= 10 ? 1 : 2)} ${u[i].l}`;
+};
+const log10Space = (len: number, cs: number) => len * Math.log10(cs);
+const rand = (n: number, ch: string) =>
+  Array.from({ length: n }, () => ch[Math.floor(Math.random() * ch.length)]).join("");
+const fmtCommas = (n: number) => {
+  if (!isFinite(n)) return "∞";
+  return Math.floor(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+};
 
-const lerp=(a,b,t)=>a+(b-a)*t;
-const lerpColor=(c1,c2,t)=>[0,1,2].map(i=>Math.round(lerp(c1[i],c2[i],t)));
-const TIMER_FROM=[255,255,255]; const TIMER_TO=[148,163,184];
-const timerColor=p=>{const [r,g,b]=lerpColor(TIMER_FROM,TIMER_TO,clamp(p,0,1)); return `rgb(${r}, ${g}, ${b})`};
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+const lerpColor = (c1: number[], c2: number[], t: number) =>
+  [0, 1, 2].map((i) => Math.round(lerp(c1[i], c2[i], t)));
+const TIMER_FROM: [number, number, number] = [255, 255, 255];
+const TIMER_TO: [number, number, number] = [148, 163, 184];
+const timerColor = (p: number) => {
+  const [r, g, b] = lerpColor(TIMER_FROM, TIMER_TO, clamp(p, 0, 1));
+  return `rgb(${r}, ${g}, ${b})`;
+};
 
 // Neon ring with progress-based glow
 function Ring({progress}:{progress:number}){const p=clamp(progress,0,1),deg=p*360,glow=18+22*p,alpha=0.25+0.35*p;return(<div className="relative z-10 w-72 h-72 md:w-80 md:h-80"><div className="absolute inset-0 rounded-full" style={{background:`conic-gradient(rgb(56 189 248) ${deg}deg, rgb(30 41 59) ${deg}deg 360deg)`,filter:`drop-shadow(0 0 ${glow}px rgba(56,189,248,${alpha}))`}}/><div className="absolute inset-2 rounded-full bg-slate-900/70 backdrop-blur-xl border border-white/15"/></div>)}

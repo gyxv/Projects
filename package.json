@@ -1,0 +1,24 @@
+{
+  "name": "projects",
+  "version": "1.0.0",
+  "description": "",
+  "main": "bruteforce.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "framer-motion": "^12.23.12",
+    "lucide-react": "^0.543.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
+    "typescript": "^5.9.2"
+  }
+}
