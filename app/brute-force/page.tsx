@@ -8,8 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Info, Lock, Play, Pause, RotateCcw, Sparkles, Eye, EyeOff, Check, X } from "lucide-react";
-import { WORDLISTS } from "./wordlists";
+import { Info, Lock, Play, Pause, RotateCcw, Sparkles, Eye, EyeOff, Check, X, Download } from "lucide-react";
+import { WORDLISTS, WordlistMeta } from "./wordlists";
 
 // ---- utils (condensed) ----
 const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
@@ -34,27 +34,68 @@ function Ring({progress}:{progress:number}){const p=clamp(progress,0,1),deg=p*36
 
 function MiniRing({progress,color}:{progress:number;color:string}){const p=clamp(progress,0,1),deg=p*360;return(<div className="relative w-16 h-16"><div className="absolute inset-0 rounded-full" style={{background:`conic-gradient(${color} ${deg}deg, rgb(30 41 59) ${deg}deg 360deg)`}}/><div className="absolute inset-[2px] rounded-full bg-slate-900/70 border border-white/15"/></div>)}
 
-function WordlistAttack({list,password,gps}:{list:{key:string;name:string;passwords:readonly string[]};password:string;gps:number}){
+type WordlistAttackProps = {
+  list: WordlistMeta;
+  password: string;
+  gps: number;
+  onReveal: (list: WordlistMeta, words: string[]) => boolean;
+  /**
+   * React automatically strips the `key` prop and does not forward it to the
+   * component. However, without the React type definitions present, TypeScript
+   * complains when a `key` attribute is used. Declaring it here keeps the file
+   * type-safe in editors even when the React types are missing.
+   */
+  key?: React.Key;
+};
+
+function WordlistAttack({list,password,gps,onReveal}: WordlistAttackProps){
+  const [words,setWords]=useState<string[]>([]);
   const [started,setStarted]=useState(false);
   const [elapsed,setElapsed]=useState(0);
   const [done,setDone]=useState(false);
-  const index=useMemo(()=>list.passwords.indexOf(password),[list,password]);
+  const [denied,setDenied]=useState(false);
+
+  useEffect(()=>{ fetch(list.file).then(r=>r.text()).then(t=>setWords(t.split(/\r?\n/).filter(Boolean))); },[list]);
+
+  const index=useMemo(()=>words.indexOf(password),[words,password]);
   const found=index!==-1;
-  const finalProgress=found?(index+1)/list.passwords.length:1;
-  const duration=useMemo(()=>finalProgress*list.passwords.length/gps,[finalProgress,list.passwords.length,gps]);
-  const progress=started?Math.min(elapsed/duration,1)*finalProgress:0;
+  const finalProgress=words.length? (found?(index+1)/words.length:1):0;
+  const duration=useMemo(()=>finalProgress*words.length/gps,[finalProgress,words.length,gps]);
+  const progress=started&&duration>0?Math.min(elapsed/duration,1)*finalProgress:0;
   useEffect(()=>{ if(!started||done) return; let raf:number; const start=performance.now(); const tick=(t:number)=>{const e=(t-start)/1000; if(e>=duration){setElapsed(duration); setDone(true);} else {setElapsed(e); raf=requestAnimationFrame(tick);} }; raf=requestAnimationFrame(tick); return()=>cancelAnimationFrame(raf); },[started,done,duration]);
   useEffect(()=>{ setStarted(false); setElapsed(0); setDone(false); },[password,gps,list]);
   const color=done?(found?"rgb(248 113 113)":"rgb(16 185 129)"):"rgb(56 189 248)";
+
+  const handleButton=(e:React.MouseEvent<HTMLButtonElement>)=>{
+    if(e.shiftKey){
+      const open=(w:string[])=>{ const opened=onReveal(list,w); if(!opened) setDenied(true); };
+      if(!words.length){
+        fetch(list.file).then(r=>r.text()).then(t=>{ const w=t.split(/\r?\n/).filter(Boolean); setWords(w); open(w); });
+      }else{
+        open(words);
+      }
+    }else{
+      if(!words.length||!password) return;
+      setStarted(true);
+    }
+  };
+
+  const handleSkip=()=>{ if(started&&!done){ setElapsed(duration); setDone(true);} };
+
   return(
     <div className="flex flex-col items-center gap-2">
-      <Button onClick={()=>setStarted(true)} disabled={started} className="bg-white/10 hover:bg-white/20 text-slate-100 border-white/20 w-full justify-center">{list.name}</Button>
+      <motion.div animate={denied?{x:[0,-6,6,-6,6,0]}:{}} transition={{duration:0.4}} onAnimationComplete={()=>setDenied(false)} className="w-full">
+        <Button onClick={handleButton} disabled={started||!words.length} className={`bg-white/10 hover:bg-white/20 text-slate-100 border-white/20 w-full justify-center ${denied?"bg-red-500" : ""}`}>{list.name}</Button>
+      </motion.div>
       {started&&(
-        <div className="relative">
-          <MiniRing progress={progress} color={color}/>
-          <div className="absolute inset-0 grid place-items-center text-xs text-slate-100">
-            {done ? (found ? <X className="h-4 w-4"/> : <Check className="h-4 w-4"/>) : fmtTime(elapsed)}
+        <div className="flex flex-col items-center">
+          <div className="relative" onClick={handleSkip}>
+            <MiniRing progress={progress} color={color}/>
+            <div className="absolute inset-0 grid place-items-center text-xs text-slate-100">
+              {done ? (found ? <X className="h-4 w-4"/> : <Check className="h-4 w-4"/>) : fmtTime(elapsed)}
+            </div>
           </div>
+          <div className="text-xs text-slate-200 mt-1">{fmtTime(done?duration:elapsed)}</div>
         </div>
       )}
     </div>
@@ -78,6 +119,8 @@ export default function BruteforceSimulator(){
   const [started,setStarted]=useState(false);
   const [paused,setPaused]=useState(false);
   const [showAttemptStream,setShowAttemptStream]=useState(true);
+  const [overlay,setOverlay]=useState<{name:string;passwords:string[];file:string}|null>(null);
+  const [adult,setAdult]=useState<boolean|null>(null);
   const [exp,setExp]=useState(11);
   const gps=useMemo(()=>pow10(exp),[exp]);
   const charset=useMemo(()=>getCharsetForPassword(password),[password]);
@@ -116,8 +159,33 @@ export default function BruteforceSimulator(){
   const handleStart=()=>{ if(!password) return; setStarted(true); setPaused(false); setCracked(false); setElapsed(0); setStream([]); };
   const handleReset=()=>{ setStarted(false); setPaused(false); setCracked(false); setElapsed(0); setStream([]); };
 
+  const handleReveal=(list:WordlistMeta,words:string[])=>{
+    if(adult===false) return false;
+    if(adult===null){
+      const ok=window.confirm("This list may contain sensitive content. Are you 18 or older?");
+      setAdult(ok);
+      if(!ok) return false;
+    }
+    setOverlay({name:list.name,passwords:words,file:list.file});
+    return true;
+  };
+
   return(
   <TooltipProvider>
+    {overlay&&(
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div className="relative bg-slate-900/80 backdrop-blur-xl border border-white/20 rounded-xl max-w-lg w-full h-[80vh] p-6 flex flex-col">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg text-slate-100">{overlay.name}</h2>
+            <button onClick={()=>setOverlay(null)} className="p-2 rounded-md bg-white/10 hover:bg-white/20 border border-white/20"><X className="h-4 w-4 text-slate-100"/></button>
+          </div>
+          <div className="flex-1 overflow-auto rounded-md bg-white/5 border border-white/10 p-4">
+            <pre className="whitespace-pre-wrap text-xs text-slate-200">{overlay.passwords.join('\n')}</pre>
+          </div>
+          <a href={overlay.file} download className="mt-4 self-end inline-flex items-center gap-2 px-3 py-2 rounded-md bg-cyan-500 text-slate-950 hover:bg-cyan-400 text-sm"><Download className="h-4 w-4"/>Download</a>
+        </div>
+      </div>
+    )}
     <div className="min-h-screen w-full bg-slate-950 text-slate-100 relative overflow-hidden">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full bg-cyan-500/15 blur-3xl"/>
@@ -199,7 +267,7 @@ export default function BruteforceSimulator(){
                     <div className="text-sm text-slate-100">Wordlist attacks</div>
                     <div className="grid grid-cols-2 gap-4">
                       {WORDLISTS.map(list=>(
-                        <WordlistAttack key={list.key} list={list} password={password} gps={gps}/>
+                        <WordlistAttack key={list.key} list={list} password={password} gps={gps} onReveal={handleReveal}/>
                       ))}
                     </div>
                   </div>

@@ -1,11 +1,15 @@
-// Word lists sourced from real datasets used in security research
-// Top 100 passwords from SecLists: Passwords/Common-Credentials/10k-most-common.txt
-export const COMMON_PASSWORDS = ["password", "123456", "12345678", "1234", "qwerty", "12345", "dragon", "pussy", "baseball", "football", "letmein", "monkey", "696969", "abc123", "mustang", "michael", "shadow", "master", "jennifer", "111111", "2000", "jordan", "superman", "harley", "1234567", "fuckme", "hunter", "fuckyou", "trustno1", "ranger", "buster", "thomas", "tigger", "robert", "soccer", "fuck", "batman", "test", "pass", "killer", "hockey", "george", "charlie", "andrew", "michelle", "love", "sunshine", "jessica", "asshole", "6969", "pepper", "daniel", "access", "123456789", "654321", "joshua", "maggie", "starwars", "silver", "william", "dallas", "yankees", "123123", "ashley", "666666", "hello", "amanda", "orange", "biteme", "freedom", "computer", "sexy", "thunder", "nicole", "ginger", "heather", "hammer", "summer", "corvette", "taylor", "fucker", "austin", "1111", "merlin", "matthew", "121212", "golfer", "cheese", "princess", "martin", "chelsea", "patrick", "richard", "diamond", "yellow", "bigdog", "secret", "asdfgh", "sparky", "cowboy"] as const;
+export type WordlistMeta = {
+  key: string;
+  name: string;
+  file: string;
+};
 
-// 200 common English words from google-10000-english
-export const ENGLISH_WORDS = ["the", "of", "and", "to", "a", "in", "for", "is", "on", "that", "by", "this", "with", "i", "you", "it", "not", "or", "be", "are", "from", "at", "as", "your", "all", "have", "new", "more", "an", "was", "we", "will", "home", "can", "us", "about", "if", "page", "my", "has", "search", "free", "but", "our", "one", "other", "do", "no", "information", "time", "they", "site", "he", "up", "may", "what", "which", "their", "news", "out", "use", "any", "there", "see", "only", "so", "his", "when", "contact", "here", "business", "who", "web", "also", "now", "help", "get", "pm", "view", "online", "c", "e", "first", "am", "been", "would", "how", "were", "me", "s", "services", "some", "these", "click", "its", "like", "service", "x", "than", "find", "price", "date", "back", "top", "people", "had", "list", "name", "just", "over", "state", "year", "day", "into", "email", "two", "health", "n", "world", "re", "next", "used", "go", "b", "work", "last", "most", "products", "music", "buy", "data", "make", "them", "should", "product", "system", "post", "her", "city", "t", "add", "policy", "number", "such", "please", "available", "copyright", "support", "message", "after", "best", "software", "then", "jan", "good", "video", "well", "d", "where", "info", "rights", "public", "books", "high", "school", "through", "m", "each", "links", "she", "review", "years", "order", "very", "privacy", "book", "items", "company", "r", "read", "group", "sex", "need", "many", "user", "said", "de", "does", "set", "under", "general", "research", "university", "january", "mail", "full", "map", "reviews", "program", "life"] as const;
-
-export const WORDLISTS = [
-  { key: "common", name: "Top 100 Passwords", passwords: COMMON_PASSWORDS },
-  { key: "english", name: "Common English Words", passwords: ENGLISH_WORDS },
-] as const;
+// Wordlists are stored as .txt files under public/wordlists
+// Add any new files there and they'll appear in the simulator
+export const WORDLISTS: readonly WordlistMeta[] = [
+  { key: "100k-common", name: "100k-common", file: "/wordlists/100k-most-used-passwords-NCSC.txt" },
+  { key: "10k-common", name: "10k-common", file: "/wordlists/10k-most-common.txt" },
+  { key: "2024-common", name: "2024-common", file: "/wordlists/2024-197_most_used_passwords.txt" },
+  { key: "defaults", name: "defaults", file: "/wordlists/default-passwords.txt" },
+  { key: "rockyou", name: "rockyou", file: "/wordlists/rockyou.txt" },
+];
