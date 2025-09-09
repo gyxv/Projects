@@ -1,14 +1,14 @@
 "use client";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Slider } from "@/components/ui/slider";
-import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
+import { Button } from "../../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { Input } from "../../components/ui/input";
+import { Slider } from "../../components/ui/slider";
+import { Badge } from "../../components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../components/ui/tooltip";
+import { Switch } from "../../components/ui/switch";
+import { Separator } from "../../components/ui/separator";
 import { Info, Lock, Play, Pause, RotateCcw, Sparkles, Eye, EyeOff, Check, X, Download } from "lucide-react";
 import { WORDLISTS, WordlistMeta } from "./wordlists";
 
