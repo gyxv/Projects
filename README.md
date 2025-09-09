@@ -14,4 +14,4 @@
 
 3. Open your browser to <http://localhost:3000/brute-force> to view the React UI.
 
-The previous static `index.html` has been removed in favor of this Next.js setup.
+A minimal `index.html` at the project root redirects to the simulator, while the original static implementation has been preserved under `archive/index.html` for reference.
