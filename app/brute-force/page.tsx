@@ -34,7 +34,21 @@ function Ring({progress}:{progress:number}){const p=clamp(progress,0,1),deg=p*36
 
 function MiniRing({progress,color}:{progress:number;color:string}){const p=clamp(progress,0,1),deg=p*360;return(<div className="relative w-16 h-16"><div className="absolute inset-0 rounded-full" style={{background:`conic-gradient(${color} ${deg}deg, rgb(30 41 59) ${deg}deg 360deg)`}}/><div className="absolute inset-[2px] rounded-full bg-slate-900/70 border border-white/15"/></div>)}
 
-function WordlistAttack({list,password,gps,onReveal}:{list:WordlistMeta;password:string;gps:number;onReveal:(list:WordlistMeta,words:string[])=>boolean}){
+type WordlistAttackProps = {
+  list: WordlistMeta;
+  password: string;
+  gps: number;
+  onReveal: (list: WordlistMeta, words: string[]) => boolean;
+  /**
+   * React automatically strips the `key` prop and does not forward it to the
+   * component. However, without the React type definitions present, TypeScript
+   * complains when a `key` attribute is used. Declaring it here keeps the file
+   * type-safe in editors even when the React types are missing.
+   */
+  key?: React.Key;
+};
+
+function WordlistAttack({list,password,gps,onReveal}: WordlistAttackProps){
   const [words,setWords]=useState<string[]>([]);
   const [started,setStarted]=useState(false);
   const [elapsed,setElapsed]=useState(0);
