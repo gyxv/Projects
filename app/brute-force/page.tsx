@@ -340,11 +340,15 @@ export default function BruteforceSimulator(){
 
               <div>
                 <div className="text-sm text-slate-100 mb-3">Presets</div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex gap-2 overflow-x-auto pb-2">
                   {PRESETS.map(p=>(
                     <Tooltip key={p.name}>
                       <TooltipTrigger asChild>
-                        <Button variant="secondary" className="bg-white/10 hover:bg-white/20 text-slate-100 border-white/20" onClick={()=>setExp(p.exp)}>
+                        <Button
+                          variant="secondary"
+                          className="bg-white/10 hover:bg-white/20 text-slate-100 border-white/20 whitespace-nowrap"
+                          onClick={()=>setExp(p.exp)}
+                        >
                           <span className="truncate">{p.name}</span>
                         </Button>
                       </TooltipTrigger>
