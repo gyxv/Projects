@@ -162,7 +162,7 @@ const PRESETS=[
   {name:"Cloud GPU Rig",exp:12.0,note:"~10^12 guesses/s"},
   {name:"FPGA/ASIC",exp:13.0,note:"~10^13 guesses/s"},
   {name:"Supercomputer",exp:14.5,note:"~10^14.5 guesses/s"},
-  {name:"Quantum (theoretical)",exp:16.0,note:"Illustrative only"},
+  {name:"Quantum (theoretical)",exp:16.0,note:"~10^16 guesses/s (theoretical)"},
 ];
 
 export default function BruteforceSimulator(){
@@ -289,8 +289,19 @@ export default function BruteforceSimulator(){
                   <div>
                     <div className="text-xs uppercase tracking-widest text-slate-300 mb-1">Password</div>
                     <div className="relative">
-                      <Input placeholder="Enter a password to simulate…" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&canStart)handleStart();}} className="bg-white/10 border-white/20 focus-visible:ring-cyan-300/60 text-slate-100 placeholder:text-slate-400 pr-10" type={showPassword?"text":"password"}/>
-                      <button aria-label={showPassword?"Hide password":"Show password"} onClick={()=>setShowPassword(v=>!v)} className="absolute inset-y-0 right-3 flex items-center px-1 text-slate-100">
+                      <Input
+                        placeholder="Enter a password to simulate…"
+                        value={password}
+                        onChange={e=>setPassword(e.target.value)}
+                        onKeyDown={e=>{if(e.key==="Enter"&&canStart)handleStart();}}
+                        className="bg-white/10 border-white/20 focus-visible:ring-cyan-300/60 text-slate-100 placeholder:text-slate-400 pr-12"
+                        type={showPassword?"text":"password"}
+                      />
+                      <button
+                        aria-label={showPassword?"Hide password":"Show password"}
+                        onClick={()=>setShowPassword(v=>!v)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-100"
+                      >
                         {showPassword?<EyeOff className="h-4 w-4"/>:<Eye className="h-4 w-4"/>}
                       </button>
                     </div>
