@@ -294,7 +294,7 @@ export default function BruteforceSimulator(){
                         value={password}
                         onChange={e=>setPassword(e.target.value)}
                         onKeyDown={e=>{if(e.key==="Enter"&&canStart)handleStart();}}
-                        className="bg-white/10 border-white/20 focus-visible:ring-cyan-300/60 text-slate-100 placeholder:text-slate-400 pr-10"
+                        className="w-full bg-white/10 border-white/20 focus-visible:ring-cyan-300/60 text-slate-100 placeholder:text-slate-400 pr-10"
                         type={showPassword?"text":"password"}
                       />
                       <button
