@@ -256,12 +256,12 @@ export default function BruteforceSimulator(){
         {/* Layout adapts: single column on small screens, two columns when there is space */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Live Attack */}
-          <Card className="relative overflow-visible bg-white/10 backdrop-blur-xl border-white/20 shadow-2xl ring-1 ring-white/10 rounded-2xl">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-lg text-slate-100"><Lock className="h-5 w-5 text-cyan-300"/> Live Attack</CardTitle>
-              <CardDescription className="text-slate-200">Timer counts up until your password is cracked.</CardDescription>
+          <Card className="relative overflow-visible rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl ring-1 ring-white/10">
+            <CardHeader className="p-6 pb-2 text-center">
+              <CardTitle className="flex items-center justify-center gap-2 text-lg font-bold text-slate-100"><Lock className="h-5 w-5 text-cyan-300"/> Live Attack</CardTitle>
+              <CardDescription className="text-center text-slate-200">Timer counts up until your password is cracked.</CardDescription>
             </CardHeader>
-            <CardContent className="pt-2">
+            <CardContent className="p-6 pt-2">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
                 <div className="relative flex flex-col items-center justify-center">
                   <div className="relative">
@@ -280,7 +280,7 @@ export default function BruteforceSimulator(){
                     <div className="text-xs uppercase tracking-widest text-slate-300 mb-1">Password</div>
                     <div className="relative">
                       <Input placeholder="Enter a password to simulate…" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&canStart)handleStart();}} className="bg-white/10 border-white/20 focus-visible:ring-cyan-300/60 text-slate-100 placeholder:text-slate-400 pr-12" type={showPassword?"text":"password"}/>
-                      <button aria-label={showPassword?"Hide password":"Show password"} onClick={()=>setShowPassword(v=>!v)} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-md bg-white/10 hover:bg-white/20 border border-white/20">
+                      <button aria-label={showPassword?"Hide password":"Show password"} onClick={()=>setShowPassword(v=>!v)} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 transition-colors">
                         {showPassword?<EyeOff className="h-4 w-4 text-slate-100"/>:<Eye className="h-4 w-4 text-slate-100"/>}
                       </button>
                     </div>
@@ -326,12 +326,12 @@ export default function BruteforceSimulator(){
           </Card>
 
           {/* Control Panel */}
-          <Card className="relative overflow-hidden bg-white/10 backdrop-blur-xl border-white/20 shadow-2xl ring-1 ring-white/10 rounded-2xl">
-            <CardHeader>
-              <CardTitle className="text-lg text-slate-100">Control Panel</CardTitle>
-              <CardDescription className="text-slate-200">Logarithmic speed & reference presets</CardDescription>
+          <Card className="relative overflow-hidden rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl ring-1 ring-white/10">
+            <CardHeader className="p-6 pb-2 text-center">
+              <CardTitle className="text-lg font-bold text-slate-100">Control Panel</CardTitle>
+              <CardDescription className="text-center text-slate-200">Logarithmic speed & reference presets</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="p-6 space-y-6">
               <div>
                 <div className="flex items-center justify-between mb-3"><div className="text-sm text-slate-100">Logarithmic speed</div><div className="text-xs text-slate-300">10^{exp.toFixed(1)} guesses/sec</div></div>
                 <Slider value={[exp]} onValueChange={v=>setExp(clamp(v[0],3,16))} min={3} max={16} step={0.1}/>
@@ -339,14 +339,14 @@ export default function BruteforceSimulator(){
               </div>
 
               <div>
-                <div className="text-sm text-slate-100 mb-3">Presets</div>
-                <div className="flex gap-2 overflow-x-auto pb-2">
+                <div className="text-sm text-slate-100 mb-3 text-center">Presets</div>
+                <div className="flex flex-wrap gap-2 justify-center">
                   {PRESETS.map(p=>(
                     <Tooltip key={p.name}>
                       <TooltipTrigger asChild>
                         <Button
                           variant="secondary"
-                          className="bg-white/10 hover:bg-white/20 text-slate-100 border-white/20 whitespace-nowrap"
+                          className="bg-white/10 hover:bg-white/20 text-slate-100 border-white/20"
                           onClick={()=>setExp(p.exp)}
                         >
                           <span className="truncate">{p.name}</span>
@@ -379,12 +379,12 @@ export default function BruteforceSimulator(){
         <AnimatePresence>
           {showAttemptStream&&(
             <motion.div initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} exit={{opacity:0,y:12}} transition={{duration:0.35}} className="mt-8">
-              <Card className="bg-white/10 backdrop-blur-xl border-white/20 ring-1 ring-white/10 overflow-hidden rounded-2xl">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base text-slate-100">Attempt Stream</CardTitle>
-                  <CardDescription className="text-slate-200">Recently tried passwords</CardDescription>
+              <Card className="rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 ring-1 ring-white/10 overflow-hidden">
+                <CardHeader className="p-6 pb-2 text-center">
+                  <CardTitle className="text-base font-bold text-slate-100">Attempt Stream</CardTitle>
+                  <CardDescription className="text-center text-slate-200">Recently tried passwords</CardDescription>
                 </CardHeader>
-                <CardContent className="pt-2">
+                <CardContent className="p-6 pt-2">
                   {/* Right-aligned, comma-formatted growing count */}
                   <div className="mb-3 min-w-0">
                     <div className="text-xs text-slate-300 text-right">Tried</div>
