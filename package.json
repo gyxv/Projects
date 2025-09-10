@@ -2,7 +2,6 @@
   "name": "projects",
   "version": "1.0.0",
   "description": "",
-  "main": "bruteforce.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -12,7 +11,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "framer-motion": "^12.23.12",
     "lucide-react": "^0.543.0",
