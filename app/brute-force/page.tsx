@@ -124,7 +124,15 @@ function WordlistAttack({list,password,gps,onReveal}: WordlistAttackProps){
     }
   };
 
-  const handleSkip=()=>{ if(started&&!done){ setElapsed(duration); setDone(true);} };
+  // Allow users to click an active mini-timer to fast-forward to its final state.
+  // When invoked, we jump `elapsed` straight to the computed `duration` and mark
+  // the attack as done so the ring and bottom timestamp reflect the true total
+  // time instead of the partially elapsed time at the moment of the click.
+  const handleSkip = () => {
+    if (!started || done) return;
+    setElapsed(duration);
+    setDone(true);
+  };
 
   return(
     <div className="flex flex-col items-center gap-2">
