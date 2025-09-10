@@ -294,13 +294,13 @@ export default function BruteforceSimulator(){
                         value={password}
                         onChange={e=>setPassword(e.target.value)}
                         onKeyDown={e=>{if(e.key==="Enter"&&canStart)handleStart();}}
-                        className="bg-white/10 border-white/20 focus-visible:ring-cyan-300/60 text-slate-100 placeholder:text-slate-400 pr-12"
+                        className="bg-white/10 border-white/20 focus-visible:ring-cyan-300/60 text-slate-100 placeholder:text-slate-400 pr-10"
                         type={showPassword?"text":"password"}
                       />
                       <button
                         aria-label={showPassword?"Hide password":"Show password"}
                         onClick={()=>setShowPassword(v=>!v)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-100"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-md bg-white/10 hover:bg-white/20 border border-white/20 text-slate-100"
                       >
                         {showPassword?<EyeOff className="h-4 w-4"/>:<Eye className="h-4 w-4"/>}
                       </button>
