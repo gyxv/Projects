@@ -300,7 +300,7 @@ export default function BruteforceSimulator(){
                       <button
                         aria-label={showPassword?"Hide password":"Show password"}
                         onClick={()=>setShowPassword(v=>!v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-md bg-white/10 hover:bg-white/20 border border-white/20 text-slate-100"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-100 hover:text-slate-300"
                       >
                         {showPassword?<EyeOff className="h-4 w-4"/>:<Eye className="h-4 w-4"/>}
                       </button>
