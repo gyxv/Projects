@@ -74,7 +74,7 @@ const timerColor = (p: number) => {
 };
 
 // Neon ring with progress-based glow
-function Ring({progress}:{progress:number}){const p=clamp(progress,0,1),deg=p*360,glow=18+22*p,alpha=0.25+0.35*p;return(<div className="relative z-10 w-72 h-72 md:w-80 md:h-80"><div className="absolute inset-0 rounded-full" style={{background:`conic-gradient(rgb(56 189 248) ${deg}deg, rgb(30 41 59) ${deg}deg 360deg)`,filter:`drop-shadow(0 0 ${glow}px rgba(56,189,248,${alpha}))`}}/><div className="absolute inset-2 rounded-full bg-slate-900/70 backdrop-blur-xl border border-white/15"/></div>)}
+function Ring({progress}:{progress:number}){const p=clamp(progress,0,1),deg=p*360,glow=18+22*p,alpha=0.25+0.35*p;return(<div className="relative z-10 w-64 h-64 sm:w-72 sm:h-72 md:w-80 md:h-80"><div className="absolute inset-0 rounded-full" style={{background:`conic-gradient(rgb(56 189 248) ${deg}deg, rgb(30 41 59) ${deg}deg 360deg)`,filter:`drop-shadow(0 0 ${glow}px rgba(56,189,248,${alpha}))`}}/><div className="absolute inset-2 rounded-full bg-slate-900/70 backdrop-blur-xl border border-white/15"/></div>)}
 
 function MiniRing({progress,color}:{progress:number;color:string}){const p=clamp(progress,0,1),deg=p*360;return(<div className="relative w-16 h-16"><div className="absolute inset-0 rounded-full" style={{background:`conic-gradient(${color} ${deg}deg, rgb(30 41 59) ${deg}deg 360deg)`}}/><div className="absolute inset-[2px] rounded-full bg-slate-900/70 border border-white/15"/></div>)}
 
@@ -238,7 +238,7 @@ export default function BruteforceSimulator(){
       </div>
 
       <div className="relative mx-auto max-w-7xl px-6 py-10">
-        <div className="flex items-center justify-between gap-6 mb-10">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-10">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-xl bg-cyan-400/25 border border-cyan-400/40 grid place-items-center"><Sparkles className="h-5 w-5 text-cyan-200"/></div>
             <div>
@@ -249,7 +249,8 @@ export default function BruteforceSimulator(){
           <div className="hidden md:flex items-center gap-2 text-slate-300 text-sm"><Info className="h-4 w-4"/> Educational simulation — illustrative speeds.</div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Layout adapts: single column on small screens, two columns when there is space */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Live Attack */}
           <Card className="relative overflow-visible bg-white/10 backdrop-blur-xl border-white/20 shadow-2xl ring-1 ring-white/10">
             <CardHeader className="pb-2">
