@@ -9,7 +9,7 @@ import { Badge } from "../../components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../components/ui/tooltip";
 import { Switch } from "../../components/ui/switch";
 import { Separator } from "../../components/ui/separator";
-import { Info, Lock, Play, Pause, RotateCcw, Sparkles, Eye, EyeOff, Check, X, Download } from "lucide-react";
+import { Info, Lock, Unlock, Play, Pause, RotateCcw, Sparkles, Eye, EyeOff, X, Download } from "lucide-react";
 import { WORDLISTS, WordlistMeta } from "./wordlists";
 
 // ---- utils (condensed) ----
@@ -136,10 +136,10 @@ function WordlistAttack({list,password,gps,onReveal}: WordlistAttackProps){
           <div className="relative" onClick={handleSkip}>
             <MiniRing progress={progress} color={color}/>
             <div className="absolute inset-0 grid place-items-center text-xs text-slate-100">
-              {done ? (found ? <X className="h-4 w-4"/> : <Check className="h-4 w-4"/>) : fmtTime(elapsed)}
+              {done ? (found ? <Unlock className="h-4 w-4"/> : <Lock className="h-4 w-4"/>) : `${elapsed.toFixed(3)}s`}
             </div>
           </div>
-          <div className="text-xs text-slate-200 mt-1">{fmtTime(done?duration:elapsed)}</div>
+          <div className="text-xs text-slate-200 mt-1">{(done?duration:elapsed).toFixed(3)}s</div>
         </div>
       )}
     </div>
@@ -186,6 +186,10 @@ export default function BruteforceSimulator(){
   },[running]);
 
   const progress=useMemo(()=>clamp(estSec>0?elapsed/estSec:1,0,1),[elapsed,estSec]);
+  const progressPct=useMemo(()=>{
+    const pct=progress*100;
+    return estSec>500?pct.toFixed(3):pct.toFixed(0);
+  },[progress,estSec]);
   useEffect(()=>{ if(!cracked&&progress>=1) setCracked(true); },[progress,cracked]);
 
   // Attempt stream and count
@@ -252,13 +256,13 @@ export default function BruteforceSimulator(){
         {/* Layout adapts: single column on small screens, two columns when there is space */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Live Attack */}
-          <Card className="relative overflow-visible bg-white/10 backdrop-blur-xl border-white/20 shadow-2xl ring-1 ring-white/10">
+          <Card className="relative overflow-visible bg-white/10 backdrop-blur-xl border-white/20 shadow-2xl ring-1 ring-white/10 rounded-2xl">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-lg text-slate-100"><Lock className="h-5 w-5 text-cyan-300"/> Live Attack</CardTitle>
               <CardDescription className="text-slate-200">Timer counts up until your password is cracked.</CardDescription>
             </CardHeader>
             <CardContent className="pt-2">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
                 <div className="relative flex flex-col items-center justify-center">
                   <div className="relative">
                     <Ring progress={progress}/>
@@ -266,7 +270,7 @@ export default function BruteforceSimulator(){
                       <motion.div key={fmtTime(elapsed)} initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} transition={{duration:0.25}} className="text-4xl sm:text-5xl md:text-6xl font-semibold tabular-nums tracking-tight" style={{color: timerColor(progress), textShadow: '0 2px 8px rgba(0,0,0,0.35)'}}>
                           {fmtTime(elapsed)}
                         </motion.div>
-                      <div className="mt-2 text-xs text-slate-200">progress {(progress*100).toFixed(0)}%</div>
+                      <div className="mt-2 text-xs text-slate-200">progress {progressPct}%</div>
                     </div>
                   </div>
                 </div>
@@ -285,17 +289,17 @@ export default function BruteforceSimulator(){
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="p-3 rounded-xl bg-white/10 border border-white/15"><div className="text-slate-300 text-xs">Assumed charset</div><div className="font-medium text-slate-100">{cs} symbols</div></div>
-                    <div className="p-3 rounded-xl bg-white/10 border border-white/15"><div className="text-slate-300 text-xs">Length</div><div className="font-medium text-slate-100">{len} chars</div></div>
-                    <div className="p-3 rounded-xl bg-white/10 border border-white/15 col-span-2"><div className="text-slate-300 text-xs">Search space</div><div className="font-medium text-slate-100">10^{l10Space.toFixed(2)} ≈ {fmtPow10(Math.pow(10,l10Space))}</div></div>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="p-4 rounded-2xl bg-white/10 border border-white/15"><div className="text-slate-300 text-xs">Assumed charset</div><div className="font-medium text-slate-100">{cs} symbols</div></div>
+                    <div className="p-4 rounded-2xl bg-white/10 border border-white/15"><div className="text-slate-300 text-xs">Length</div><div className="font-medium text-slate-100">{len} chars</div></div>
+                    <div className="p-4 rounded-2xl bg-white/10 border border-white/15 col-span-2"><div className="text-slate-300 text-xs">Search space</div><div className="font-medium text-slate-100">10^{l10Space.toFixed(2)} ≈ {fmtPow10(Math.pow(10,l10Space))}</div></div>
                   </div>
 
                   <Separator className="bg-white/15"/>
 
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="p-3 rounded-xl bg-white/10 border border-white/15"><div className="text-slate-300 text-xs">Speed</div><div className="font-medium text-slate-100">10^{exp.toFixed(1)} guesses/s</div></div>
-                    <div className="p-3 rounded-xl bg-white/10 border border-white/15"><div className="text-slate-300 text-xs">Est. crack time</div><div className="font-medium text-slate-100">{isFinite(estSec)?fmtLong(estSec):"—"}</div></div>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="p-4 rounded-2xl bg-white/10 border border-white/15"><div className="text-slate-300 text-xs">Speed</div><div className="font-medium text-slate-100">10^{exp.toFixed(1)} guesses/s</div></div>
+                    <div className="p-4 rounded-2xl bg-white/10 border border-white/15"><div className="text-slate-300 text-xs">Est. crack time</div><div className="font-medium text-slate-100">{isFinite(estSec)?fmtLong(estSec):"—"}</div></div>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3 pt-2">
@@ -322,7 +326,7 @@ export default function BruteforceSimulator(){
           </Card>
 
           {/* Control Panel */}
-          <Card className="relative overflow-hidden bg-white/10 backdrop-blur-xl border-white/20 shadow-2xl ring-1 ring-white/10">
+          <Card className="relative overflow-hidden bg-white/10 backdrop-blur-xl border-white/20 shadow-2xl ring-1 ring-white/10 rounded-2xl">
             <CardHeader>
               <CardTitle className="text-lg text-slate-100">Control Panel</CardTitle>
               <CardDescription className="text-slate-200">Logarithmic speed & reference presets</CardDescription>
@@ -330,17 +334,17 @@ export default function BruteforceSimulator(){
             <CardContent className="space-y-6">
               <div>
                 <div className="flex items-center justify-between mb-3"><div className="text-sm text-slate-100">Logarithmic speed</div><div className="text-xs text-slate-300">10^{exp.toFixed(1)} guesses/sec</div></div>
-                <Slider value={[exp]} onValueChange={v=>setExp(clamp(v[0],3,16))} min={3} max={16} step={0.1} className="cursor-pointer"/>
+                <Slider value={[exp]} onValueChange={v=>setExp(clamp(v[0],3,16))} min={3} max={16} step={0.1}/>
                 <div className="flex justify-between text-xs text-slate-400 mt-2"><span>10^3</span><span>10^6</span><span>10^9</span><span>10^12</span><span>10^15</span></div>
               </div>
 
               <div>
                 <div className="text-sm text-slate-100 mb-3">Presets</div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <div className="flex flex-wrap gap-2">
                   {PRESETS.map(p=>(
                     <Tooltip key={p.name}>
                       <TooltipTrigger asChild>
-                        <Button variant="secondary" className="justify-start bg-white/10 hover:bg-white/20 text-slate-100 border-white/20" onClick={()=>setExp(p.exp)}>
+                        <Button variant="secondary" className="bg-white/10 hover:bg-white/20 text-slate-100 border-white/20" onClick={()=>setExp(p.exp)}>
                           <span className="truncate">{p.name}</span>
                         </Button>
                       </TooltipTrigger>
@@ -357,9 +361,9 @@ export default function BruteforceSimulator(){
                 <div className="p-4 rounded-2xl bg-gradient-to-br from-white/15 to-white/10 border border-white/20"><div className="text-xs text-slate-300">Time at this speed</div><div className="text-lg font-semibold text-slate-100">{isFinite(estSec)?fmtLong(estSec):"—"}</div><div className="text-xs text-slate-300">10^{l10Sec.toFixed(2)} seconds</div></div>
               </div>
 
-              <div className="flex items-center justify-between p-3 rounded-xl bg-white/10 border border-white/20">
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-white/10 border border-white/20">
                 <div className="text-sm text-slate-100 flex items-center gap-2"><Eye className="h-4 w-4"/> Show attempt stream</div>
-                <Switch checked={showAttemptStream} onCheckedChange={setShowAttemptStream} className="bg-black data-[state=checked]:bg-white [&>span]:bg-white [&[data-state=checked]>span]:bg-black"/>
+                <Switch checked={showAttemptStream} onCheckedChange={setShowAttemptStream}/>
               </div>
 
               <div className="text-xs text-slate-300 leading-relaxed">This is an educational simulation. Real attacks depend on hashing, salts, rate limits, and wordlists. Presets are ballpark references.</div>
@@ -371,7 +375,7 @@ export default function BruteforceSimulator(){
         <AnimatePresence>
           {showAttemptStream&&(
             <motion.div initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} exit={{opacity:0,y:12}} transition={{duration:0.35}} className="mt-8">
-              <Card className="bg-white/10 backdrop-blur-xl border-white/20 ring-1 ring-white/10 overflow-hidden">
+              <Card className="bg-white/10 backdrop-blur-xl border-white/20 ring-1 ring-white/10 overflow-hidden rounded-2xl">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base text-slate-100">Attempt Stream</CardTitle>
                   <CardDescription className="text-slate-200">Recently tried passwords</CardDescription>
