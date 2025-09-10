@@ -9,7 +9,7 @@ import { Badge } from "../../components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../components/ui/tooltip";
 import { Switch } from "../../components/ui/switch";
 import { Separator } from "../../components/ui/separator";
-import { Info, Lock, Unlock, Play, Pause, RotateCcw, Sparkles, Eye, EyeOff, X, Download } from "lucide-react";
+import { Info, Lock, Unlock, Play, Pause, RotateCcw, Sparkles, Eye, EyeOff, X, Download, Sliders, Activity } from "lucide-react";
 import { WORDLISTS, WordlistMeta } from "./wordlists";
 
 // ---- utils (condensed) ----
@@ -133,7 +133,7 @@ function WordlistAttack({list,password,gps,onReveal}: WordlistAttackProps){
       </motion.div>
       {started&&(
         <div className="flex flex-col items-center">
-          <div className="relative" onClick={handleSkip}>
+          <div className="relative cursor-pointer" onClick={handleSkip}>
             <MiniRing progress={progress} color={color}/>
             <div className="absolute inset-0 grid place-items-center text-xs text-slate-100">
               {done ? (found ? <Unlock className="h-4 w-4"/> : <Lock className="h-4 w-4"/>) : `${elapsed.toFixed(3)}s`}
@@ -188,7 +188,9 @@ export default function BruteforceSimulator(){
   const progress=useMemo(()=>clamp(estSec>0?elapsed/estSec:1,0,1),[elapsed,estSec]);
   const progressPct=useMemo(()=>{
     const pct=progress*100;
-    return estSec>500?pct.toFixed(3):pct.toFixed(0);
+    if(estSec>86400) return pct.toFixed(4);
+    if(estSec>500) return pct.toFixed(3);
+    return pct.toFixed(0);
   },[progress,estSec]);
   useEffect(()=>{ if(!cracked&&progress>=1) setCracked(true); },[progress,cracked]);
 
@@ -279,9 +281,9 @@ export default function BruteforceSimulator(){
                   <div>
                     <div className="text-xs uppercase tracking-widest text-slate-300 mb-1">Password</div>
                     <div className="relative">
-                      <Input placeholder="Enter a password to simulate…" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&canStart)handleStart();}} className="bg-white/10 border-white/20 focus-visible:ring-cyan-300/60 text-slate-100 placeholder:text-slate-400 pr-12" type={showPassword?"text":"password"}/>
-                      <button aria-label={showPassword?"Hide password":"Show password"} onClick={()=>setShowPassword(v=>!v)} className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 transition-colors">
-                        {showPassword?<EyeOff className="h-4 w-4 text-slate-100"/>:<Eye className="h-4 w-4 text-slate-100"/>}
+                      <Input placeholder="Enter a password to simulate…" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&canStart)handleStart();}} className="bg-white/10 border-white/20 focus-visible:ring-cyan-300/60 text-slate-100 placeholder:text-slate-400 pr-10" type={showPassword?"text":"password"}/>
+                      <button aria-label={showPassword?"Hide password":"Show password"} onClick={()=>setShowPassword(v=>!v)} className="absolute inset-y-0 right-3 flex items-center px-1 text-slate-100">
+                        {showPassword?<EyeOff className="h-4 w-4"/>:<Eye className="h-4 w-4"/>}
                       </button>
                     </div>
                     <div className="flex gap-2 mt-2">
@@ -328,7 +330,7 @@ export default function BruteforceSimulator(){
           {/* Control Panel */}
           <Card className="relative overflow-hidden rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl ring-1 ring-white/10">
             <CardHeader className="p-6 pb-2 text-center">
-              <CardTitle className="text-lg font-bold text-slate-100">Control Panel</CardTitle>
+              <CardTitle className="flex items-center justify-center gap-2 text-lg font-bold text-slate-100"><Sliders className="h-5 w-5 text-fuchsia-300"/> Control Panel</CardTitle>
               <CardDescription className="text-center text-slate-200">Logarithmic speed & reference presets</CardDescription>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
@@ -381,7 +383,7 @@ export default function BruteforceSimulator(){
             <motion.div initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} exit={{opacity:0,y:12}} transition={{duration:0.35}} className="mt-8">
               <Card className="rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 ring-1 ring-white/10 overflow-hidden">
                 <CardHeader className="p-6 pb-2 text-center">
-                  <CardTitle className="text-base font-bold text-slate-100">Attempt Stream</CardTitle>
+                  <CardTitle className="flex items-center justify-center gap-2 text-base font-bold text-slate-100"><Activity className="h-4 w-4 text-emerald-300"/> Attempt Stream</CardTitle>
                   <CardDescription className="text-center text-slate-200">Recently tried passwords</CardDescription>
                 </CardHeader>
                 <CardContent className="p-6 pt-2">
