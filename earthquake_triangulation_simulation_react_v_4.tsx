@@ -1,5 +1,8 @@
-import React, { useEffect, useRef, useState, MouseEvent } from "react";
 import { motion } from "framer-motion";
+
+declare const React: typeof import("react");
+const { useEffect, useRef, useState } = React;
+type ReactMouseEvent<T = Element> = React.MouseEvent<T>;
 
 // Compact, ASCII-only, safer build: no template literals in styles, no bracketed Tailwind classes
 // Key fixes:
@@ -56,7 +59,10 @@ export default function EarthquakeTriangulation() {
   const [revealK, setRevealK] = useState<number[]>([]);
   const [chartOpen, setChartOpen] = useState(false);
   const [pct, setPct] = useState<number[]>([]);
+  const [infoOpen, setInfoOpen] = useState(true);
+  const [controlsOpen, setControlsOpen] = useState(true);
   const baseAreaCnt = useRef(0);
+  const pauseAt = useRef<number | null>(null);
 
   // Tunables
   const vP = 260, vS = 150; // px/s
@@ -207,7 +213,7 @@ export default function EarthquakeTriangulation() {
       if (!frozen && sc.stations.every(s => s.revealed)) { setFrozen(true); setFreezeTS(now); }
       let k = 0; if (freezeTS) { k = clamp((now - freezeTS - finalDelay) / finalFade, 0, 1); }
       drawMask(bands, k);
-      if (run || k < 1) raf = requestAnimationFrame(tick);
+      if (run || (frozen && k < 1)) raf = requestAnimationFrame(tick);
     };
 
     raf = requestAnimationFrame(tick);
@@ -217,7 +223,24 @@ export default function EarthquakeTriangulation() {
   // Reset and click-to-set origin
   const reset = () => setSeed(s => s + 1);
   const resetAt = (x: number, y: number) => { setForceO({ x, y }); setSeed(s => s + 1); };
-  const clickBg = (e: MouseEvent<HTMLDivElement>) => { const t = e.target as HTMLElement; if (t.closest("._uiPanel")) return; const el = wrapRef.current; if (!el) return; const r = el.getBoundingClientRect(); resetAt(e.clientX - r.left, e.clientY - r.top); };
+  const clickBg = (e: ReactMouseEvent<HTMLDivElement>) => { const t = e.target as HTMLElement; if (t.closest("._uiPanel")) return; const el = wrapRef.current; if (!el) return; const r = el.getBoundingClientRect(); resetAt(e.clientX - r.left, e.clientY - r.top); };
+  const toggleRun = (e: ReactMouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    setRun(r => {
+      if (r) {
+        pauseAt.current = performance.now() / 1000;
+        return false;
+      } else {
+        const now = performance.now() / 1000;
+        if (pauseAt.current != null) {
+          const delta = now - pauseAt.current;
+          setStartTS(s => (s !== null ? s + delta : null));
+        }
+        pauseAt.current = null;
+        return true;
+      }
+    });
+  };
 
   // Helpers for inline styles to avoid template strings
   const pctHeight = (p: number) => String(Math.max(2, p)) + "%";
@@ -237,40 +260,176 @@ export default function EarthquakeTriangulation() {
       ) : null}
 
       {/* info panel */}
-      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="_uiPanel absolute top-4 left-4 z-40 backdrop-blur-md bg-white/10 border border-white/15 rounded-2xl p-4 text-slate-100 shadow-2xl max-w-md" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center gap-3"><div className="h-2.5 w-2.5 rounded-full bg-red-500"/><h1 className="text-lg font-semibold">Earthquake Triangulation</h1></div>
-        <p className="mt-2 text-xs text-slate-200/80">P (blue) and S (green) ripples radiate from a red epicenter. Each station draws an uncertainty band from S-P timing. After all five, the ALL-overlap fades in gold.</p>
-      </motion.div>
+      {infoOpen ? (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="_uiPanel absolute top-4 left-4 z-40 backdrop-blur-md bg-white/10 border border-white/15 rounded-2xl p-4 text-slate-100 shadow-2xl max-w-md"
+          onClick={e => e.stopPropagation()}
+        >
+          <button
+            onClick={e => { e.stopPropagation(); setInfoOpen(false); }}
+            className="absolute top-2 right-2 text-xs text-slate-200/80 underline-offset-2 hover:underline"
+          >
+            Hide
+          </button>
+          <div className="flex items-center gap-3">
+            <div className="h-2.5 w-2.5 rounded-full bg-red-500" />
+            <h1 className="text-lg font-semibold">Earthquake Triangulation</h1>
+          </div>
+          <p className="mt-2 text-xs text-slate-200/80">
+            P (blue) and S (green) ripples radiate from a red epicenter. Each station draws an uncertainty band from S-P timing. After all five, the ALL-overlap fades in gold.
+          </p>
+        </motion.div>
+      ) : (
+        <button
+          onClick={e => { e.stopPropagation(); setInfoOpen(true); }}
+          className="_uiPanel absolute top-4 left-4 z-40 backdrop-blur-md bg-white/10 border border-white/15 rounded-2xl px-3 py-2 text-xs text-slate-100 shadow-2xl"
+        >
+          Show info
+        </button>
+      )}
 
-      {/* controls */}
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="_uiPanel absolute top-4 right-4 z-40 backdrop-blur-xl bg-white/10 border border-white/15 rounded-2xl p-3 shadow-xl min-w-[240px]" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center gap-2">
-          <button onClick={e => { e.stopPropagation(); reset(); }} className="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-slate-100 text-sm border border-white/20">Reset</button>
-          <button onClick={e => { e.stopPropagation(); setRun(r => !r); }} className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-100 text-xs border border-white/20">{run ? "Pause" : "Play"}</button>
-        </div>
-        <div className="mt-3">
-          <label className="text-xs text-slate-200/80 flex items-center justify-between mb-1"><span>Speed</span><span className="font-mono">{speed.toFixed(2)}x</span></label>
-          <input type="range" min={0.25} max={3} step={0.05} value={speed} onChange={e => setSpeed(parseFloat(e.target.value))} className="w-full" />
-        </div>
-        <div className="mt-2" style={{ fontSize: 10, color: "rgba(226,232,240,0.7)" }}>Click anywhere to choose the next origin.</div>
-      </motion.div>
+      {controlsOpen ? (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="_uiPanel absolute top-4 right-4 z-40 backdrop-blur-xl bg-white/10 border border-white/15 rounded-2xl p-3 shadow-xl min-w-[240px]"
+          onClick={e => e.stopPropagation()}
+        >
+          <button
+            onClick={e => { e.stopPropagation(); setControlsOpen(false); }}
+            className="absolute top-2 right-2 text-xs text-slate-200/80 underline-offset-2 hover:underline"
+          >
+            Hide
+          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={e => { e.stopPropagation(); reset(); }}
+              className="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-slate-100 text-sm border border-white/20"
+            >
+              Reset
+            </button>
+            <button
+              onClick={toggleRun}
+              className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-100 text-xs border border-white/20"
+            >
+              {run ? "Pause" : "Play"}
+            </button>
+          </div>
+          <div className="mt-3">
+            <label className="text-xs text-slate-200/80 flex items-center justify-between mb-1"><span>Speed</span><span className="font-mono">{speed.toFixed(2)}x</span></label>
+            <input
+              type="range"
+              min={0.25}
+              max={3}
+              step={0.05}
+              value={speed}
+              onChange={e => setSpeed(parseFloat(e.target.value))}
+              className="w-full"
+            />
+          </div>
+          <div className="mt-2" style={{ fontSize: 10, color: "rgba(226,232,240,0.7)" }}>Click anywhere to choose the next origin.</div>
+        </motion.div>
+      ) : (
+        <button
+          onClick={e => { e.stopPropagation(); setControlsOpen(true); }}
+          className="_uiPanel absolute top-4 right-4 z-40 backdrop-blur-xl bg-white/10 border border-white/15 rounded-2xl px-3 py-2 text-xs text-slate-100 shadow-xl"
+        >
+          Show controls
+        </button>
+      )}
 
       {/* coverage chart */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} className="_uiPanel absolute bottom-3 left-1/2 -translate-x-1/2 z-40 backdrop-blur-xl bg-white/10 border border-white/15 rounded-2xl px-3 py-2 text-slate-100" onClick={e => e.stopPropagation()}>
-        <button onClick={() => setChartOpen(o => !o)} className="text-xs underline-offset-2 hover:underline">{chartOpen ? "Hide coverage chart" : "Show coverage chart"}</button>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+        className="_uiPanel absolute bottom-3 left-3 z-40 backdrop-blur-xl bg-white/10 border border-white/15 rounded-2xl text-slate-100"
+        style={{ width: chartOpen ? 560 : undefined, padding: chartOpen ? "12px 16px" : "8px" }}
+        onClick={e => e.stopPropagation()}
+      >
         {chartOpen ? (
-          <div className="mt-2" style={{ width: 288, height: 112, position: "relative" }}>
-            <div style={{ position: "absolute", left: 0, right: 0, bottom: 20, height: 96, display: "flex", alignItems: "flex-end", gap: 8 }}>
+          <>
+            <button onClick={() => setChartOpen(false)} className="text-xs underline-offset-2 hover:underline">
+              Hide coverage chart
+            </button>
+            <div className="mt-4" style={{ width: 520, height: 200, position: "relative" }}>
+              <div
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  right: 0,
+                top: 0,
+                bottom: 60,
+                display: "flex",
+                alignItems: "flex-end",
+                gap: 16,
+              }}
+            >
               {pct.map((p, i) => (
-                <div key={i} style={{ width: 28, background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 6, height: pctHeight(p), position: "relative" }}>
-                  <span style={{ position: "absolute", top: -16, left: "50%", transform: "translateX(-50%)", fontSize: 10 }}>{Math.round(p)}%</span>
-                  <span style={{ position: "absolute", bottom: -16, left: "50%", transform: "translateX(-50%)", fontSize: 10 }}>{i + 1}</span>
+                <div
+                  key={i}
+                  style={{
+                    width: 40,
+                    background: "rgba(255,255,255,0.2)",
+                    border: "1px solid rgba(255,255,255,0.25)",
+                    borderRadius: 6,
+                    height: pctHeight(p),
+                    position: "relative",
+                  }}
+                >
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: -24,
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      fontSize: 12,
+                    }}
+                  >
+                    {Math.round(p)}%
+                  </span>
                 </div>
               ))}
             </div>
-            <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, textAlign: "center", fontSize: 10 }}>Station number -&gt;</div>
+            <div
+              style={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                bottom: 28,
+                display: "flex",
+                alignItems: "center",
+                gap: 16,
+                fontSize: 12,
+              }}
+            >
+              {pct.map((_, i) => (
+                <span key={i} style={{ width: 40, textAlign: "center" }}>{i + 1}</span>
+              ))}
+            </div>
+            <div
+              style={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                bottom: 0,
+                textAlign: "center",
+                fontSize: 12,
+              }}
+            >
+              Station number
+            </div>
           </div>
-        ) : null}
+          </>
+        ) : (
+          <button onClick={() => setChartOpen(true)} aria-label="Show coverage chart">
+            📊
+          </button>
+        )}
       </motion.div>
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 0.3 }} className="absolute bottom-14 left-1/2 -translate-x-1/2 text-center text-xs text-slate-300/60">Click anywhere to choose the next origin, or use Reset.</motion.div>

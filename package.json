@@ -14,7 +14,14 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "framer-motion": "^12.23.12",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.24",
+    "@types/react-dom": "^18.2.9",
+    "esbuild": "^0.20.2",
+    "typescript": "^5.4.5"
   }
 }
