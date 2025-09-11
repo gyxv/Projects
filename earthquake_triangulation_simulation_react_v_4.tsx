@@ -347,20 +347,21 @@ export default function EarthquakeTriangulation() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
-        className="_uiPanel absolute bottom-3 left-1/2 -translate-x-1/2 z-40 backdrop-blur-xl bg-white/10 border border-white/15 rounded-2xl px-4 py-3 text-slate-100"
-        style={{ width: chartOpen ? 560 : undefined }}
+        className="_uiPanel absolute bottom-3 left-3 z-40 backdrop-blur-xl bg-white/10 border border-white/15 rounded-2xl text-slate-100"
+        style={{ width: chartOpen ? 560 : undefined, padding: chartOpen ? "12px 16px" : "8px" }}
         onClick={e => e.stopPropagation()}
       >
-        <button onClick={() => setChartOpen(o => !o)} className="text-xs underline-offset-2 hover:underline">
-          {chartOpen ? "Hide coverage chart" : "Show coverage chart"}
-        </button>
         {chartOpen ? (
-          <div className="mt-4" style={{ width: 520, height: 200, position: "relative" }}>
-            <div
-              style={{
-                position: "absolute",
-                left: 0,
-                right: 0,
+          <>
+            <button onClick={() => setChartOpen(false)} className="text-xs underline-offset-2 hover:underline">
+              Hide coverage chart
+            </button>
+            <div className="mt-4" style={{ width: 520, height: 200, position: "relative" }}>
+              <div
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  right: 0,
                 top: 0,
                 bottom: 60,
                 display: "flex",
@@ -401,12 +402,13 @@ export default function EarthquakeTriangulation() {
                 right: 0,
                 bottom: 28,
                 display: "flex",
-                justifyContent: "space-around",
+                alignItems: "center",
+                gap: 16,
                 fontSize: 12,
               }}
             >
               {pct.map((_, i) => (
-                <span key={i}>{i + 1}</span>
+                <span key={i} style={{ width: 40, textAlign: "center" }}>{i + 1}</span>
               ))}
             </div>
             <div
@@ -422,7 +424,12 @@ export default function EarthquakeTriangulation() {
               Station number
             </div>
           </div>
-        ) : null}
+          </>
+        ) : (
+          <button onClick={() => setChartOpen(true)} aria-label="Show coverage chart">
+            📊
+          </button>
+        )}
       </motion.div>
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 0.3 }} className="absolute bottom-14 left-1/2 -translate-x-1/2 text-center text-xs text-slate-300/60">Click anywhere to choose the next origin, or use Reset.</motion.div>
