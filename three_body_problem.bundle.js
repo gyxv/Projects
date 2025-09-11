@@ -1,27 +1,5 @@
-var ThreeBodyGlassSim = (() => {
-  var __defProp = Object.defineProperty;
-  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-  var __getOwnPropNames = Object.getOwnPropertyNames;
-  var __hasOwnProp = Object.prototype.hasOwnProperty;
-  var __export = (target, all) => {
-    for (var name in all)
-      __defProp(target, name, { get: all[name], enumerable: true });
-  };
-  var __copyProps = (to, from, except, desc) => {
-    if (from && typeof from === "object" || typeof from === "function") {
-      for (let key of __getOwnPropNames(from))
-        if (!__hasOwnProp.call(to, key) && key !== except)
-          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
-    }
-    return to;
-  };
-  var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
-
+(() => {
   // three_body_problem.tsx
-  var three_body_problem_exports = {};
-  __export(three_body_problem_exports, {
-    default: () => ThreeBodyGlassSim
-  });
   var { useEffect, useRef, useState } = React;
   var orientationPresets = [
     {
@@ -49,34 +27,71 @@ var ThreeBodyGlassSim = (() => {
         [-0.57, -0.329],
         [0.57, -0.329]
       ]
-    },
-    {
-      label: "Spiral",
-      p: [
-        [0.9, -0.2],
-        [-0.9, -0.2],
-        [0, 0.4]
-      ],
-      v: [
-        [-0.2, 0.5],
-        [-0.2, -0.5],
-        [0.4, 0]
-      ]
-    },
-    {
-      label: "Chain",
-      p: [
-        [-0.8, 0.2],
-        [0.8, -0.2],
-        [0, 0]
-      ],
-      v: [
-        [-0.1, 0.4],
-        [-0.1, -0.8],
-        [0.2, 0.4]
-      ]
     }
   ];
+  function randomOrientation() {
+    const rand = () => Math.random() * 2 - 1;
+    return {
+      label: "Random",
+      p: [
+        [rand(), rand()],
+        [rand(), rand()],
+        [rand(), rand()]
+      ],
+      v: [
+        [rand() * 0.5, rand() * 0.5],
+        [rand() * 0.5, rand() * 0.5],
+        [rand() * 0.5, rand() * 0.5]
+      ]
+    };
+  }
+  function createObjectSet(center) {
+    const objs = [];
+    const choice = Math.random();
+    if (choice < 0.25) {
+      const star = { mass: 5, radius: 0.15, orbitCenter: center, orbitRadius: 0, omega: 0, phase: 0, color: "#ffdd88" };
+      objs.push(star);
+      const n = 1 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < n; i++) {
+        const r = 2 + Math.random() * 4;
+        const omega = Math.sqrt(star.mass / Math.pow(r, 3));
+        objs.push({ mass: 0.4, radius: 0.04, orbitCenter: center, orbitRadius: r, omega, phase: Math.random() * Math.PI * 2, color: "#88aaff" });
+      }
+    } else if (choice < 0.5) {
+      const r = 0.6;
+      const omega = Math.sqrt(2 / Math.pow(r, 3));
+      objs.push({ mass: 0.8, radius: 0.06, orbitCenter: center, orbitRadius: r, omega, phase: 0, color: "#66ff66" });
+      objs.push({ mass: 0.8, radius: 0.06, orbitCenter: center, orbitRadius: r, omega, phase: Math.PI, color: "#ff6666" });
+    } else if (choice < 0.75) {
+      const host = { mass: 2, radius: 0.1, orbitCenter: center, orbitRadius: 0, omega: 0, phase: 0, color: "#ffaa33" };
+      objs.push(host);
+      const beltR = 2.5 + Math.random();
+      const omega = Math.sqrt(host.mass / Math.pow(beltR, 3));
+      for (let i = 0; i < 12; i++) {
+        objs.push({ mass: 0.01, radius: 0.02, orbitCenter: center, orbitRadius: beltR + (Math.random() - 0.5) * 0.3, omega, phase: Math.random() * Math.PI * 2, color: "#aaaaaa" });
+      }
+    } else {
+      objs.push({ mass: 1.5, radius: 0.12, orbitCenter: center, orbitRadius: 0, omega: 0, phase: 0, color: "#55aaff" });
+    }
+    return objs;
+  }
+  function generateRegion(center) {
+    const objs = [];
+    const count = 3 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < count; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const dist = 20 + Math.random() * 8;
+      const c = [center[0] + Math.cos(ang) * dist, center[1] + Math.sin(ang) * dist];
+      objs.push(...createObjectSet(c));
+    }
+    return objs;
+  }
+  function outerObjectPosition(obj, t) {
+    const [cx, cy] = obj.orbitCenter;
+    if (obj.orbitRadius === 0) return [cx, cy];
+    const ang = obj.phase + obj.omega * t;
+    return [cx + Math.cos(ang) * obj.orbitRadius, cy + Math.sin(ang) * obj.orbitRadius];
+  }
   var defaultSettings = { zoom: 1.35, speedMul: 1, trail: 90 };
   function ThreeBodyGlassSim() {
     const [isReady, setIsReady] = useState(false);
@@ -92,6 +107,21 @@ var ThreeBodyGlassSim = (() => {
     const [orientation, setOrientation] = useState(null);
     const [zoom, setZoom] = useState(defaultSettings.zoom);
     const orientationRef = useRef(orientationPresets[0]);
+    const [pan, setPan] = useState([0, 0]);
+    const panRef = useRef([0, 0]);
+    const followRef = useRef(null);
+    const shatterPosRef = useRef([[0, 0], [0, 0], [0, 0]]);
+    const draggingRef = useRef(false);
+    const dragStartRef = useRef([0, 0]);
+    const panStartRef = useRef([0, 0]);
+    const postEventRef = useRef(false);
+    const rocketRef = useRef(null);
+    const importSeedRef = useRef(null);
+    const seedRef = useRef(null);
+    const [seedInput, setSeedInput] = useState("");
+    const [showSeedImport, setShowSeedImport] = useState(false);
+    const outerObjectsRef = useRef(generateRegion([0, 0]));
+    const regionCentersRef = useRef([[0, 0]]);
     const canvasRef = useRef(null);
     const rafRef = useRef(null);
     const G = 1;
@@ -148,7 +178,13 @@ var ThreeBodyGlassSim = (() => {
     const mul = (a, s) => [a[0] * s, a[1] * s];
     const dot = (a, b) => a[0] * b[0] + a[1] * b[1];
     const norm = (a) => Math.hypot(a[0], a[1]);
-    function accelerations(p) {
+    function ensureRegionAround(pt) {
+      if (regionCentersRef.current.every((c) => norm(sub(pt, c)) > 40)) {
+        regionCentersRef.current.push([pt[0], pt[1]]);
+        outerObjectsRef.current.push(...generateRegion([pt[0], pt[1]]));
+      }
+    }
+    function accelerations(p, t, includeOuter) {
       const a = [[0, 0], [0, 0], [0, 0]];
       for (let i = 0; i < 3; i++) {
         if (destroyedRef.current[i]) continue;
@@ -159,20 +195,30 @@ var ThreeBodyGlassSim = (() => {
           const fac = G * mass / (d2 * d);
           a[i] = add(a[i], mul(r, fac));
         }
+        if (includeOuter) {
+          for (const obj of outerObjectsRef.current) {
+            const pos = outerObjectPosition(obj, t);
+            const r = sub(pos, p[i]);
+            const d2 = r[0] * r[0] + r[1] * r[1] + softEps * softEps;
+            const d = Math.sqrt(d2);
+            const fac = G * obj.mass / (d2 * d);
+            a[i] = add(a[i], mul(r, fac));
+          }
+        }
       }
       return a;
     }
-    function rk4Step(p, v, dt) {
-      const a1 = accelerations(p);
+    function rk4Step(p, v, dt, t, includeOuter) {
+      const a1 = accelerations(p, t, includeOuter);
       const pv1 = p.map((pi, i) => add(pi, mul(v[i], dt * 0.5)));
       const vv1 = v.map((vi, i) => add(vi, mul(a1[i], dt * 0.5)));
-      const a2 = accelerations(pv1);
+      const a2 = accelerations(pv1, t + dt * 0.5, includeOuter);
       const pv2 = p.map((pi, i) => add(pi, mul(vv1[i], dt * 0.5)));
       const vv2 = v.map((vi, i) => add(vi, mul(a2[i], dt * 0.5)));
-      const a3 = accelerations(pv2);
+      const a3 = accelerations(pv2, t + dt * 0.5, includeOuter);
       const pv3 = p.map((pi, i) => add(pi, mul(vv2[i], dt)));
       const vv3 = v.map((vi, i) => add(vi, mul(a3[i], dt)));
-      const a4 = accelerations(pv3);
+      const a4 = accelerations(pv3, t + dt, includeOuter);
       const pNext = p.map((pi, i) => add(pi, mul(add(add(v[i], mul(add(vv1[i], vv2[i]), 2)), vv3[i]), dt / 6)));
       const vNext = v.map((vi, i) => add(vi, mul(add(add(a1[i], mul(add(a2[i], a3[i]), 2)), a4[i]), dt / 6)));
       return { p: pNext, v: vNext };
@@ -200,6 +246,25 @@ var ThreeBodyGlassSim = (() => {
         }
       }
     }
+    function handleOuterCollisions(p, v, t) {
+      if (!preBufRef.current) return;
+      if (t < preBufRef.current.tEvent) return;
+      for (let i = 0; i < 3; i++) {
+        if (destroyedRef.current[i]) continue;
+        for (const obj of outerObjectsRef.current) {
+          const pos = outerObjectPosition(obj, t);
+          const rij = sub(p[i], pos);
+          const d = norm(rij);
+          if (d <= radius + obj.radius) {
+            const n = mul(rij, 1 / (d || 1e-9));
+            const vrn = dot(v[i], n);
+            if (vrn < 0) {
+              v[i] = sub(v[i], mul(n, 2 * vrn));
+            }
+          }
+        }
+      }
+    }
     function energyOfBody(k, p, v) {
       const v2 = dot(v[k], v[k]);
       let U = 0;
@@ -215,10 +280,18 @@ var ThreeBodyGlassSim = (() => {
       return { pc: mul(pc, 1 / 3) };
     }
     async function preSimulateAndSetup(opts) {
-      const { base, tri } = randomTriadicHex();
-      const codes = [base, tri[0], tri[1]];
-      setHexColors(codes);
-      setProgressLines(["Starting search for perturbations..."]);
+      var _a, _b, _c;
+      let codes = [];
+      if (opts == null ? void 0 : opts.seed) {
+        codes = opts.seed.hex;
+        setHexColors(codes);
+        setProgressLines(["Importing seed..."]);
+      } else {
+        const { base, tri } = randomTriadicHex();
+        codes = [base, tri[0], tri[1]];
+        setHexColors(codes);
+        setProgressLines(["Starting search for perturbations..."]);
+      }
       setCandidateInfo("");
       setAttemptInfo("");
       shardsRef.current = [];
@@ -226,79 +299,101 @@ var ThreeBodyGlassSim = (() => {
       collisionHandledRef.current = false;
       let pBase = orientationRef.current.p.map((x) => [...x]);
       let vBase = orientationRef.current.v.map((x) => [...x]);
-      const epsCandidates = [1e-5, 5e-5, 1e-4, 3e-4, 1e-3, 3e-3, 7e-3, 0.012];
       const dt = 4e-3;
-      const target = opts?.targetTEvent ?? opts?.targetRealTime;
+      const target = (_a = opts == null ? void 0 : opts.targetTEvent) != null ? _a : opts == null ? void 0 : opts.targetRealTime;
       const maxSteps = target ? Math.max(22e4, Math.ceil(target / dt) + 5e3) : 22e4;
       const collR = 2 * radius;
-      let best = null;
-      for (let e = 0; e < epsCandidates.length; e++) {
-        setCandidateInfo(`\u2208 candidate ${e + 1}/${epsCandidates.length}`);
-        await new Promise((r) => setTimeout(r, 0));
-        for (let attempt = 0; attempt < 6; attempt++) {
-          setAttemptInfo(`attempt ${attempt + 1}/6`);
-          await new Promise((r) => setTimeout(r, 0));
-          let p = pBase.map((x) => [...x]);
-          let v = vBase.map((x) => [...x]);
-          const ang = Math.random() * Math.PI * 2;
-          const eps = epsCandidates[e];
-          v[0] = add(v[0], [Math.cos(ang) * eps, Math.sin(ang) * eps]);
-          const buffer = [];
-          let found = false;
-          let kind = "collision";
-          let info = "";
-          let tEvent = 0;
-          for (let step = 0; step < maxSteps; step++) {
-            buffer.push({ p: [[...p[0]], [...p[1]], [...p[2]]], v: [[...v[0]], [...v[1]], [...v[2]]] });
-            if (step % 5e3 === 0) {
-              const pct = (step / maxSteps * 100).toFixed(1);
-              setProgressLines((l) => [...l.slice(-40), `    ${pct}%`]);
-              await new Promise((r) => setTimeout(r, 0));
+      async function runCandidate(eps, ang) {
+        let p = pBase.map((x) => [...x]);
+        let v = vBase.map((x) => [...x]);
+        v[0] = add(v[0], [Math.cos(ang) * eps, Math.sin(ang) * eps]);
+        const buffer = [];
+        let found = false;
+        let kind = "collision";
+        let info = "";
+        let tEvent = 0;
+        let ejectCand = null;
+        const confirmSteps = 25e3;
+        for (let step = 0; step < maxSteps; step++) {
+          buffer.push({ p: [[...p[0]], [...p[1]], [...p[2]]], v: [[...v[0]], [...v[1]], [...v[2]]] });
+          if (!(opts == null ? void 0 : opts.seed) && step % 5e3 === 0) {
+            const pct = (step / maxSteps * 100).toFixed(1);
+            setProgressLines((l) => [...l.slice(-40), `    ${pct}%`]);
+            await new Promise((r) => setTimeout(r, 0));
+          }
+          let collidedPair = null;
+          outer: for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) {
+            const d = norm(sub(p[i], p[j]));
+            if (d <= collR) {
+              collidedPair = [i, j];
+              break outer;
             }
-            let collidedPair = null;
-            outer: for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) {
-              const d = norm(sub(p[i], p[j]));
-              if (d <= collR) {
-                collidedPair = [i, j];
-                break outer;
-              }
-            }
-            if (collidedPair) {
-              found = true;
-              kind = "collision";
-              info = `${collidedPair[0] + 1}\u2194${collidedPair[1] + 1}`;
-              tEvent = step * dt;
-              break;
-            }
-            const { pc } = centerOfMass(p);
-            const pRel = p.map((pi) => sub(pi, pc));
-            const vRel = v.map((vi) => vi);
-            const R = pRel.map((ri) => norm(ri));
+          }
+          if (collidedPair) {
+            found = true;
+            kind = "collision";
+            info = `${collidedPair[0] + 1}\u2194${collidedPair[1] + 1}`;
+            tEvent = step * dt;
+            break;
+          }
+          const { pc } = centerOfMass(p);
+          const pRel = p.map((pi) => sub(pi, pc));
+          const vRel = v.map((vi) => vi);
+          const R = pRel.map((ri) => norm(ri));
+          if (!ejectCand) {
             for (let k = 0; k < 3; k++) {
               const eSpec = energyOfBody(k, pRel, vRel);
               const outward = dot(pRel[k], vRel[k]) > 0;
               if (R[k] > 7 && outward && eSpec > 0) {
-                found = true;
-                kind = "ejection";
-                info = `body ${k + 1}`;
-                tEvent = step * dt;
+                ejectCand = { k, step };
                 break;
               }
             }
-            if (found) break;
-            const next = rk4Step(p, v, dt);
-            p = next.p;
-            v = next.v;
+          } else {
+            const k = ejectCand.k;
+            const eSpec = energyOfBody(k, pRel, vRel);
+            const outward = dot(pRel[k], vRel[k]) > 0;
+            if (R[k] < 5 || !outward || eSpec < 0) {
+              ejectCand = null;
+            } else if (step - ejectCand.step > confirmSteps) {
+              found = true;
+              kind = "ejection";
+              info = `body ${k + 1}`;
+              tEvent = ejectCand.step * dt;
+              break;
+            }
           }
-          if (found) {
-            if (!best) {
-              best = { buffer, tEvent, kind, info };
-            } else if (target != null) {
-              const prevErr = Math.abs(best.tEvent - target);
-              const newErr = Math.abs(tEvent - target);
-              if (newErr < prevErr) best = { buffer, tEvent, kind, info };
-            } else {
-              if (tEvent < best.tEvent) best = { buffer, tEvent, kind, info };
+          const next = rk4Step(p, v, dt, step * dt, false);
+          p = next.p;
+          v = next.v;
+        }
+        return { buffer, tEvent, kind, info, eps, ang, found };
+      }
+      let best = null;
+      if (opts == null ? void 0 : opts.seed) {
+        const res = await runCandidate(opts.seed.eps, opts.seed.ang);
+        best = { buffer: res.buffer, tEvent: res.tEvent, kind: res.kind, info: res.info, eps: res.eps, ang: res.ang };
+      } else {
+        const epsCandidates = [1e-5, 5e-5, 1e-4, 3e-4, 1e-3, 3e-3, 7e-3, 0.012];
+        for (let e = 0; e < epsCandidates.length; e++) {
+          setCandidateInfo(`\u2208 candidate ${e + 1}/${epsCandidates.length}`);
+          await new Promise((r) => setTimeout(r, 0));
+          for (let attempt = 0; attempt < 6; attempt++) {
+            setAttemptInfo(`attempt ${attempt + 1}/6`);
+            await new Promise((r) => setTimeout(r, 0));
+            const ang = Math.random() * Math.PI * 2;
+            const eps = epsCandidates[e];
+            const res = await runCandidate(eps, ang);
+            if (res.found) {
+              if (!best) {
+                best = res;
+              } else if (target != null) {
+                const prevErr = Math.abs(best.tEvent - target);
+                const newErr = Math.abs(res.tEvent - target);
+                if (newErr < prevErr) best = res;
+              } else {
+                if (res.tEvent < best.tEvent) best = res;
+              }
             }
           }
         }
@@ -308,11 +403,26 @@ var ThreeBodyGlassSim = (() => {
         preBufRef.current = { dt, states: [], tEvent, kind: "ejection", info: "body 3" };
         setEventType("ejection");
         setEventBodyInfo("body 3");
+        seedRef.current = null;
       } else {
         preBufRef.current = { dt, states: best.buffer, tEvent: best.tEvent, kind: best.kind, info: best.info };
         eventIndexRef.current = Math.floor(best.tEvent / dt);
         setEventType(best.kind);
         setEventBodyInfo(best.info);
+        seedRef.current = {
+          label: orientationRef.current.label,
+          p: orientationRef.current.label === "Random" ? orientationRef.current.p : void 0,
+          v: orientationRef.current.label === "Random" ? orientationRef.current.v : void 0,
+          eps: best.eps,
+          ang: best.ang,
+          hex: codes,
+          tEvent: best.tEvent,
+          duration: (_c = (_b = opts == null ? void 0 : opts.targetRealTime) != null ? _b : chosenDuration) != null ? _c : 0
+        };
+      }
+      if (preBufRef.current && (opts == null ? void 0 : opts.targetRealTime)) {
+        mapRef.current.baseSpeed = preBufRef.current.tEvent / opts.targetRealTime;
+        mapRef.current.realStart = performance.now() / 1e3;
       }
       if (preBufRef.current && preBufRef.current.states.length > 0) {
         const startState = preBufRef.current.states[0];
@@ -345,8 +455,9 @@ var ThreeBodyGlassSim = (() => {
     }
     function worldToScreen(x, y, W, H) {
       const s = scaleRef.current;
+      const [px, py] = panRef.current;
       const cx = W / 2, cy = H / 2;
-      return [cx + x * s, cy - y * s];
+      return [cx + (x - px) * s, cy - (y - py) * s];
     }
     function drawScene(ctx, p) {
       const W = ctx.canvas.clientWidth;
@@ -425,10 +536,39 @@ var ThreeBodyGlassSim = (() => {
         ctx.fill();
         ctx.restore();
       }
+      if (scaleRef.current < 120) {
+        for (const obj of outerObjectsRef.current) {
+          const pos = outerObjectPosition(obj, liveRef.current.tSim);
+          const [x, y] = worldToScreen(pos[0], pos[1], W, H);
+          ctx.save();
+          glow(obj.color, 0.8);
+          ctx.fillStyle = obj.color;
+          ctx.beginPath();
+          ctx.arc(x, y, obj.radius * scaleRef.current, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+      if (rocketRef.current) {
+        const r = rocketRef.current;
+        const [x, y] = worldToScreen(r.p[0], r.p[1], W, H);
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(-r.angle);
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.moveTo(8, 0);
+        ctx.lineTo(-5, 4);
+        ctx.lineTo(-5, -4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
     }
     const loopRef = useRef(() => {
     });
     loopRef.current = () => {
+      var _a;
       const buf = preBufRef.current;
       if (!buf) return;
       const canvas = canvasRef.current;
@@ -444,13 +584,14 @@ var ThreeBodyGlassSim = (() => {
         const tEvent = buf.tEvent;
         if (simTimeTarget <= tEvent) {
           const idx = Math.min(buf.states.length - 1, Math.floor(simTimeTarget / buf.dt));
-          const state = buf.states[idx] ?? buf.states[buf.states.length - 1];
+          const state = (_a = buf.states[idx]) != null ? _a : buf.states[buf.states.length - 1];
           if (state) {
             liveRef.current.p = state.p.map((x) => [...x]);
             liveRef.current.v = state.v.map((x) => [...x]);
             liveRef.current.tSim = idx * buf.dt;
           }
         } else {
+          postEventRef.current = true;
           if (Math.abs(liveRef.current.tSim - tEvent) < buf.dt) {
             const exact = buf.states[Math.min(buf.states.length - 1, Math.floor(tEvent / buf.dt))];
             if (exact) {
@@ -458,6 +599,7 @@ var ThreeBodyGlassSim = (() => {
               liveRef.current.v = exact.v.map((x) => [...x]);
               liveRef.current.tSim = tEvent;
               if (buf.kind === "collision") handleCollision(liveRef.current.p, liveRef.current.v);
+              handleOuterCollisions(liveRef.current.p, liveRef.current.v, liveRef.current.tSim);
             }
           }
           if (!collisionHandledRef.current && buf.kind === "collision" && simTimeTarget > tEvent) {
@@ -471,6 +613,8 @@ var ThreeBodyGlassSim = (() => {
             }
             destroyedRef.current[pair[0]] = true;
             destroyedRef.current[pair[1]] = true;
+            shatterPosRef.current[pair[0]] = [c[0], c[1]];
+            shatterPosRef.current[pair[1]] = [c[0], c[1]];
             liveRef.current.p[pair[0]] = [9999, 9999];
             liveRef.current.p[pair[1]] = [9999, 9999];
             liveRef.current.v[pair[0]] = [0, 0];
@@ -481,10 +625,40 @@ var ThreeBodyGlassSim = (() => {
           const h = 5e-3;
           while (dtLeft > 1e-6) {
             const step = Math.min(h, dtLeft);
-            const next = rk4Step(liveRef.current.p, liveRef.current.v, step);
+            const next = rk4Step(liveRef.current.p, liveRef.current.v, step, liveRef.current.tSim, true);
             liveRef.current.p = next.p;
             liveRef.current.v = next.v;
             handleCollision(liveRef.current.p, liveRef.current.v);
+            handleOuterCollisions(liveRef.current.p, liveRef.current.v, liveRef.current.tSim);
+            if (rocketRef.current) {
+              const r = rocketRef.current;
+              const acc = [0, 0];
+              for (let i = 0; i < 3; i++) {
+                if (destroyedRef.current[i]) continue;
+                const rr = sub(liveRef.current.p[i], r.p);
+                const d2 = rr[0] * rr[0] + rr[1] * rr[1] + softEps * softEps;
+                const d = Math.sqrt(d2);
+                const fac = G * mass / (d2 * d);
+                acc[0] += rr[0] * fac;
+                acc[1] += rr[1] * fac;
+              }
+              for (const obj of outerObjectsRef.current) {
+                const pos = outerObjectPosition(obj, liveRef.current.tSim);
+                const rr = sub(pos, r.p);
+                const d2 = rr[0] * rr[0] + rr[1] * rr[1] + softEps * softEps;
+                const d = Math.sqrt(d2);
+                const fac = G * obj.mass / (d2 * d);
+                acc[0] += rr[0] * fac;
+                acc[1] += rr[1] * fac;
+              }
+              if (r.thrust > 0) {
+                acc[0] += Math.cos(r.angle) * 0.6;
+                acc[1] += Math.sin(r.angle) * 0.6;
+              }
+              r.v = add(r.v, mul(acc, step));
+              r.angle += r.turn * 1.5 * step;
+              r.p = add(r.p, mul(r.v, step));
+            }
             for (const sh of shardsRef.current) {
               sh.p = add(sh.p, mul(sh.v, step));
               sh.life -= step;
@@ -503,6 +677,21 @@ var ThreeBodyGlassSim = (() => {
           while (trailsRef.current[i].length > trailMax) trailsRef.current[i].shift();
         }
       }
+      if (postEventRef.current) {
+        for (let i = 0; i < 3; i++) {
+          if (!destroyedRef.current[i]) ensureRegionAround(liveRef.current.p[i]);
+        }
+        if (rocketRef.current) ensureRegionAround(rocketRef.current.p);
+        if (followRef.current !== null) {
+          const idx = followRef.current;
+          let target;
+          if (idx === 3 && rocketRef.current) target = rocketRef.current.p;
+          else target = destroyedRef.current[idx] ? shatterPosRef.current[idx] : liveRef.current.p[idx];
+          panRef.current = [target[0], target[1]];
+          setPan([target[0], target[1]]);
+          ensureRegionAround(panRef.current);
+        }
+      }
       drawScene(ctx, liveRef.current.p);
       if (buf) {
         const tRemainingSim = Math.max(0, buf.tEvent - liveRef.current.tSim);
@@ -515,8 +704,10 @@ var ThreeBodyGlassSim = (() => {
       if (chosenDuration == null) return;
       preSimulateAndSetup({
         targetTEvent: mapRef.current.baseSpeed * chosenDuration,
-        targetRealTime: chosenDuration
+        targetRealTime: chosenDuration,
+        seed: importSeedRef.current || void 0
       });
+      importSeedRef.current = null;
       return () => {
         if (rafRef.current) cancelAnimationFrame(rafRef.current);
       };
@@ -548,6 +739,17 @@ var ThreeBodyGlassSim = (() => {
       setZoom(defaultSettings.zoom);
       setSpeedMul(defaultSettings.speedMul);
       setTrailMax(defaultSettings.trail);
+      panRef.current = [0, 0];
+      setPan([0, 0]);
+      followRef.current = null;
+      postEventRef.current = false;
+      rocketRef.current = null;
+      seedRef.current = null;
+      importSeedRef.current = null;
+      setShowSeedImport(false);
+      setSeedInput("");
+      outerObjectsRef.current = generateRegion([0, 0]);
+      regionCentersRef.current = [[0, 0]];
     }
     function handleWheel(e) {
       e.preventDefault();
@@ -555,6 +757,68 @@ var ThreeBodyGlassSim = (() => {
       userZoomRef.current = Math.max(0.5, Math.min(2.5, userZoomRef.current * factor));
       setZoom(userZoomRef.current);
     }
+    function handleMouseDown(e) {
+      if (!postEventRef.current) return;
+      draggingRef.current = true;
+      dragStartRef.current = [e.clientX, e.clientY];
+      panStartRef.current = panRef.current;
+      followRef.current = null;
+    }
+    useEffect(() => {
+      const move = (e) => {
+        if (!draggingRef.current) return;
+        const dx = e.clientX - dragStartRef.current[0];
+        const dy = e.clientY - dragStartRef.current[1];
+        const s = scaleRef.current;
+        const newPan = [panStartRef.current[0] - dx / s, panStartRef.current[1] + dy / s];
+        panRef.current = newPan;
+        setPan(newPan);
+        ensureRegionAround(newPan);
+      };
+      const up = () => {
+        draggingRef.current = false;
+      };
+      window.addEventListener("mousemove", move);
+      window.addEventListener("mouseup", up);
+      return () => {
+        window.removeEventListener("mousemove", move);
+        window.removeEventListener("mouseup", up);
+      };
+    }, []);
+    useEffect(() => {
+      const down = (e) => {
+        if (!postEventRef.current) return;
+        if (e.code === "Digit0" && e.shiftKey) {
+          if (!rocketRef.current) rocketRef.current = { p: [0, 0], v: [0, 0], angle: 0, thrust: 0, turn: 0 };
+          return;
+        }
+        if (e.key === "0" && rocketRef.current) {
+          followRef.current = 3;
+          return;
+        }
+        if (e.key === "1" || e.key === "2" || e.key === "3") {
+          followRef.current = parseInt(e.key) - 1;
+          return;
+        }
+        if (!rocketRef.current) return;
+        if (e.key === "w") rocketRef.current.thrust = 1;
+        if (e.key === "s") rocketRef.current.thrust = 0;
+        if (e.key === "a") rocketRef.current.turn = -1;
+        if (e.key === "d") rocketRef.current.turn = 1;
+      };
+      const up = (e) => {
+        if (!postEventRef.current || !rocketRef.current) return;
+        if (e.key === "w") rocketRef.current.thrust = 0;
+        if (e.key === "a" && rocketRef.current.turn < 0) rocketRef.current.turn = 0;
+        if (e.key === "d" && rocketRef.current.turn > 0) rocketRef.current.turn = 0;
+      };
+      window.addEventListener("keydown", down);
+      window.addEventListener("keyup", up);
+      return () => {
+        window.removeEventListener("keydown", down);
+        window.removeEventListener("keyup", up);
+      };
+    }, []);
     function resetControls() {
       userZoomRef.current = defaultSettings.zoom;
       setZoom(defaultSettings.zoom);
@@ -567,6 +831,32 @@ var ThreeBodyGlassSim = (() => {
       } else {
         mapRef.current.realStart = performance.now() / 1e3 - liveRef.current.tSim / (mapRef.current.baseSpeed * speedMul);
         setIsPlaying(true);
+      }
+    }
+    function copySeed() {
+      if (!seedRef.current) return;
+      const str = btoa(JSON.stringify(seedRef.current));
+      navigator.clipboard.writeText(str);
+    }
+    function handleImportSeed() {
+      try {
+        const obj = JSON.parse(atob(seedInput.trim()));
+        if (obj.label === "Random" && obj.p && obj.v) {
+          const rand = { label: "Random", p: obj.p, v: obj.v };
+          orientationRef.current = rand;
+          setOrientation(rand);
+        } else {
+          const preset = orientationPresets.find((o) => o.label === obj.label) || orientationPresets[0];
+          orientationRef.current = preset;
+          setOrientation(preset);
+        }
+        importSeedRef.current = obj;
+        setHexColors(obj.hex);
+        mapRef.current.baseSpeed = 1;
+        setChosenDuration(obj.duration);
+        setShowSeedImport(false);
+      } catch (err) {
+        console.error(err);
       }
     }
     const durationOptions = [
@@ -603,7 +893,7 @@ var ThreeBodyGlassSim = (() => {
         "button",
         {
           onClick: () => {
-            const rand = orientationPresets[Math.floor(Math.random() * orientationPresets.length)];
+            const rand = randomOrientation();
             orientationRef.current = rand;
             setOrientation(rand);
           },
@@ -618,7 +908,7 @@ var ThreeBodyGlassSim = (() => {
         {
           key: opt.label,
           onClick: () => {
-            mapRef.current.baseSpeed = 0.35 + Math.random() * (1.5 - 0.35);
+            mapRef.current.baseSpeed = 1;
             setSpeedMul(defaultSettings.speedMul);
             setTrailMax(defaultSettings.trail);
             userZoomRef.current = defaultSettings.zoom;
@@ -630,7 +920,7 @@ var ThreeBodyGlassSim = (() => {
         opt.label
       )))));
     }
-    return /* @__PURE__ */ React.createElement("div", { className: "relative w-full h-[88vh] md:h-[92vh] bg-black text-white font-sans overflow-hidden rounded-2xl shadow-2xl", onWheel: handleWheel }, /* @__PURE__ */ React.createElement("canvas", { ref: canvasRef, className: "absolute inset-0 w-full h-full" }), /* @__PURE__ */ React.createElement("div", { className: "absolute top-4 left-4 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-wider text-white/70" }, "Time to ", eventLabel), /* @__PURE__ */ React.createElement("div", { className: "text-3xl font-semibold tabular-nums" }, Math.floor(countdown / 60).toString().padStart(2, "0"), ":", Math.floor(countdown % 60).toString().padStart(2, "0"))), /* @__PURE__ */ React.createElement("div", { className: "absolute top-4 right-4 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-wider text-white/70 mb-1" }, "Triadic palette"), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3" }, hexColors.map((hex, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("div", { className: "w-5 h-5 rounded-full", style: { background: hex } }), /* @__PURE__ */ React.createElement("span", { className: "text-sm font-mono text-white/80" }, hex.toUpperCase()))))), /* @__PURE__ */ React.createElement("div", { className: "absolute left-1/2 -translate-x-1/2 bottom-4 flex items-center gap-3 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg" }, /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "relative w-full h-[88vh] md:h-[92vh] bg-black text-white font-sans overflow-hidden rounded-2xl shadow-2xl", onWheel: handleWheel }, /* @__PURE__ */ React.createElement("canvas", { ref: canvasRef, className: "absolute inset-0 w-full h-full", onMouseDown: handleMouseDown }), /* @__PURE__ */ React.createElement("div", { className: "absolute top-4 left-4 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-wider text-white/70" }, "Time to ", eventLabel), /* @__PURE__ */ React.createElement("div", { className: "text-3xl font-semibold tabular-nums" }, Math.floor(countdown / 60).toString().padStart(2, "0"), ":", Math.floor(countdown % 60).toString().padStart(2, "0"))), /* @__PURE__ */ React.createElement("div", { className: "absolute top-4 right-4 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-wider text-white/70 mb-1" }, "Triadic palette"), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3" }, hexColors.map((hex, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("div", { className: "w-5 h-5 rounded-full", style: { background: hex } }), /* @__PURE__ */ React.createElement("span", { className: "text-sm font-mono text-white/80" }, hex.toUpperCase())))), /* @__PURE__ */ React.createElement("button", { onClick: copySeed, className: "mt-2 px-2 py-1 text-xs rounded-lg bg-white/10 hover:bg-white/20 border border-white/20" }, "Copy seed")), /* @__PURE__ */ React.createElement("div", { className: "absolute left-1/2 -translate-x-1/2 bottom-4 flex items-center gap-3 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg" }, /* @__PURE__ */ React.createElement(
       "button",
       {
         onClick: togglePlay,
@@ -682,7 +972,6 @@ var ThreeBodyGlassSim = (() => {
         onChange: (e) => setTrailMax(parseInt(e.target.value)),
         className: "w-full accent-white/90"
       }
-    )), /* @__PURE__ */ React.createElement("div", { className: "pt-1 text-right" }, /* @__PURE__ */ React.createElement("button", { onClick: resetControls, className: "px-3 py-1 text-xs rounded-lg bg-white/10 hover:bg-white/20 border border-white/20" }, "Reset")))), !isReady && /* @__PURE__ */ React.createElement("div", { className: "absolute inset-0 flex items-center justify-center" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-widest text-white/70 mb-2" }, "Preparing a near-perfect 3\u2011body setup\u2026"), /* @__PURE__ */ React.createElement("div", { className: "text-lg font-medium" }, "Searching for a slight perturbation that yields an event"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 text-left text-xs font-mono text-white/80 w-64" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between mb-1" }, /* @__PURE__ */ React.createElement("div", null, candidateInfo), /* @__PURE__ */ React.createElement("div", null, attemptInfo)), /* @__PURE__ */ React.createElement("div", { className: "max-h-40 overflow-y-auto" }, progressLines.map((line, i) => /* @__PURE__ */ React.createElement("div", { key: i }, line)))))));
+    )), /* @__PURE__ */ React.createElement("div", { className: "pt-1 text-right" }, /* @__PURE__ */ React.createElement("button", { onClick: resetControls, className: "px-3 py-1 text-xs rounded-lg bg-white/10 hover:bg-white/20 border border-white/20" }, "Reset")))), !isReady && /* @__PURE__ */ React.createElement("div", { className: "absolute inset-0 flex items-center justify-center" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center relative" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-widest text-white/70 mb-2" }, "Preparing a near-perfect 3\u2011body setup\u2026"), /* @__PURE__ */ React.createElement("div", { className: "text-lg font-medium" }, "Searching for a slight perturbation that yields an event"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 text-left text-xs font-mono text-white/80 w-64" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between mb-1" }, /* @__PURE__ */ React.createElement("div", null, candidateInfo), /* @__PURE__ */ React.createElement("div", null, attemptInfo)), /* @__PURE__ */ React.createElement("div", { className: "max-h-40 overflow-y-auto" }, progressLines.map((line, i) => /* @__PURE__ */ React.createElement("div", { key: i }, line)))), /* @__PURE__ */ React.createElement("button", { onClick: () => setShowSeedImport(true), className: "absolute bottom-2 right-2 px-2 py-1 text-xs rounded-lg bg-white/10 border border-white/20" }, "Skip Exploration")), showSeedImport && /* @__PURE__ */ React.createElement("div", { className: "absolute inset-0 flex items-center justify-center" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/20 border border-white/30 shadow-2xl text-center" }, /* @__PURE__ */ React.createElement("div", { className: "mb-2" }, "Paste seed"), /* @__PURE__ */ React.createElement("input", { className: "w-64 px-2 py-1 mb-3 text-black", value: seedInput, onChange: (e) => setSeedInput(e.target.value) }), /* @__PURE__ */ React.createElement("div", { className: "flex justify-end gap-2" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setShowSeedImport(false), className: "px-3 py-1 text-xs rounded-lg bg-white/10 border border-white/20" }, "Cancel"), /* @__PURE__ */ React.createElement("button", { onClick: handleImportSeed, className: "px-3 py-1 text-xs rounded-lg bg-white/10 border border-white/20" }, "Import simulation"))))));
   }
-  return __toCommonJS(three_body_problem_exports);
 })();
