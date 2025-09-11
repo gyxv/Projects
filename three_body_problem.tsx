@@ -13,6 +13,16 @@ type Shard = {
   color: string;
 };
 
+type OuterObject = {
+  mass: number;
+  radius: number;
+  orbitCenter: [number, number];
+  orbitRadius: number;
+  omega: number;
+  phase: number;
+  color: string;
+};
+
 const orientationPresets: OrientationPreset[] = [
   {
     label: "Figure‑8",
@@ -40,33 +50,58 @@ const orientationPresets: OrientationPreset[] = [
       [0.570, -0.329],
     ],
   },
-  {
-    label: "Spiral",
-    p: [
-      [0.9, -0.2],
-      [-0.9, -0.2],
-      [0, 0.4],
-    ],
-    v: [
-      [-0.2, 0.5],
-      [-0.2, -0.5],
-      [0.4, 0],
-    ],
-  },
-  {
-    label: "Chain",
-    p: [
-      [-0.8, 0.2],
-      [0.8, -0.2],
-      [0, 0],
-    ],
-    v: [
-      [-0.1, 0.4],
-      [-0.1, -0.8],
-      [0.2, 0.4],
-    ],
-  },
 ];
+
+function randomOrientation(): OrientationPreset {
+  const rand = () => (Math.random() * 2 - 1) as number;
+  return {
+    label: "Random",
+    p: [
+      [rand(), rand()],
+      [rand(), rand()],
+      [rand(), rand()],
+    ],
+    v: [
+      [rand() * 0.5, rand() * 0.5],
+      [rand() * 0.5, rand() * 0.5],
+      [rand() * 0.5, rand() * 0.5],
+    ],
+  };
+}
+
+function generateOuterObjects(): OuterObject[] {
+  const objs: OuterObject[] = [];
+  const ang1 = Math.random() * Math.PI * 2;
+  const star1Pos: [number, number] = [20 * Math.cos(ang1), 20 * Math.sin(ang1)];
+  const star1 = { mass: 5, radius: 0.15, orbitCenter: star1Pos, orbitRadius: 0, omega: 0, phase: 0, color: "#ffdd88" };
+  objs.push(star1);
+  const r1 = 3;
+  const omega1 = Math.sqrt(star1.mass / Math.pow(r1, 3));
+  objs.push({ mass: 0.5, radius: 0.05, orbitCenter: star1Pos, orbitRadius: r1, omega: omega1, phase: Math.random() * Math.PI * 2, color: "#88aaff" });
+
+  const ang2 = Math.random() * Math.PI * 2;
+  const star2Pos: [number, number] = [22 * Math.cos(ang2), 22 * Math.sin(ang2)];
+  const star2 = { mass: 4, radius: 0.12, orbitCenter: star2Pos, orbitRadius: 0, omega: 0, phase: 0, color: "#ffbb55" };
+  objs.push(star2);
+  const r2 = 2.5;
+  const omega2 = Math.sqrt(star2.mass / Math.pow(r2, 3));
+  objs.push({ mass: 0.2, radius: 0.04, orbitCenter: star2Pos, orbitRadius: r2, omega: omega2, phase: Math.random() * Math.PI * 2, color: "#55ff55" });
+  for (let i = 0; i < 4; i++) {
+    const r = 4 + i * 0.5;
+    const omega = Math.sqrt(star2.mass / Math.pow(r, 3));
+    objs.push({ mass: 0.01, radius: 0.02, orbitCenter: star2Pos, orbitRadius: r, omega, phase: Math.random() * Math.PI * 2, color: "#aaaaaa" });
+  }
+  return objs;
+}
+
+function outerObjectPosition(obj: OuterObject, t: number): [number, number] {
+  const [cx, cy] = obj.orbitCenter;
+  if (obj.orbitRadius === 0) return [cx, cy];
+  const ang = obj.phase + obj.omega * t;
+  return [cx + Math.cos(ang) * obj.orbitRadius, cy + Math.sin(ang) * obj.orbitRadius];
+}
+
+const outerObjects = generateOuterObjects();
 
 const defaultSettings = { zoom: 1.35, speedMul: 1, trail: 90 };
 
@@ -180,7 +215,7 @@ export default function ThreeBodyGlassSim() {
   const dot = (a: number[], b: number[]) => a[0] * b[0] + a[1] * b[1];
   const norm = (a: number[]) => Math.hypot(a[0], a[1]);
 
-  function accelerations(p: [number, number][]) {
+  function accelerations(p: [number, number][], t: number, includeOuter: boolean) {
     const a: [number, number][] = [[0, 0], [0, 0], [0, 0]];
     for (let i = 0; i < 3; i++) {
       if (destroyedRef.current[i]) continue;
@@ -191,20 +226,30 @@ export default function ThreeBodyGlassSim() {
         const fac = (G * mass) / (d2 * d);
         a[i] = add(a[i], mul(r, fac));
       }
+      if (includeOuter) {
+        for (const obj of outerObjects) {
+          const pos = outerObjectPosition(obj, t);
+          const r = sub(pos, p[i]);
+          const d2 = r[0] * r[0] + r[1] * r[1] + softEps * softEps;
+          const d = Math.sqrt(d2);
+          const fac = (G * obj.mass) / (d2 * d);
+          a[i] = add(a[i], mul(r, fac));
+        }
+      }
     }
     return a;
   }
-  function rk4Step(p: [number, number][], v: [number, number][], dt: number) {
-    const a1 = accelerations(p);
+  function rk4Step(p: [number, number][], v: [number, number][], dt: number, t: number, includeOuter: boolean) {
+    const a1 = accelerations(p, t, includeOuter);
     const pv1 = p.map((pi, i) => add(pi, mul(v[i], dt * 0.5))) as [number, number][];
     const vv1 = v.map((vi, i) => add(vi, mul(a1[i], dt * 0.5))) as [number, number][];
-    const a2 = accelerations(pv1);
+    const a2 = accelerations(pv1, t + dt * 0.5, includeOuter);
     const pv2 = p.map((pi, i) => add(pi, mul(vv1[i], dt * 0.5))) as [number, number][];
     const vv2 = v.map((vi, i) => add(vi, mul(a2[i], dt * 0.5))) as [number, number][];
-    const a3 = accelerations(pv2);
+    const a3 = accelerations(pv2, t + dt * 0.5, includeOuter);
     const pv3 = p.map((pi, i) => add(pi, mul(vv2[i], dt))) as [number, number][];
     const vv3 = v.map((vi, i) => add(vi, mul(a3[i], dt))) as [number, number][];
-    const a4 = accelerations(pv3);
+    const a4 = accelerations(pv3, t + dt, includeOuter);
     const pNext = p.map((pi, i) => add(pi, mul(add(add(v[i], mul(add(vv1[i], vv2[i]), 2)), vv3[i]), dt / 6))) as [number, number][];
     const vNext = v.map((vi, i) => add(vi, mul(add(add(a1[i], mul(add(a2[i], a3[i]), 2)), a4[i]), dt / 6))) as [number, number][];
     return { p: pNext, v: vNext };
@@ -228,6 +273,25 @@ export default function ThreeBodyGlassSim() {
           const impulse = mul(n, vrn);
           v[i] = sub(v[i], impulse) as [number, number];
           v[j] = add(v[j], impulse) as [number, number];
+        }
+      }
+    }
+  }
+  function handleOuterCollisions(p: [number, number][], v: [number, number][], t: number) {
+    if (!preBufRef.current) return;
+    if (t < preBufRef.current.tEvent) return;
+    for (let i = 0; i < 3; i++) {
+      if (destroyedRef.current[i]) continue;
+      for (const obj of outerObjects) {
+        const pos = outerObjectPosition(obj, t);
+        const rij = sub(p[i], pos);
+        const d = norm(rij);
+        if (d <= radius + obj.radius) {
+          const n = mul(rij, 1 / (d || 1e-9));
+          const vrn = dot(v[i], n);
+          if (vrn < 0) {
+            v[i] = sub(v[i], mul(n, 2 * vrn)) as [number, number];
+          }
         }
       }
     }
@@ -293,6 +357,8 @@ export default function ThreeBodyGlassSim() {
         let kind: "collision" | "ejection" = "collision";
         let info = "";
         let tEvent = 0;
+        let ejectCand: { k: number; step: number } | null = null;
+        const confirmSteps = 25000;
 
         for (let step = 0; step < maxSteps; step++) {
           buffer.push({ p: [[...p[0]], [...p[1]], [...p[2]]] as any, v: [[...v[0]], [...v[1]], [...v[2]]] as any });
@@ -313,19 +379,29 @@ export default function ThreeBodyGlassSim() {
             found = true; kind = "collision"; info = `${collidedPair[0] + 1}↔${collidedPair[1] + 1}`; tEvent = step * dt; break;
           }
 
-          // Ejection heuristic
+          // Ejection detection with permanence check
           const { pc } = centerOfMass(p);
           const pRel = p.map((pi) => sub(pi, pc));
           const vRel = v.map((vi) => vi);
           const R = pRel.map((ri) => norm(ri));
-          for (let k = 0; k < 3; k++) {
+          if (!ejectCand) {
+            for (let k = 0; k < 3; k++) {
+              const eSpec = energyOfBody(k, pRel as any, vRel as any);
+              const outward = dot(pRel[k], vRel[k]) > 0;
+              if (R[k] > 7.0 && outward && eSpec > 0) { ejectCand = { k, step }; break; }
+            }
+          } else {
+            const k = ejectCand.k;
             const eSpec = energyOfBody(k, pRel as any, vRel as any);
             const outward = dot(pRel[k], vRel[k]) > 0;
-            if (R[k] > 7.0 && outward && eSpec > 0) { found = true; kind = "ejection"; info = `body ${k + 1}`; tEvent = step * dt; break; }
+            if (R[k] < 5.0 || !outward || eSpec < 0) {
+              ejectCand = null;
+            } else if (step - ejectCand.step > confirmSteps) {
+              found = true; kind = "ejection"; info = `body ${k + 1}`; tEvent = ejectCand.step * dt; break;
+            }
           }
-          if (found) break;
 
-          const next = rk4Step(p as any, v as any, dt);
+          const next = rk4Step(p as any, v as any, dt, step * dt, false);
           p = next.p as any; v = next.v as any;
         }
 
@@ -355,6 +431,11 @@ export default function ThreeBodyGlassSim() {
       eventIndexRef.current = Math.floor(best.tEvent / dt);
       setEventType(best.kind);
       setEventBodyInfo(best.info);
+    }
+
+    if (preBufRef.current && opts?.targetRealTime) {
+      mapRef.current.baseSpeed = preBufRef.current.tEvent / opts.targetRealTime;
+      mapRef.current.realStart = performance.now() / 1000;
     }
 
     // Reset live state from pre-sim start
@@ -489,6 +570,19 @@ export default function ThreeBodyGlassSim() {
       ctx.fill();
       ctx.restore();
     }
+
+    // Outer celestial objects
+    for (const obj of outerObjects) {
+      const pos = outerObjectPosition(obj, liveRef.current.tSim);
+      const [x, y] = worldToScreen(pos[0], pos[1], W, H);
+      ctx.save();
+      glow(obj.color, 0.8);
+      ctx.fillStyle = obj.color;
+      ctx.beginPath();
+      ctx.arc(x, y, obj.radius * scaleRef.current, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
   }
 
   // ======== Animation Loop ========
@@ -524,6 +618,7 @@ export default function ThreeBodyGlassSim() {
             liveRef.current.v = exact.v.map((x) => [...x]) as any;
             liveRef.current.tSim = tEvent;
             if (buf.kind === "collision") handleCollision(liveRef.current.p as any, liveRef.current.v as any);
+            handleOuterCollisions(liveRef.current.p as any, liveRef.current.v as any, liveRef.current.tSim);
           }
         }
         if (!collisionHandledRef.current && buf.kind === "collision" && simTimeTarget > tEvent) {
@@ -548,10 +643,11 @@ export default function ThreeBodyGlassSim() {
         const h = 0.005;
         while (dtLeft > 1e-6) {
           const step = Math.min(h, dtLeft);
-          const next = rk4Step(liveRef.current.p as any, liveRef.current.v as any, step);
+          const next = rk4Step(liveRef.current.p as any, liveRef.current.v as any, step, liveRef.current.tSim, true);
           liveRef.current.p = next.p as any;
           liveRef.current.v = next.v as any;
           handleCollision(liveRef.current.p as any, liveRef.current.v as any);
+          handleOuterCollisions(liveRef.current.p as any, liveRef.current.v as any, liveRef.current.tSim);
           for (const sh of shardsRef.current) {
             sh.p = add(sh.p, mul(sh.v, step)) as [number, number];
             sh.life -= step;
@@ -687,7 +783,7 @@ export default function ThreeBodyGlassSim() {
             ))}
             <button
               onClick={() => {
-                const rand = orientationPresets[Math.floor(Math.random() * orientationPresets.length)];
+                const rand = randomOrientation();
                 orientationRef.current = rand;
                 setOrientation(rand);
               }}
@@ -711,7 +807,7 @@ export default function ThreeBodyGlassSim() {
               <button
                 key={opt.label}
                 onClick={() => {
-                  mapRef.current.baseSpeed = 0.35 + Math.random() * (1.5 - 0.35);
+                  mapRef.current.baseSpeed = 1;
                   setSpeedMul(defaultSettings.speedMul);
                   setTrailMax(defaultSettings.trail);
                   userZoomRef.current = defaultSettings.zoom;
