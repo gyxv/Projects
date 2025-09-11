@@ -23,6 +23,61 @@ var ThreeBodyGlassSim = (() => {
     default: () => ThreeBodyGlassSim
   });
   var { useEffect, useRef, useState } = React;
+  var orientationPresets = [
+    {
+      label: "Figure\u20118",
+      p: [
+        [0.97000436, -0.24308753],
+        [-0.97000436, 0.24308753],
+        [0, 0]
+      ],
+      v: [
+        [0.466203685, 0.43236573],
+        [0.466203685, 0.43236573],
+        [-0.93240737, -0.86473146]
+      ]
+    },
+    {
+      label: "Circular",
+      p: [
+        [1, 0],
+        [-0.5, 0.8660254],
+        [-0.5, -0.8660254]
+      ],
+      v: [
+        [0, 0.658],
+        [-0.57, -0.329],
+        [0.57, -0.329]
+      ]
+    },
+    {
+      label: "Spiral",
+      p: [
+        [0.9, 0],
+        [-0.9, 0],
+        [0, 0.6]
+      ],
+      v: [
+        [0, 0.5],
+        [0, -0.5],
+        [0.6, 0]
+      ]
+    },
+    {
+      label: "Chain",
+      p: [
+        [-0.8, 0.2],
+        [0.8, -0.2],
+        [0, 0]
+      ],
+      v: [
+        [0, 0.6],
+        [0, -0.6],
+        [0.3, 0.6]
+      ]
+    }
+  ];
+  var defaultSettings = { zoom: 1.35, speedMul: 1, trail: 90 };
   function ThreeBodyGlassSim() {
     const [isReady, setIsReady] = useState(false);
     const [isPlaying, setIsPlaying] = useState(true);
@@ -34,6 +89,9 @@ var ThreeBodyGlassSim = (() => {
     const [progressLines, setProgressLines] = useState([]);
     const [candidateInfo, setCandidateInfo] = useState("");
     const [attemptInfo, setAttemptInfo] = useState("");
+    const [orientation, setOrientation] = useState(null);
+    const [zoom, setZoom] = useState(defaultSettings.zoom);
+    const orientationRef = useRef(orientationPresets[0]);
     const canvasRef = useRef(null);
     const rafRef = useRef(null);
     const G = 1;
@@ -42,7 +100,7 @@ var ThreeBodyGlassSim = (() => {
     const softEps = 1e-4;
     const targetScaleRef = useRef(180);
     const scaleRef = useRef(180);
-    const userZoomRef = useRef(1.35);
+    const userZoomRef = useRef(defaultSettings.zoom);
     const preBufRef = useRef(null);
     const liveRef = useRef({
       p: [[0, 0], [0, 0], [0, 0]],
@@ -158,16 +216,8 @@ var ThreeBodyGlassSim = (() => {
       setProgressLines(["Starting search for perturbations..."]);
       setCandidateInfo("");
       setAttemptInfo("");
-      let pBase = [
-        [0.97000436, -0.24308753],
-        [-0.97000436, 0.24308753],
-        [0, 0]
-      ];
-      let vBase = [
-        [0.466203685, 0.43236573],
-        [0.466203685, 0.43236573],
-        [-0.93240737, -0.86473146]
-      ];
+      let pBase = orientationRef.current.p.map((x) => [...x]);
+      let vBase = orientationRef.current.v.map((x) => [...x]);
       const epsCandidates = [1e-5, 5e-5, 1e-4, 3e-4, 1e-3, 3e-3, 7e-3, 0.012];
       const dt = 4e-3;
       const maxSteps = 22e4;
@@ -404,10 +454,12 @@ var ThreeBodyGlassSim = (() => {
           }
         }
       }
-      const p = liveRef.current.p;
-      for (let i = 0; i < 3; i++) {
-        trailsRef.current[i].push([p[i][0], p[i][1]]);
-        while (trailsRef.current[i].length > trailMax) trailsRef.current[i].shift();
+      if (isPlaying) {
+        const p = liveRef.current.p;
+        for (let i = 0; i < 3; i++) {
+          trailsRef.current[i].push([p[i][0], p[i][1]]);
+          while (trailsRef.current[i].length > trailMax) trailsRef.current[i].shift();
+        }
       }
       drawScene(ctx, liveRef.current.p);
       if (buf) {
@@ -432,6 +484,9 @@ var ThreeBodyGlassSim = (() => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = requestAnimationFrame(loopRef.current);
     }, [isReady, isPlaying, speedMul, trailMax]);
+    useEffect(() => {
+      mapRef.current.realStart = performance.now() / 1e3 - liveRef.current.tSim / (mapRef.current.baseSpeed * speedMul);
+    }, [speedMul]);
     function resetAll() {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       setIsReady(false);
@@ -442,24 +497,32 @@ var ThreeBodyGlassSim = (() => {
       setProgressLines([]);
       setCandidateInfo("");
       setAttemptInfo("");
+      setOrientation(null);
+      orientationRef.current = orientationPresets[0];
+      userZoomRef.current = defaultSettings.zoom;
+      setZoom(defaultSettings.zoom);
+      setSpeedMul(defaultSettings.speedMul);
+      setTrailMax(defaultSettings.trail);
     }
     function handleWheel(e) {
       e.preventDefault();
       const factor = Math.pow(1.05, -e.deltaY / 100);
       userZoomRef.current = Math.max(0.5, Math.min(2.5, userZoomRef.current * factor));
+      setZoom(userZoomRef.current);
     }
-    function retargetEventRealTime(desiredSeconds) {
-      setIsReady(false);
-      setEventType(null);
-      setEventBodyInfo("");
-      setChosenDuration(desiredSeconds);
-      preSimulateAndSetup({
-        targetTEvent: mapRef.current.baseSpeed * desiredSeconds,
-        targetRealTime: desiredSeconds
-      }).then(() => {
-        mapRef.current.realStart = performance.now() / 1e3;
-        setIsReady(true);
-      });
+    function resetControls() {
+      userZoomRef.current = defaultSettings.zoom;
+      setZoom(defaultSettings.zoom);
+      setSpeedMul(defaultSettings.speedMul);
+      setTrailMax(defaultSettings.trail);
+    }
+    function togglePlay() {
+      if (isPlaying) {
+        setIsPlaying(false);
+      } else {
+        mapRef.current.realStart = performance.now() / 1e3 - liveRef.current.tSim / (mapRef.current.baseSpeed * speedMul);
+        setIsPlaying(true);
+      }
     }
     const durationOptions = [
       { label: "30s", seconds: 30 },
@@ -479,6 +542,31 @@ var ThreeBodyGlassSim = (() => {
       { label: "24h", seconds: 86400 }
     ];
     const eventLabel = eventType === "collision" ? `collision (${eventBodyInfo})` : eventType === "ejection" ? `ejection of ${eventBodyInfo}` : "an event";
+    if (orientation === null) {
+      return /* @__PURE__ */ React.createElement("div", { className: "relative w-full h-[88vh] md:h-[92vh] bg-black text-white font-sans overflow-hidden rounded-2xl shadow-2xl flex items-center justify-center" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center" }, /* @__PURE__ */ React.createElement("div", { className: "text-lg mb-3" }, "Choose starting orientation"), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-2 text-sm mb-3" }, orientationPresets.map((opt) => /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          key: opt.label,
+          onClick: () => {
+            orientationRef.current = opt;
+            setOrientation(opt);
+          },
+          className: "px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20"
+        },
+        opt.label
+      )), /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          onClick: () => {
+            const rand = orientationPresets[Math.floor(Math.random() * orientationPresets.length)];
+            orientationRef.current = rand;
+            setOrientation(rand);
+          },
+          className: "px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20"
+        },
+        "Random"
+      ))));
+    }
     if (chosenDuration === null) {
       return /* @__PURE__ */ React.createElement("div", { className: "relative w-full h-[88vh] md:h-[92vh] bg-black text-white font-sans overflow-hidden rounded-2xl shadow-2xl flex items-center justify-center" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center" }, /* @__PURE__ */ React.createElement("div", { className: "text-lg mb-3" }, "Choose time until collision/ejection"), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-3 gap-2 text-sm" }, durationOptions.map((opt) => /* @__PURE__ */ React.createElement(
         "button",
@@ -486,7 +574,10 @@ var ThreeBodyGlassSim = (() => {
           key: opt.label,
           onClick: () => {
             mapRef.current.baseSpeed = 0.35 + Math.random() * (1.5 - 0.35);
-            setSpeedMul(1);
+            setSpeedMul(defaultSettings.speedMul);
+            setTrailMax(defaultSettings.trail);
+            userZoomRef.current = defaultSettings.zoom;
+            setZoom(defaultSettings.zoom);
             setChosenDuration(opt.seconds);
           },
           className: "px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20"
@@ -497,7 +588,7 @@ var ThreeBodyGlassSim = (() => {
     return /* @__PURE__ */ React.createElement("div", { className: "relative w-full h-[88vh] md:h-[92vh] bg-black text-white font-sans overflow-hidden rounded-2xl shadow-2xl", onWheel: handleWheel }, /* @__PURE__ */ React.createElement("canvas", { ref: canvasRef, className: "absolute inset-0 w-full h-full" }), /* @__PURE__ */ React.createElement("div", { className: "absolute top-4 left-4 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-wider text-white/70" }, "Time to ", eventLabel), /* @__PURE__ */ React.createElement("div", { className: "text-3xl font-semibold tabular-nums" }, Math.floor(countdown / 60).toString().padStart(2, "0"), ":", Math.floor(countdown % 60).toString().padStart(2, "0"))), /* @__PURE__ */ React.createElement("div", { className: "absolute top-4 right-4 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-wider text-white/70 mb-1" }, "Triadic palette"), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3" }, hexColors.map((hex, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("div", { className: "w-5 h-5 rounded-full", style: { background: hex } }), /* @__PURE__ */ React.createElement("span", { className: "text-sm font-mono text-white/80" }, hex.toUpperCase()))))), /* @__PURE__ */ React.createElement("div", { className: "absolute left-1/2 -translate-x-1/2 bottom-4 flex items-center gap-3 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg" }, /* @__PURE__ */ React.createElement(
       "button",
       {
-        onClick: () => setIsPlaying((p) => !p),
+        onClick: togglePlay,
         className: "px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 transition"
       },
       isPlaying ? "Pause" : "Play"
@@ -509,16 +600,18 @@ var ThreeBodyGlassSim = (() => {
       },
       /* @__PURE__ */ React.createElement("span", { className: "block" }, "Reset"),
       /* @__PURE__ */ React.createElement("span", { className: "block text-xs opacity-80" }, "(new colors)")
-    ), isReady && preBufRef.current && /* @__PURE__ */ React.createElement("div", { className: "text-sm text-white/70 font-medium" }, "Event: ", /* @__PURE__ */ React.createElement("span", { className: "text-white/90" }, eventLabel), /* @__PURE__ */ React.createElement("span", { className: "mx-2" }, "\u2022"), "Sim @ event: ", /* @__PURE__ */ React.createElement("span", { className: "tabular-nums text-white/90" }, preBufRef.current.tEvent.toFixed(2), "s"), /* @__PURE__ */ React.createElement("span", { className: "mx-2" }, "\u2022"), "Speed: ", /* @__PURE__ */ React.createElement("span", { className: "tabular-nums text-white/90" }, "\xD7", (mapRef.current.baseSpeed * speedMul).toFixed(2)))), /* @__PURE__ */ React.createElement("div", { className: "absolute left-4 bottom-24 md:bottom-28 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg w-[min(88vw,420px)]" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-2" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-widest text-white/70" }, "Controls"), /* @__PURE__ */ React.createElement("button", { onClick: () => setPanelOpen((v) => !v), className: "text-white/80 text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/20" }, panelOpen ? "Minimize" : "Expand")), panelOpen && /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between text-xs text-white/70" }, /* @__PURE__ */ React.createElement("span", null, "Zoom"), /* @__PURE__ */ React.createElement("span", { className: "tabular-nums" }, userZoomRef.current.toFixed(2), "\xD7")), /* @__PURE__ */ React.createElement(
+    ), isReady && preBufRef.current && /* @__PURE__ */ React.createElement("div", { className: "text-sm text-white/70 font-medium" }, "Event: ", /* @__PURE__ */ React.createElement("span", { className: "text-white/90" }, eventLabel), /* @__PURE__ */ React.createElement("span", { className: "mx-2" }, "\u2022"), "Sim @ event: ", /* @__PURE__ */ React.createElement("span", { className: "tabular-nums text-white/90" }, preBufRef.current.tEvent.toFixed(2), "s"), /* @__PURE__ */ React.createElement("span", { className: "mx-2" }, "\u2022"), "Speed: ", /* @__PURE__ */ React.createElement("span", { className: "tabular-nums text-white/90" }, "\xD7", (mapRef.current.baseSpeed * speedMul).toFixed(2)))), /* @__PURE__ */ React.createElement("div", { className: "absolute left-4 bottom-24 md:bottom-28 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg w-[min(88vw,420px)]" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-2" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-widest text-white/70" }, "Controls"), /* @__PURE__ */ React.createElement("button", { onClick: () => setPanelOpen((v) => !v), className: "text-white/80 text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/20" }, panelOpen ? "Minimize" : "Expand")), panelOpen && /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between text-xs text-white/70" }, /* @__PURE__ */ React.createElement("span", null, "Zoom"), /* @__PURE__ */ React.createElement("span", { className: "tabular-nums" }, zoom.toFixed(2), "\xD7")), /* @__PURE__ */ React.createElement(
       "input",
       {
         type: "range",
         min: 0.5,
         max: 2.5,
         step: 0.01,
-        value: userZoomRef.current,
+        value: zoom,
         onChange: (e) => {
-          userZoomRef.current = parseFloat(e.target.value);
+          const z = parseFloat(e.target.value);
+          setZoom(z);
+          userZoomRef.current = z;
         },
         className: "w-full accent-white/90"
       }
@@ -544,18 +637,7 @@ var ThreeBodyGlassSim = (() => {
         onChange: (e) => setTrailMax(parseInt(e.target.value)),
         className: "w-full accent-white/90"
       }
-    )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between text-xs text-white/70" }, /* @__PURE__ */ React.createElement("span", null, "Time to collision/ejection"), /* @__PURE__ */ React.createElement("span", { className: "tabular-nums" }, Math.max(0, Math.round(countdown)), "s")), /* @__PURE__ */ React.createElement(
-      "input",
-      {
-        type: "range",
-        min: 30,
-        max: 86400,
-        step: 1,
-        value: Math.max(30, Math.min(86400, Math.round(countdown))),
-        onChange: (e) => retargetEventRealTime(parseFloat(e.target.value)),
-        className: "w-full accent-white/90"
-      }
-    ), /* @__PURE__ */ React.createElement("div", { className: "text-[11px] text-white/60 mt-1" }, "Keeps current speed; adjusts initial perturbation to aim for the chosen time.")))), !isReady && /* @__PURE__ */ React.createElement("div", { className: "absolute inset-0 flex items-center justify-center" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-widest text-white/70 mb-2" }, "Preparing a near-perfect 3\u2011body setup\u2026"), /* @__PURE__ */ React.createElement("div", { className: "text-lg font-medium" }, "Searching for a slight perturbation that yields an event"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 text-left text-xs font-mono text-white/80 w-64" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between mb-1" }, /* @__PURE__ */ React.createElement("div", null, candidateInfo), /* @__PURE__ */ React.createElement("div", null, attemptInfo)), /* @__PURE__ */ React.createElement("div", { className: "max-h-40 overflow-y-auto" }, progressLines.map((line, i) => /* @__PURE__ */ React.createElement("div", { key: i }, line)))))));
+    )), /* @__PURE__ */ React.createElement("div", { className: "pt-1 text-right" }, /* @__PURE__ */ React.createElement("button", { onClick: resetControls, className: "px-3 py-1 text-xs rounded-lg bg-white/10 hover:bg-white/20 border border-white/20" }, "Reset")))), !isReady && /* @__PURE__ */ React.createElement("div", { className: "absolute inset-0 flex items-center justify-center" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-widest text-white/70 mb-2" }, "Preparing a near-perfect 3\u2011body setup\u2026"), /* @__PURE__ */ React.createElement("div", { className: "text-lg font-medium" }, "Searching for a slight perturbation that yields an event"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 text-left text-xs font-mono text-white/80 w-64" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between mb-1" }, /* @__PURE__ */ React.createElement("div", null, candidateInfo), /* @__PURE__ */ React.createElement("div", null, attemptInfo)), /* @__PURE__ */ React.createElement("div", { className: "max-h-40 overflow-y-auto" }, progressLines.map((line, i) => /* @__PURE__ */ React.createElement("div", { key: i }, line)))))));
   }
   return __toCommonJS(three_body_problem_exports);
 })();

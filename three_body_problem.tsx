@@ -1,12 +1,75 @@
 import type React from "react";
 const { useEffect, useRef, useState } = React;
 
+type OrientationPreset = {
+  label: string;
+  p: [number, number][];
+  v: [number, number][];
+};
+
+const orientationPresets: OrientationPreset[] = [
+  {
+    label: "Figure‑8",
+    p: [
+      [0.97000436, -0.24308753],
+      [-0.97000436, 0.24308753],
+      [0.0, 0.0],
+    ],
+    v: [
+      [0.466203685, 0.43236573],
+      [0.466203685, 0.43236573],
+      [-0.93240737, -0.86473146],
+    ],
+  },
+  {
+    label: "Circular",
+    p: [
+      [1, 0],
+      [-0.5, 0.8660254],
+      [-0.5, -0.8660254],
+    ],
+    v: [
+      [0, 0.658],
+      [-0.570, -0.329],
+      [0.570, -0.329],
+    ],
+  },
+  {
+    label: "Spiral",
+    p: [
+      [0.9, 0],
+      [-0.9, 0],
+      [0, 0.6],
+    ],
+    v: [
+      [0, 0.5],
+      [0, -0.5],
+      [0.6, 0],
+    ],
+  },
+  {
+    label: "Chain",
+    p: [
+      [-0.8, 0.2],
+      [0.8, -0.2],
+      [0, 0],
+    ],
+    v: [
+      [0, 0.6],
+      [0, -0.6],
+      [0.3, 0.6],
+    ],
+  },
+];
+
+const defaultSettings = { zoom: 1.35, speedMul: 1, trail: 90 };
+
 // Three‑Body Glass Simulation (Zoom + Sliders)
 // • Equal masses, Newtonian gravity (RK4)
 // • Elastic sphere–sphere collisions
 // • Pre-sim finds a near-perfect setup (slightly perturbed) that produces a first event (collision/ejection)
 // • Event is mapped to occur at a chosen real-time target using a time mapping (sim seconds per real second)
-// • UI adds: zoom (wheel + slider), speed slider, trail length slider, and a "Time‑to‑Event" slider
+// • UI adds: zoom (wheel + slider), speed slider, trail length slider
 // • Default view is close; trails are short and fade fast (editable)
 
 export default function ThreeBodyGlassSim() {
@@ -21,6 +84,10 @@ export default function ThreeBodyGlassSim() {
   const [progressLines, setProgressLines] = useState<string[]>([]);
   const [candidateInfo, setCandidateInfo] = useState("");
   const [attemptInfo, setAttemptInfo] = useState("");
+  const [orientation, setOrientation] = useState<OrientationPreset | null>(null);
+
+  const [zoom, setZoom] = useState(defaultSettings.zoom);
+  const orientationRef = useRef<OrientationPreset>(orientationPresets[0]);
 
   // ======== Canvas / Animation Refs ========
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -35,7 +102,7 @@ export default function ThreeBodyGlassSim() {
   // View scaling (px per sim unit)
   const targetScaleRef = useRef<number>(180);
   const scaleRef = useRef<number>(180);
-  const userZoomRef = useRef<number>(1.35); // default: rather close
+  const userZoomRef = useRef<number>(defaultSettings.zoom); // default: rather close
 
   // Buffer from pre-sim to guarantee an event and reproducibility
   const preBufRef = useRef<{
@@ -179,17 +246,9 @@ export default function ThreeBodyGlassSim() {
     setCandidateInfo("");
     setAttemptInfo("");
 
-    // Base figure-8 initial conditions (equal masses, G=1)
-    let pBase: [number, number][] = [
-      [ 0.97000436, -0.24308753],
-      [-0.97000436,  0.24308753],
-      [ 0.0,          0.0      ],
-    ];
-    let vBase: [number, number][] = [
-      [ 0.4662036850,  0.4323657300],
-      [ 0.4662036850,  0.4323657300],
-      [-0.93240737,   -0.86473146   ],
-    ];
+    // Base initial conditions from selected orientation
+    let pBase = orientationRef.current.p.map((x) => [...x]) as [number, number][];
+    let vBase = orientationRef.current.v.map((x) => [...x]) as [number, number][];
 
     const epsCandidates = [1e-5, 5e-5, 1e-4, 3e-4, 1e-3, 3e-3, 7e-3, 1.2e-2];
     const dt = 0.004;
@@ -456,10 +515,12 @@ export default function ThreeBodyGlassSim() {
     }
 
     // Update trails
-    const p = liveRef.current.p;
-    for (let i = 0; i < 3; i++) {
-      trailsRef.current[i].push([p[i][0], p[i][1]]);
-      while (trailsRef.current[i].length > trailMax) trailsRef.current[i].shift();
+    if (isPlaying) {
+      const p = liveRef.current.p;
+      for (let i = 0; i < 3; i++) {
+        trailsRef.current[i].push([p[i][0], p[i][1]]);
+        while (trailsRef.current[i].length > trailMax) trailsRef.current[i].shift();
+      }
     }
 
     // Draw
@@ -489,6 +550,9 @@ export default function ThreeBodyGlassSim() {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(loopRef.current);
   }, [isReady, isPlaying, speedMul, trailMax]);
+  useEffect(() => {
+    mapRef.current.realStart = performance.now() / 1000 - liveRef.current.tSim / (mapRef.current.baseSpeed * speedMul);
+  }, [speedMul]);
 
   // ======== Interactions ========
   function resetAll() {
@@ -501,24 +565,34 @@ export default function ThreeBodyGlassSim() {
     setProgressLines([]);
     setCandidateInfo("");
     setAttemptInfo("");
+    setOrientation(null);
+    orientationRef.current = orientationPresets[0];
+    userZoomRef.current = defaultSettings.zoom;
+    setZoom(defaultSettings.zoom);
+    setSpeedMul(defaultSettings.speedMul);
+    setTrailMax(defaultSettings.trail);
   }
   function handleWheel(e: React.WheelEvent<HTMLDivElement>) {
     e.preventDefault();
     const factor = Math.pow(1.05, -e.deltaY / 100);
     userZoomRef.current = Math.max(0.5, Math.min(2.5, userZoomRef.current * factor));
+    setZoom(userZoomRef.current);
   }
-  function retargetEventRealTime(desiredSeconds: number) {
-    setIsReady(false);
-    setEventType(null);
-    setEventBodyInfo("");
-    setChosenDuration(desiredSeconds);
-    preSimulateAndSetup({
-      targetTEvent: mapRef.current.baseSpeed * desiredSeconds,
-      targetRealTime: desiredSeconds,
-    }).then(() => {
-      mapRef.current.realStart = performance.now() / 1000;
-      setIsReady(true);
-    });
+
+  function resetControls() {
+    userZoomRef.current = defaultSettings.zoom;
+    setZoom(defaultSettings.zoom);
+    setSpeedMul(defaultSettings.speedMul);
+    setTrailMax(defaultSettings.trail);
+  }
+
+  function togglePlay() {
+    if (isPlaying) {
+      setIsPlaying(false);
+    } else {
+      mapRef.current.realStart = performance.now() / 1000 - liveRef.current.tSim / (mapRef.current.baseSpeed * speedMul);
+      setIsPlaying(true);
+    }
   }
 
   // ======== UI ========
@@ -543,6 +617,37 @@ export default function ThreeBodyGlassSim() {
     ? `collision (${eventBodyInfo})`
     : eventType === "ejection" ? `ejection of ${eventBodyInfo}` : "an event";
 
+  if (orientation === null) {
+    return (
+      <div className="relative w-full h-[88vh] md:h-[92vh] bg-black text-white font-sans overflow-hidden rounded-2xl shadow-2xl flex items-center justify-center">
+        <div className="px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center">
+          <div className="text-lg mb-3">Choose starting orientation</div>
+          <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+            {orientationPresets.map((opt) => (
+              <button
+                key={opt.label}
+                onClick={() => { orientationRef.current = opt; setOrientation(opt); }}
+                className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20"
+              >
+                {opt.label}
+              </button>
+            ))}
+            <button
+              onClick={() => {
+                const rand = orientationPresets[Math.floor(Math.random() * orientationPresets.length)];
+                orientationRef.current = rand;
+                setOrientation(rand);
+              }}
+              className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20"
+            >
+              Random
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (chosenDuration === null) {
     return (
       <div className="relative w-full h-[88vh] md:h-[92vh] bg-black text-white font-sans overflow-hidden rounded-2xl shadow-2xl flex items-center justify-center">
@@ -554,7 +659,10 @@ export default function ThreeBodyGlassSim() {
                 key={opt.label}
                 onClick={() => {
                   mapRef.current.baseSpeed = 0.35 + Math.random() * (1.5 - 0.35);
-                  setSpeedMul(1);
+                  setSpeedMul(defaultSettings.speedMul);
+                  setTrailMax(defaultSettings.trail);
+                  userZoomRef.current = defaultSettings.zoom;
+                  setZoom(defaultSettings.zoom);
                   setChosenDuration(opt.seconds);
                 }}
                 className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20"
@@ -596,7 +704,7 @@ export default function ThreeBodyGlassSim() {
       {/* Bottom controls */}
       <div className="absolute left-1/2 -translate-x-1/2 bottom-4 flex items-center gap-3 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg">
         <button
-          onClick={() => setIsPlaying((p) => !p)}
+          onClick={togglePlay}
           className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 transition"
         >
           {isPlaying ? "Pause" : "Play"}
@@ -631,10 +739,10 @@ export default function ThreeBodyGlassSim() {
           <div className="space-y-3">
             {/* Zoom */}
             <div>
-              <div className="flex items-center justify-between text-xs text-white/70"><span>Zoom</span><span className="tabular-nums">{userZoomRef.current.toFixed(2)}×</span></div>
+              <div className="flex items-center justify-between text-xs text-white/70"><span>Zoom</span><span className="tabular-nums">{zoom.toFixed(2)}×</span></div>
               <input type="range" min={0.5} max={2.5} step={0.01}
-                value={userZoomRef.current}
-                onChange={(e) => { userZoomRef.current = parseFloat(e.target.value); }}
+                value={zoom}
+                onChange={(e) => { const z = parseFloat(e.target.value); setZoom(z); userZoomRef.current = z; }}
                 className="w-full accent-white/90" />
             </div>
             {/* Speed */}
@@ -653,14 +761,8 @@ export default function ThreeBodyGlassSim() {
                 onChange={(e) => setTrailMax(parseInt(e.target.value))}
                 className="w-full accent-white/90" />
             </div>
-            {/* Time to Event */}
-            <div>
-              <div className="flex items-center justify-between text-xs text-white/70"><span>Time to collision/ejection</span><span className="tabular-nums">{Math.max(0, Math.round(countdown))}s</span></div>
-              <input type="range" min={30} max={86400} step={1}
-                value={Math.max(30, Math.min(86400, Math.round(countdown)))}
-                onChange={(e) => retargetEventRealTime(parseFloat(e.target.value))}
-                className="w-full accent-white/90" />
-              <div className="text-[11px] text-white/60 mt-1">Keeps current speed; adjusts initial perturbation to aim for the chosen time.</div>
+            <div className="pt-1 text-right">
+              <button onClick={resetControls} className="px-3 py-1 text-xs rounded-lg bg-white/10 hover:bg-white/20 border border-white/20">Reset</button>
             </div>
           </div>
         )}
