@@ -19,6 +19,8 @@ export default function ThreeBodyGlassSim() {
   const [hexColors, setHexColors] = useState<string[]>(["#cccccc", "#cccccc", "#cccccc"]);
   const [chosenDuration, setChosenDuration] = useState<number | null>(null); // real seconds until event
   const [progressLines, setProgressLines] = useState<string[]>([]);
+  const [candidateInfo, setCandidateInfo] = useState("");
+  const [attemptInfo, setAttemptInfo] = useState("");
 
   // ======== Canvas / Animation Refs ========
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -174,6 +176,8 @@ export default function ThreeBodyGlassSim() {
     const codes = [base, tri[0], tri[1]];
     setHexColors(codes);
     setProgressLines(["Starting search for perturbations..."]);
+    setCandidateInfo("");
+    setAttemptInfo("");
 
     // Base figure-8 initial conditions (equal masses, G=1)
     let pBase: [number, number][] = [
@@ -200,10 +204,10 @@ export default function ThreeBodyGlassSim() {
 
     // Search over small perturbations and random angles, choose earliest if no target; otherwise closest to target
     for (let e = 0; e < epsCandidates.length; e++) {
-      setProgressLines((l) => [...l.slice(-40), `ε candidate ${e + 1}/${epsCandidates.length}`]);
+      setCandidateInfo(`∈ candidate ${e + 1}/${epsCandidates.length}`);
       await new Promise((r) => setTimeout(r, 0));
       for (let attempt = 0; attempt < 6; attempt++) {
-        setProgressLines((l) => [...l.slice(-40), `  attempt ${attempt + 1}/6`]);
+        setAttemptInfo(`attempt ${attempt + 1}/6`);
         await new Promise((r) => setTimeout(r, 0));
         let p = pBase.map((x) => [...x]) as [number, number][];
         let v = vBase.map((x) => [...x]) as [number, number][];
@@ -221,7 +225,8 @@ export default function ThreeBodyGlassSim() {
           buffer.push({ p: [[...p[0]], [...p[1]], [...p[2]]] as any, v: [[...v[0]], [...v[1]], [...v[2]]] as any });
 
           if (step % 5000 === 0) {
-            setProgressLines((l) => [...l.slice(-40), `    step ${step}`]);
+            const pct = ((step / maxSteps) * 100).toFixed(1);
+            setProgressLines((l) => [...l.slice(-40), `    ${pct}%`]);
             await new Promise((r) => setTimeout(r, 0));
           }
 
@@ -288,11 +293,7 @@ export default function ThreeBodyGlassSim() {
     }
 
     // Map sim time so that event occurs at desired real-time duration
-    const desiredReal = opts?.targetRealTime ?? 120;
-    mapRef.current = {
-      realStart: performance.now() / 1000,
-      baseSpeed: preBufRef.current ? preBufRef.current.tEvent / desiredReal : 1,
-    };
+    mapRef.current.realStart = performance.now() / 1000;
 
     // Trails reset
     trailsRef.current = [[], [], []];
@@ -312,6 +313,8 @@ export default function ThreeBodyGlassSim() {
     await new Promise((r) => setTimeout(r, 0));
     setIsReady(true);
     setProgressLines([]);
+    setCandidateInfo("");
+    setAttemptInfo("");
   }
 
   // ======== Canvas Helpers ========
@@ -475,7 +478,10 @@ export default function ThreeBodyGlassSim() {
   // ======== Effects ========
   useEffect(() => {
     if (chosenDuration == null) return;
-    preSimulateAndSetup({ targetRealTime: chosenDuration });
+    preSimulateAndSetup({
+      targetTEvent: mapRef.current.baseSpeed * chosenDuration,
+      targetRealTime: chosenDuration,
+    });
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, [chosenDuration]);
   useEffect(() => {
@@ -493,6 +499,8 @@ export default function ThreeBodyGlassSim() {
     setIsPlaying(true);
     setChosenDuration(null);
     setProgressLines([]);
+    setCandidateInfo("");
+    setAttemptInfo("");
   }
   function handleWheel(e: React.WheelEvent<HTMLDivElement>) {
     e.preventDefault();
@@ -504,7 +512,10 @@ export default function ThreeBodyGlassSim() {
     setEventType(null);
     setEventBodyInfo("");
     setChosenDuration(desiredSeconds);
-    preSimulateAndSetup({ targetRealTime: desiredSeconds }).then(() => {
+    preSimulateAndSetup({
+      targetTEvent: mapRef.current.baseSpeed * desiredSeconds,
+      targetRealTime: desiredSeconds,
+    }).then(() => {
       mapRef.current.realStart = performance.now() / 1000;
       setIsReady(true);
     });
@@ -541,7 +552,11 @@ export default function ThreeBodyGlassSim() {
             {durationOptions.map((opt) => (
               <button
                 key={opt.label}
-                onClick={() => setChosenDuration(opt.seconds)}
+                onClick={() => {
+                  mapRef.current.baseSpeed = 0.35 + Math.random() * (1.5 - 0.35);
+                  setSpeedMul(1);
+                  setChosenDuration(opt.seconds);
+                }}
                 className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20"
               >
                 {opt.label}
@@ -657,10 +672,16 @@ export default function ThreeBodyGlassSim() {
           <div className="px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center">
             <div className="text-xs uppercase tracking-widest text-white/70 mb-2">Preparing a near-perfect 3‑body setup…</div>
             <div className="text-lg font-medium">Searching for a slight perturbation that yields an event</div>
-            <div className="mt-3 text-left text-xs font-mono text-white/80 max-h-40 overflow-y-auto w-64">
-              {progressLines.map((line, i) => (
-                <div key={i}>{line}</div>
-              ))}
+            <div className="mt-3 text-left text-xs font-mono text-white/80 w-64">
+              <div className="flex justify-between mb-1">
+                <div>{candidateInfo}</div>
+                <div>{attemptInfo}</div>
+              </div>
+              <div className="max-h-40 overflow-y-auto">
+                {progressLines.map((line, i) => (
+                  <div key={i}>{line}</div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
