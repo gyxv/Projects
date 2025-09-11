@@ -14,13 +14,20 @@
     <script src="./three_body_problem.bundle.js" defer></script>
     <script>
       window.addEventListener('DOMContentLoaded', () => {
+        console.log('DOMContentLoaded', {
+          mountReactApp: !!window.mountReactApp,
+          hasSim: !!window.ThreeBodyGlassSim?.default,
+        });
         if (window.mountReactApp && window.ThreeBodyGlassSim?.default) {
           mountReactApp(
             ThreeBodyGlassSim.default,
             document.getElementById('root')
           );
         } else {
-          console.error('Simulation failed to load');
+          console.error('Simulation failed to load', {
+            mountReactApp: window.mountReactApp,
+            ThreeBodyGlassSim: window.ThreeBodyGlassSim,
+          });
         }
       });
     </script>
