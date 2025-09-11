@@ -69,27 +69,40 @@ function randomOrientation(): OrientationPreset {
   };
 }
 
-function generateOuterObjects(): OuterObject[] {
+function generateOuterObjects(center: [number, number]): OuterObject[] {
   const objs: OuterObject[] = [];
-  const ang1 = Math.random() * Math.PI * 2;
-  const star1Pos: [number, number] = [20 * Math.cos(ang1), 20 * Math.sin(ang1)];
-  const star1 = { mass: 5, radius: 0.15, orbitCenter: star1Pos, orbitRadius: 0, omega: 0, phase: 0, color: "#ffdd88" };
-  objs.push(star1);
-  const r1 = 3;
-  const omega1 = Math.sqrt(star1.mass / Math.pow(r1, 3));
-  objs.push({ mass: 0.5, radius: 0.05, orbitCenter: star1Pos, orbitRadius: r1, omega: omega1, phase: Math.random() * Math.PI * 2, color: "#88aaff" });
-
-  const ang2 = Math.random() * Math.PI * 2;
-  const star2Pos: [number, number] = [22 * Math.cos(ang2), 22 * Math.sin(ang2)];
-  const star2 = { mass: 4, radius: 0.12, orbitCenter: star2Pos, orbitRadius: 0, omega: 0, phase: 0, color: "#ffbb55" };
-  objs.push(star2);
-  const r2 = 2.5;
-  const omega2 = Math.sqrt(star2.mass / Math.pow(r2, 3));
-  objs.push({ mass: 0.2, radius: 0.04, orbitCenter: star2Pos, orbitRadius: r2, omega: omega2, phase: Math.random() * Math.PI * 2, color: "#55ff55" });
-  for (let i = 0; i < 4; i++) {
-    const r = 4 + i * 0.5;
-    const omega = Math.sqrt(star2.mass / Math.pow(r, 3));
-    objs.push({ mass: 0.01, radius: 0.02, orbitCenter: star2Pos, orbitRadius: r, omega, phase: Math.random() * Math.PI * 2, color: "#aaaaaa" });
+  const systems = 3 + Math.floor(Math.random() * 3); // 3‑5 clusters
+  for (let s = 0; s < systems; s++) {
+    const ang = Math.random() * Math.PI * 2;
+    const dist = 20 + Math.random() * 6;
+    const c: [number, number] = [center[0] + dist * Math.cos(ang), center[1] + dist * Math.sin(ang)];
+    const choice = Math.floor(Math.random() * 3);
+    if (choice === 0) {
+      // star with one planet
+      const m = 4 + Math.random() * 3;
+      const star = { mass: m, radius: 0.12 + Math.random() * 0.06, orbitCenter: c, orbitRadius: 0, omega: 0, phase: 0, color: "#ffcc99" };
+      objs.push(star);
+      const r = 2 + Math.random() * 3;
+      const omega = Math.sqrt(star.mass / Math.pow(r, 3));
+      objs.push({ mass: 0.2 + Math.random() * 0.6, radius: 0.04 + Math.random() * 0.04, orbitCenter: c, orbitRadius: r, omega, phase: Math.random() * Math.PI * 2, color: "#88aaff" });
+    } else if (choice === 1) {
+      // binary pair
+      const m = 1 + Math.random() * 1.5;
+      const sep = 0.6 + Math.random() * 0.4;
+      const omega = Math.sqrt((2 * m) / Math.pow(sep * 2, 3));
+      objs.push({ mass: m, radius: 0.06, orbitCenter: c, orbitRadius: sep, omega, phase: 0, color: "#ffaaff" });
+      objs.push({ mass: m, radius: 0.06, orbitCenter: c, orbitRadius: sep, omega, phase: Math.PI, color: "#aaffaa" });
+    } else {
+      // asteroid belt around small star
+      const star = { mass: 3, radius: 0.1, orbitCenter: c, orbitRadius: 0, omega: 0, phase: 0, color: "#ffbb55" };
+      objs.push(star);
+      const beltR = 4;
+      const omega = Math.sqrt(star.mass / Math.pow(beltR, 3));
+      const count = 12 + Math.floor(Math.random() * 12);
+      for (let i = 0; i < count; i++) {
+        objs.push({ mass: 0.01, radius: 0.02, orbitCenter: c, orbitRadius: beltR, omega, phase: Math.random() * Math.PI * 2, color: "#aaaaaa" });
+      }
+    }
   }
   return objs;
 }
@@ -100,8 +113,6 @@ function outerObjectPosition(obj: OuterObject, t: number): [number, number] {
   const ang = obj.phase + obj.omega * t;
   return [cx + Math.cos(ang) * obj.orbitRadius, cy + Math.sin(ang) * obj.orbitRadius];
 }
-
-const outerObjects = generateOuterObjects();
 
 const defaultSettings = { zoom: 1.35, speedMul: 1, trail: 90 };
 
@@ -129,6 +140,15 @@ export default function ThreeBodyGlassSim() {
 
   const [zoom, setZoom] = useState(defaultSettings.zoom);
   const orientationRef = useRef<OrientationPreset>(orientationPresets[0]);
+  const outerObjectsRef = useRef<OuterObject[]>(generateOuterObjects([0, 0]));
+  const generatedCentersRef = useRef<[number, number][]>([[0, 0]]);
+  const camRef = useRef<[number, number]>([0, 0]);
+  const autoFollowRef = useRef<number | null>(null);
+  const shatterPosRef = useRef<Array<[number, number] | null>>([null, null, null]);
+  const draggingRef = useRef(false);
+  const dragStartRef = useRef<[number, number]>([0, 0]);
+  const camStartRef = useRef<[number, number]>([0, 0]);
+  const manualPanRef = useRef(false);
 
   // ======== Canvas / Animation Refs ========
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -227,7 +247,7 @@ export default function ThreeBodyGlassSim() {
         a[i] = add(a[i], mul(r, fac));
       }
       if (includeOuter) {
-        for (const obj of outerObjects) {
+        for (const obj of outerObjectsRef.current) {
           const pos = outerObjectPosition(obj, t);
           const r = sub(pos, p[i]);
           const d2 = r[0] * r[0] + r[1] * r[1] + softEps * softEps;
@@ -282,7 +302,7 @@ export default function ThreeBodyGlassSim() {
     if (t < preBufRef.current.tEvent) return;
     for (let i = 0; i < 3; i++) {
       if (destroyedRef.current[i]) continue;
-      for (const obj of outerObjects) {
+      for (const obj of outerObjectsRef.current) {
         const pos = outerObjectPosition(obj, t);
         const rij = sub(p[i], pos);
         const d = norm(rij);
@@ -309,6 +329,16 @@ export default function ThreeBodyGlassSim() {
     let pc = [0, 0];
     for (let i = 0; i < 3; i++) pc = add(pc, p[i]);
     return { pc: mul(pc, 1 / 3) };
+  }
+
+  function ensureOuterObjectsAround(pos: [number, number]) {
+    const centers = generatedCentersRef.current;
+    for (const c of centers) {
+      if (norm(sub(pos, c)) < 25) return;
+    }
+    const newObjs = generateOuterObjects(pos);
+    outerObjectsRef.current.push(...newObjs);
+    centers.push([pos[0], pos[1]]);
   }
 
   // ======== Pre-simulation (with optional target sim-event time) ========
@@ -482,7 +512,8 @@ export default function ThreeBodyGlassSim() {
   function worldToScreen(x: number, y: number, W: number, H: number) {
     const s = scaleRef.current;
     const cx = W / 2, cy = H / 2;
-    return [cx + x * s, cy - y * s];
+    const [camX, camY] = camRef.current;
+    return [cx + (x - camX) * s, cy - (y - camY) * s];
   }
 
   // ======== Drawing ========
@@ -572,7 +603,7 @@ export default function ThreeBodyGlassSim() {
     }
 
     // Outer celestial objects
-    for (const obj of outerObjects) {
+    for (const obj of outerObjectsRef.current) {
       const pos = outerObjectPosition(obj, liveRef.current.tSim);
       const [x, y] = worldToScreen(pos[0], pos[1], W, H);
       ctx.save();
@@ -632,6 +663,8 @@ export default function ThreeBodyGlassSim() {
           }
           destroyedRef.current[pair[0]] = true;
           destroyedRef.current[pair[1]] = true;
+          shatterPosRef.current[pair[0]] = [c[0], c[1]];
+          shatterPosRef.current[pair[1]] = [c[0], c[1]];
           liveRef.current.p[pair[0]] = [9999, 9999];
           liveRef.current.p[pair[1]] = [9999, 9999];
           liveRef.current.v[pair[0]] = [0, 0];
@@ -657,6 +690,23 @@ export default function ThreeBodyGlassSim() {
           dtLeft -= step;
         }
       }
+    }
+
+    if (buf && liveRef.current.tSim < buf.tEvent) {
+      const { pc } = centerOfMass(liveRef.current.p as any);
+      camRef.current = pc;
+    } else {
+      if (!draggingRef.current && autoFollowRef.current !== null) {
+        const i = autoFollowRef.current;
+        if (destroyedRef.current[i]) {
+          const sh = shatterPosRef.current[i];
+          if (sh) camRef.current = sh;
+        } else {
+          camRef.current = liveRef.current.p[i];
+        }
+      }
+      ensureOuterObjectsAround(camRef.current);
+      for (let i = 0; i < 3; i++) ensureOuterObjectsAround(liveRef.current.p[i]);
     }
 
     // Update trails
@@ -716,6 +766,12 @@ export default function ThreeBodyGlassSim() {
     setAttemptInfo("");
     setOrientation(null);
     orientationRef.current = orientationPresets[0];
+    outerObjectsRef.current = generateOuterObjects([0, 0]);
+    generatedCentersRef.current = [[0, 0]];
+    camRef.current = [0, 0];
+    autoFollowRef.current = null;
+    shatterPosRef.current = [null, null, null];
+    manualPanRef.current = false;
     userZoomRef.current = defaultSettings.zoom;
     setZoom(defaultSettings.zoom);
     setSpeedMul(defaultSettings.speedMul);
@@ -727,6 +783,38 @@ export default function ThreeBodyGlassSim() {
     userZoomRef.current = Math.max(0.5, Math.min(2.5, userZoomRef.current * factor));
     setZoom(userZoomRef.current);
   }
+
+  function handleMouseDown(e: React.MouseEvent<HTMLDivElement>) {
+    if (!preBufRef.current) return;
+    if (liveRef.current.tSim < preBufRef.current.tEvent) return;
+    draggingRef.current = true;
+    manualPanRef.current = true;
+    autoFollowRef.current = null;
+    dragStartRef.current = [e.clientX, e.clientY];
+    camStartRef.current = [...camRef.current];
+  }
+  function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+    if (!draggingRef.current) return;
+    const dx = (e.clientX - dragStartRef.current[0]) / scaleRef.current;
+    const dy = (e.clientY - dragStartRef.current[1]) / scaleRef.current;
+    camRef.current = [camStartRef.current[0] - dx, camStartRef.current[1] + dy];
+  }
+  function handleMouseUp() {
+    draggingRef.current = false;
+  }
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (!preBufRef.current) return;
+      if (liveRef.current.tSim < preBufRef.current.tEvent) return;
+      if (e.key === "1" || e.key === "2" || e.key === "3") {
+        autoFollowRef.current = parseInt(e.key) - 1;
+        manualPanRef.current = false;
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   function resetControls() {
     userZoomRef.current = defaultSettings.zoom;
@@ -826,7 +914,13 @@ export default function ThreeBodyGlassSim() {
   }
 
   return (
-    <div className="relative w-full h-[88vh] md:h-[92vh] bg-black text-white font-sans overflow-hidden rounded-2xl shadow-2xl" onWheel={handleWheel}>
+    <div
+      className="relative w-full h-[88vh] md:h-[92vh] bg-black text-white font-sans overflow-hidden rounded-2xl shadow-2xl"
+      onWheel={handleWheel}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+    >
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
 
       {/* Top-left: Countdown glass panel */}
