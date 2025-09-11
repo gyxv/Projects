@@ -168,6 +168,7 @@ export default function ThreeBodyGlassSim() {
   const seedRef = useRef<string>("");
   const [importOpen, setImportOpen] = useState(false);
   const [seedInput, setSeedInput] = useState("");
+  const [seedCopied, setSeedCopied] = useState(false);
   const seedImportRef = useRef<{ p: [number, number][], v: [number, number][] } | null>(null);
 
   const outerObjectsRef = useRef<OuterObject[]>(generateRegion([0, 0]));
@@ -937,6 +938,12 @@ export default function ThreeBodyGlassSim() {
   }, []);
 
   useEffect(() => {
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setImportOpen(false); };
+    if (importOpen) window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [importOpen]);
+
+  useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (!postEventRef.current) return;
       if (e.key === "1" || e.key === "2" || e.key === "3") {
@@ -946,6 +953,8 @@ export default function ThreeBodyGlassSim() {
           if (!rocketRef.current) {
             rocketRef.current = { p: [0, 0], v: [0, 0], angle: 0, thrust: false, rotL: false, rotR: false };
             followRef.current = 3;
+            panRef.current = [0, 0];
+            setPan([0, 0]);
           }
         } else if (rocketRef.current) {
           followRef.current = 3;
@@ -1089,8 +1098,19 @@ export default function ThreeBodyGlassSim() {
           ))}
         </div>
         <div className="text-right mt-2">
-          <button onClick={() => seedRef.current && navigator.clipboard.writeText(seedRef.current)}
-            className="text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/20">Copy seed</button>
+          <button
+            onClick={() => {
+              if (seedRef.current) {
+                navigator.clipboard.writeText(seedRef.current).then(() => {
+                  setSeedCopied(true);
+                  setTimeout(() => setSeedCopied(false), 1000);
+                });
+              }
+            }}
+            className="text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/20"
+          >
+            {seedCopied ? "Copied!" : "Copy seed"}
+          </button>
         </div>
       </div>
 
@@ -1178,11 +1198,14 @@ export default function ThreeBodyGlassSim() {
                 ))}
               </div>
             </div>
-            <button onClick={() => setImportOpen(true)} className="absolute bottom-3 right-3 text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/20">Skip Exploration</button>
+            <div className="mt-3 text-right">
+              <button onClick={() => setImportOpen(true)} className="text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/20">Skip Exploration</button>
+            </div>
           </div>
           {importOpen && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center">
+              <div className="px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center relative">
+                <button onClick={() => setImportOpen(false)} className="absolute top-2 right-2 text-white/70 hover:text-white">✕</button>
                 <div className="mb-2">Paste seed</div>
                 <textarea value={seedInput} onChange={e => setSeedInput(e.target.value)} className="w-64 h-24 text-black p-1 rounded" />
                 <div className="mt-3 text-right">

@@ -141,6 +141,7 @@ var ThreeBodyGlassSim = (() => {
     const seedRef = useRef("");
     const [importOpen, setImportOpen] = useState(false);
     const [seedInput, setSeedInput] = useState("");
+    const [seedCopied, setSeedCopied] = useState(false);
     const seedImportRef = useRef(null);
     const outerObjectsRef = useRef(generateRegion([0, 0]));
     const regionCentersRef = useRef([[0, 0]]);
@@ -851,6 +852,13 @@ var ThreeBodyGlassSim = (() => {
       };
     }, []);
     useEffect(() => {
+      const esc = (e) => {
+        if (e.key === "Escape") setImportOpen(false);
+      };
+      if (importOpen) window.addEventListener("keydown", esc);
+      return () => window.removeEventListener("keydown", esc);
+    }, [importOpen]);
+    useEffect(() => {
       const down = (e) => {
         if (!postEventRef.current) return;
         if (e.key === "1" || e.key === "2" || e.key === "3") {
@@ -860,6 +868,8 @@ var ThreeBodyGlassSim = (() => {
             if (!rocketRef.current) {
               rocketRef.current = { p: [0, 0], v: [0, 0], angle: 0, thrust: false, rotL: false, rotR: false };
               followRef.current = 3;
+              panRef.current = [0, 0];
+              setPan([0, 0]);
             }
           } else if (rocketRef.current) {
             followRef.current = 3;
@@ -962,10 +972,17 @@ var ThreeBodyGlassSim = (() => {
     return /* @__PURE__ */ React.createElement("div", { className: "relative w-full h-[88vh] md:h-[92vh] bg-black text-white font-sans overflow-hidden rounded-2xl shadow-2xl", onWheel: handleWheel }, /* @__PURE__ */ React.createElement("canvas", { ref: canvasRef, className: "absolute inset-0 w-full h-full", onMouseDown: handleMouseDown }), /* @__PURE__ */ React.createElement("div", { className: "absolute top-4 left-4 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-wider text-white/70" }, "Time to ", eventLabel), /* @__PURE__ */ React.createElement("div", { className: "text-3xl font-semibold tabular-nums" }, Math.floor(countdown / 60).toString().padStart(2, "0"), ":", Math.floor(countdown % 60).toString().padStart(2, "0"))), /* @__PURE__ */ React.createElement("div", { className: "absolute top-4 right-4 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-wider text-white/70 mb-1" }, "Triadic palette"), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3" }, hexColors.map((hex, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("div", { className: "w-5 h-5 rounded-full", style: { background: hex } }), /* @__PURE__ */ React.createElement("span", { className: "text-sm font-mono text-white/80" }, hex.toUpperCase())))), /* @__PURE__ */ React.createElement("div", { className: "text-right mt-2" }, /* @__PURE__ */ React.createElement(
       "button",
       {
-        onClick: () => seedRef.current && navigator.clipboard.writeText(seedRef.current),
+        onClick: () => {
+          if (seedRef.current) {
+            navigator.clipboard.writeText(seedRef.current).then(() => {
+              setSeedCopied(true);
+              setTimeout(() => setSeedCopied(false), 1e3);
+            });
+          }
+        },
         className: "text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/20"
       },
-      "Copy seed"
+      seedCopied ? "Copied!" : "Copy seed"
     ))), /* @__PURE__ */ React.createElement("div", { className: "absolute left-1/2 -translate-x-1/2 bottom-4 flex items-center gap-3 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg" }, /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -1018,7 +1035,7 @@ var ThreeBodyGlassSim = (() => {
         onChange: (e) => setTrailMax(parseInt(e.target.value)),
         className: "w-full accent-white/90"
       }
-    )), /* @__PURE__ */ React.createElement("div", { className: "pt-1 text-right" }, /* @__PURE__ */ React.createElement("button", { onClick: resetControls, className: "px-3 py-1 text-xs rounded-lg bg-white/10 hover:bg-white/20 border border-white/20" }, "Reset")))), !isReady && /* @__PURE__ */ React.createElement("div", { className: "absolute inset-0 flex items-center justify-center" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center relative" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-widest text-white/70 mb-2" }, "Preparing a near-perfect 3\u2011body setup\u2026"), /* @__PURE__ */ React.createElement("div", { className: "text-lg font-medium" }, "Searching for a slight perturbation that yields an event"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 text-left text-xs font-mono text-white/80 w-64" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between mb-1" }, /* @__PURE__ */ React.createElement("div", null, candidateInfo), /* @__PURE__ */ React.createElement("div", null, attemptInfo)), /* @__PURE__ */ React.createElement("div", { className: "max-h-40 overflow-y-auto" }, progressLines.map((line, i) => /* @__PURE__ */ React.createElement("div", { key: i }, line)))), /* @__PURE__ */ React.createElement("button", { onClick: () => setImportOpen(true), className: "absolute bottom-3 right-3 text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/20" }, "Skip Exploration")), importOpen && /* @__PURE__ */ React.createElement("div", { className: "absolute inset-0 flex items-center justify-center" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center" }, /* @__PURE__ */ React.createElement("div", { className: "mb-2" }, "Paste seed"), /* @__PURE__ */ React.createElement("textarea", { value: seedInput, onChange: (e) => setSeedInput(e.target.value), className: "w-64 h-24 text-black p-1 rounded" }), /* @__PURE__ */ React.createElement("div", { className: "mt-3 text-right" }, /* @__PURE__ */ React.createElement(
+    )), /* @__PURE__ */ React.createElement("div", { className: "pt-1 text-right" }, /* @__PURE__ */ React.createElement("button", { onClick: resetControls, className: "px-3 py-1 text-xs rounded-lg bg-white/10 hover:bg-white/20 border border-white/20" }, "Reset")))), !isReady && /* @__PURE__ */ React.createElement("div", { className: "absolute inset-0 flex items-center justify-center" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center relative" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-widest text-white/70 mb-2" }, "Preparing a near-perfect 3\u2011body setup\u2026"), /* @__PURE__ */ React.createElement("div", { className: "text-lg font-medium" }, "Searching for a slight perturbation that yields an event"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 text-left text-xs font-mono text-white/80 w-64" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between mb-1" }, /* @__PURE__ */ React.createElement("div", null, candidateInfo), /* @__PURE__ */ React.createElement("div", null, attemptInfo)), /* @__PURE__ */ React.createElement("div", { className: "max-h-40 overflow-y-auto" }, progressLines.map((line, i) => /* @__PURE__ */ React.createElement("div", { key: i }, line)))), /* @__PURE__ */ React.createElement("div", { className: "mt-3 text-right" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setImportOpen(true), className: "text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/20" }, "Skip Exploration"))), importOpen && /* @__PURE__ */ React.createElement("div", { className: "absolute inset-0 flex items-center justify-center" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center relative" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setImportOpen(false), className: "absolute top-2 right-2 text-white/70 hover:text-white" }, "\u2715"), /* @__PURE__ */ React.createElement("div", { className: "mb-2" }, "Paste seed"), /* @__PURE__ */ React.createElement("textarea", { value: seedInput, onChange: (e) => setSeedInput(e.target.value), className: "w-64 h-24 text-black p-1 rounded" }), /* @__PURE__ */ React.createElement("div", { className: "mt-3 text-right" }, /* @__PURE__ */ React.createElement(
       "button",
       {
         onClick: () => {
