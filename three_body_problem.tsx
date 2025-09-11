@@ -13,6 +13,15 @@ type Shard = {
   color: string;
 };
 
+type OuterObject = {
+  R: number;
+  theta0: number;
+  w: number;
+  m: number;
+  r: number;
+  color: string;
+};
+
 const orientationPresets: OrientationPreset[] = [
   {
     label: "Figure‑8",
@@ -40,33 +49,27 @@ const orientationPresets: OrientationPreset[] = [
       [0.570, -0.329],
     ],
   },
-  {
-    label: "Spiral",
-    p: [
-      [0.9, -0.2],
-      [-0.9, -0.2],
-      [0, 0.4],
-    ],
-    v: [
-      [-0.2, 0.5],
-      [-0.2, -0.5],
-      [0.4, 0],
-    ],
-  },
-  {
-    label: "Chain",
-    p: [
-      [-0.8, 0.2],
-      [0.8, -0.2],
-      [0, 0],
-    ],
-    v: [
-      [-0.1, 0.4],
-      [-0.1, -0.8],
-      [0.2, 0.4],
-    ],
-  },
 ];
+
+function randomOrientation(): OrientationPreset {
+  const p: [number, number][] = [];
+  for (let i = 0; i < 3; i++) {
+    p.push([Math.random() * 2 - 1, Math.random() * 2 - 1]);
+  }
+  const pc = p.reduce((acc, val) => add(acc, val), [0, 0] as [number, number]);
+  for (let i = 0; i < 3; i++) {
+    p[i] = sub(p[i], mul(pc, 1 / 3)) as [number, number];
+  }
+  const v: [number, number][] = [];
+  for (let i = 0; i < 3; i++) {
+    v.push([Math.random() - 0.5, Math.random() - 0.5]);
+  }
+  const vc = v.reduce((acc, val) => add(acc, val), [0, 0] as [number, number]);
+  for (let i = 0; i < 3; i++) {
+    v[i] = mul(sub(v[i], mul(vc, 1 / 3)), 0.5) as [number, number];
+  }
+  return { label: "Random", p, v };
+}
 
 const defaultSettings = { zoom: 1.35, speedMul: 1, trail: 90 };
 
@@ -94,6 +97,7 @@ export default function ThreeBodyGlassSim() {
 
   const [zoom, setZoom] = useState(defaultSettings.zoom);
   const orientationRef = useRef<OrientationPreset>(orientationPresets[0]);
+  const outerDefsRef = useRef<OuterObject[]>([]);
 
   // ======== Canvas / Animation Refs ========
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -180,7 +184,7 @@ export default function ThreeBodyGlassSim() {
   const dot = (a: number[], b: number[]) => a[0] * b[0] + a[1] * b[1];
   const norm = (a: number[]) => Math.hypot(a[0], a[1]);
 
-  function accelerations(p: [number, number][]) {
+  function accelerations(p: [number, number][], t: number, includeOuter: boolean) {
     const a: [number, number][] = [[0, 0], [0, 0], [0, 0]];
     for (let i = 0; i < 3; i++) {
       if (destroyedRef.current[i]) continue;
@@ -191,20 +195,31 @@ export default function ThreeBodyGlassSim() {
         const fac = (G * mass) / (d2 * d);
         a[i] = add(a[i], mul(r, fac));
       }
+      if (includeOuter) {
+        for (const obj of outerDefsRef.current) {
+          const theta = obj.theta0 + obj.w * t;
+          const pos: [number, number] = [obj.R * Math.cos(theta), obj.R * Math.sin(theta)];
+          const r = sub(pos, p[i]);
+          const d2 = r[0] * r[0] + r[1] * r[1] + softEps * softEps;
+          const d = Math.sqrt(d2);
+          const fac = (G * obj.m) / (d2 * d);
+          a[i] = add(a[i], mul(r, fac));
+        }
+      }
     }
     return a;
   }
-  function rk4Step(p: [number, number][], v: [number, number][], dt: number) {
-    const a1 = accelerations(p);
+  function rk4Step(p: [number, number][], v: [number, number][], dt: number, t: number, includeOuter: boolean) {
+    const a1 = accelerations(p, t, includeOuter);
     const pv1 = p.map((pi, i) => add(pi, mul(v[i], dt * 0.5))) as [number, number][];
     const vv1 = v.map((vi, i) => add(vi, mul(a1[i], dt * 0.5))) as [number, number][];
-    const a2 = accelerations(pv1);
+    const a2 = accelerations(pv1, t + dt * 0.5, includeOuter);
     const pv2 = p.map((pi, i) => add(pi, mul(vv1[i], dt * 0.5))) as [number, number][];
     const vv2 = v.map((vi, i) => add(vi, mul(a2[i], dt * 0.5))) as [number, number][];
-    const a3 = accelerations(pv2);
+    const a3 = accelerations(pv2, t + dt * 0.5, includeOuter);
     const pv3 = p.map((pi, i) => add(pi, mul(vv2[i], dt))) as [number, number][];
     const vv3 = v.map((vi, i) => add(vi, mul(a3[i], dt))) as [number, number][];
-    const a4 = accelerations(pv3);
+    const a4 = accelerations(pv3, t + dt, includeOuter);
     const pNext = p.map((pi, i) => add(pi, mul(add(add(v[i], mul(add(vv1[i], vv2[i]), 2)), vv3[i]), dt / 6))) as [number, number][];
     const vNext = v.map((vi, i) => add(vi, mul(add(add(a1[i], mul(add(a2[i], a3[i]), 2)), a4[i]), dt / 6))) as [number, number][];
     return { p: pNext, v: vNext };
@@ -228,6 +243,29 @@ export default function ThreeBodyGlassSim() {
           const impulse = mul(n, vrn);
           v[i] = sub(v[i], impulse) as [number, number];
           v[j] = add(v[j], impulse) as [number, number];
+        }
+      }
+    }
+  }
+  function handleOuterCollisions(p: [number, number][], t: number) {
+    for (let i = 0; i < 3; i++) {
+      if (destroyedRef.current[i]) continue;
+      for (const obj of outerDefsRef.current) {
+        const theta = obj.theta0 + obj.w * t;
+        const pos: [number, number] = [obj.R * Math.cos(theta), obj.R * Math.sin(theta)];
+        const d = norm(sub(p[i], pos));
+        if (d <= radius + obj.r) {
+          const c = p[i];
+          for (let s = 0; s < 40; s++) {
+            const ang = Math.random() * Math.PI * 2;
+            const spd = 0.6 + Math.random() * 0.8;
+            const color = hexColors[i];
+            shardsRef.current.push({ p: [c[0], c[1]], v: [Math.cos(ang) * spd, Math.sin(ang) * spd], life: 3, color });
+          }
+          destroyedRef.current[i] = true;
+          liveRef.current.p[i] = [9999, 9999];
+          liveRef.current.v[i] = [0, 0];
+          break;
         }
       }
     }
@@ -274,19 +312,21 @@ export default function ThreeBodyGlassSim() {
       buffer: Array<{ p: [number, number][], v: [number, number][] }>;
       tEvent: number; kind: "collision" | "ejection"; info: string;
     } = null;
+    const tol = target ? Math.max(5, target * 0.02) : 0;
 
-    // Search over small perturbations and random angles, choose earliest if no target; otherwise closest to target
-    for (let e = 0; e < epsCandidates.length; e++) {
-      setCandidateInfo(`∈ candidate ${e + 1}/${epsCandidates.length}`);
-      await new Promise((r) => setTimeout(r, 0));
-      for (let attempt = 0; attempt < 6; attempt++) {
-        setAttemptInfo(`attempt ${attempt + 1}/6`);
+    // Search over small perturbations and random angles, retry passes until within tolerance
+    for (let pass = 0; pass < 3; pass++) {
+      for (let e = 0; e < epsCandidates.length; e++) {
+        setCandidateInfo(`∈ candidate ${e + 1}/${epsCandidates.length}`);
         await new Promise((r) => setTimeout(r, 0));
-        let p = pBase.map((x) => [...x]) as [number, number][];
-        let v = vBase.map((x) => [...x]) as [number, number][];
-        const ang = Math.random() * Math.PI * 2;
-        const eps = epsCandidates[e];
-        v[0] = add(v[0], [Math.cos(ang) * eps, Math.sin(ang) * eps]) as [number, number];
+        for (let attempt = 0; attempt < 6; attempt++) {
+          setAttemptInfo(`attempt ${attempt + 1}/6`);
+          await new Promise((r) => setTimeout(r, 0));
+          let p = pBase.map((x) => [...x]) as [number, number][];
+          let v = vBase.map((x) => [...x]) as [number, number][];
+          const ang = Math.random() * Math.PI * 2;
+          const eps = epsCandidates[e];
+          v[0] = add(v[0], [Math.cos(ang) * eps, Math.sin(ang) * eps]) as [number, number];
 
         const buffer: Array<{ p: [number, number][], v: [number, number][] }> = [];
         let found = false;
@@ -321,11 +361,28 @@ export default function ThreeBodyGlassSim() {
           for (let k = 0; k < 3; k++) {
             const eSpec = energyOfBody(k, pRel as any, vRel as any);
             const outward = dot(pRel[k], vRel[k]) > 0;
-            if (R[k] > 7.0 && outward && eSpec > 0) { found = true; kind = "ejection"; info = `body ${k + 1}`; tEvent = step * dt; break; }
+            if (R[k] > 7.0 && outward && eSpec > 0) {
+              let pTest = p.map((x) => [...x]) as [number, number][];
+              let vTest = v.map((x) => [...x]) as [number, number][];
+              let stable = true;
+              let tCurr = step * dt;
+              for (let s = 0; s < 5000; s++) {
+                const nxt = rk4Step(pTest as any, vTest as any, dt, tCurr, false);
+                tCurr += dt;
+                pTest = nxt.p as any;
+                vTest = nxt.v as any;
+                const { pc: pc2 } = centerOfMass(pTest);
+                const pRel2 = pTest.map((pi) => sub(pi, pc2));
+                if (norm(pRel2[k]) < 6.0) { stable = false; break; }
+              }
+              if (stable) {
+                found = true; kind = "ejection"; info = `body ${k + 1}`; tEvent = step * dt; break;
+              }
+            }
           }
           if (found) break;
 
-          const next = rk4Step(p as any, v as any, dt);
+          const next = rk4Step(p as any, v as any, dt, step * dt, false);
           p = next.p as any; v = next.v as any;
         }
 
@@ -342,6 +399,7 @@ export default function ThreeBodyGlassSim() {
           }
         }
       }
+      if (best && target != null && Math.abs(best.tEvent - target) <= tol) break;
     }
 
     if (!best) {
@@ -465,6 +523,20 @@ export default function ThreeBodyGlassSim() {
       }
     }
 
+    // Outer celestial objects
+    for (const obj of outerDefsRef.current) {
+      const theta = obj.theta0 + obj.w * liveRef.current.tSim;
+      const pos: [number, number] = [obj.R * Math.cos(theta), obj.R * Math.sin(theta)];
+      const [x, y] = worldToScreen(pos[0], pos[1], W, H);
+      ctx.save();
+      glow(obj.color, 0.7);
+      ctx.fillStyle = obj.color;
+      ctx.beginPath();
+      ctx.arc(x, y, obj.r * scaleRef.current, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
     // Bodies
     for (let i = 0; i < 3; i++) {
       if (destroyedRef.current[i]) continue;
@@ -548,10 +620,11 @@ export default function ThreeBodyGlassSim() {
         const h = 0.005;
         while (dtLeft > 1e-6) {
           const step = Math.min(h, dtLeft);
-          const next = rk4Step(liveRef.current.p as any, liveRef.current.v as any, step);
+          const next = rk4Step(liveRef.current.p as any, liveRef.current.v as any, step, liveRef.current.tSim, true);
           liveRef.current.p = next.p as any;
           liveRef.current.v = next.v as any;
           handleCollision(liveRef.current.p as any, liveRef.current.v as any);
+          handleOuterCollisions(liveRef.current.p as any, liveRef.current.tSim);
           for (const sh of shardsRef.current) {
             sh.p = add(sh.p, mul(sh.v, step)) as [number, number];
             sh.life -= step;
@@ -604,7 +677,24 @@ export default function ThreeBodyGlassSim() {
     mapRef.current.realStart = performance.now() / 1000 - liveRef.current.tSim / (mapRef.current.baseSpeed * speedMul);
   }, [speedMul]);
 
+  useEffect(() => {
+    initOuterObjects();
+  }, []);
+
   // ======== Interactions ========
+  function initOuterObjects() {
+    outerDefsRef.current = [];
+    const nOuter = 4 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < nOuter; i++) {
+      const R = 12 + Math.random() * 8;
+      const theta0 = Math.random() * Math.PI * 2;
+      const w = 0.02 + Math.random() * 0.05;
+      const m = 2 + Math.random() * 4;
+      const rObj = 0.15 + Math.random() * 0.3;
+      const color = hslToHex(Math.random() * 360, 0.6, 0.5);
+      outerDefsRef.current.push({ R, theta0, w, m, r: rObj, color });
+    }
+  }
   function resetAll() {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     shardsRef.current = [];
@@ -620,6 +710,7 @@ export default function ThreeBodyGlassSim() {
     setAttemptInfo("");
     setOrientation(null);
     orientationRef.current = orientationPresets[0];
+    initOuterObjects();
     userZoomRef.current = defaultSettings.zoom;
     setZoom(defaultSettings.zoom);
     setSpeedMul(defaultSettings.speedMul);
@@ -687,7 +778,7 @@ export default function ThreeBodyGlassSim() {
             ))}
             <button
               onClick={() => {
-                const rand = orientationPresets[Math.floor(Math.random() * orientationPresets.length)];
+                const rand = randomOrientation();
                 orientationRef.current = rand;
                 setOrientation(rand);
               }}
@@ -843,4 +934,5 @@ export default function ThreeBodyGlassSim() {
       )}
     </div>
   );
+}
 }
