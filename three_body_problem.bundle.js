@@ -22,7 +22,6 @@ var ThreeBodyGlassSim = (() => {
   __export(three_body_problem_exports, {
     default: () => ThreeBodyGlassSim
   });
-  var { useEffect, useRef, useState } = React;
   function add(a, b) {
     return [a[0] + b[0], a[1] + b[1]];
   }
@@ -81,44 +80,44 @@ var ThreeBodyGlassSim = (() => {
   }
   var defaultSettings = { zoom: 1.35, speedMul: 1, trail: 90 };
   function ThreeBodyGlassSim() {
-    const [isReady, setIsReady] = useState(false);
-    const [isPlaying, setIsPlaying] = useState(true);
-    const [eventType, setEventType] = useState(null);
-    const [eventBodyInfo, setEventBodyInfo] = useState("");
-    const [countdown, setCountdown] = useState(120);
-    const [hexColors, setHexColors] = useState(["#cccccc", "#cccccc", "#cccccc"]);
-    const [chosenDuration, setChosenDuration] = useState(null);
-    const [progressLines, setProgressLines] = useState([]);
-    const [candidateInfo, setCandidateInfo] = useState("");
-    const [attemptInfo, setAttemptInfo] = useState("");
-    const [orientation, setOrientation] = useState(null);
-    const [zoom, setZoom] = useState(defaultSettings.zoom);
-    const orientationRef = useRef(orientationPresets[0]);
-    const outerDefsRef = useRef([]);
-    const canvasRef = useRef(null);
-    const rafRef = useRef(null);
+    const [isReady, setIsReady] = React.useState(false);
+    const [isPlaying, setIsPlaying] = React.useState(true);
+    const [eventType, setEventType] = React.useState(null);
+    const [eventBodyInfo, setEventBodyInfo] = React.useState("");
+    const [countdown, setCountdown] = React.useState(120);
+    const [hexColors, setHexColors] = React.useState(["#cccccc", "#cccccc", "#cccccc"]);
+    const [chosenDuration, setChosenDuration] = React.useState(null);
+    const [progressLines, setProgressLines] = React.useState([]);
+    const [candidateInfo, setCandidateInfo] = React.useState("");
+    const [attemptInfo, setAttemptInfo] = React.useState("");
+    const [orientation, setOrientation] = React.useState(null);
+    const [zoom, setZoom] = React.useState(defaultSettings.zoom);
+    const orientationRef = React.useRef(orientationPresets[0]);
+    const outerDefsRef = React.useRef([]);
+    const canvasRef = React.useRef(null);
+    const rafRef = React.useRef(null);
     const G = 1;
     const mass = 1;
     const radius = 0.035;
     const softEps = 1e-4;
-    const targetScaleRef = useRef(180);
-    const scaleRef = useRef(180);
-    const userZoomRef = useRef(defaultSettings.zoom);
-    const preBufRef = useRef(null);
-    const liveRef = useRef({
+    const targetScaleRef = React.useRef(180);
+    const scaleRef = React.useRef(180);
+    const userZoomRef = React.useRef(defaultSettings.zoom);
+    const preBufRef = React.useRef(null);
+    const liveRef = React.useRef({
       p: [[0, 0], [0, 0], [0, 0]],
       v: [[0, 0], [0, 0], [0, 0]],
       tSim: 0
     });
-    const mapRef = useRef({ realStart: 0, baseSpeed: 1 });
-    const [speedMul, setSpeedMul] = useState(1);
-    const trailsRef = useRef([[], [], []]);
-    const [trailMax, setTrailMax] = useState(90);
-    const [panelOpen, setPanelOpen] = useState(true);
-    const eventIndexRef = useRef(-1);
-    const shardsRef = useRef([]);
-    const destroyedRef = useRef([false, false, false]);
-    const collisionHandledRef = useRef(false);
+    const mapRef = React.useRef({ realStart: 0, baseSpeed: 1 });
+    const [speedMul, setSpeedMul] = React.useState(1);
+    const trailsRef = React.useRef([[], [], []]);
+    const [trailMax, setTrailMax] = React.useState(90);
+    const [panelOpen, setPanelOpen] = React.useState(true);
+    const eventIndexRef = React.useRef(-1);
+    const shardsRef = React.useRef([]);
+    const destroyedRef = React.useRef([false, false, false]);
+    const collisionHandledRef = React.useRef(false);
     function hslToHex(h, s, l) {
       l = Math.max(0, Math.min(1, l));
       s = Math.max(0, Math.min(1, s));
@@ -496,7 +495,7 @@ var ThreeBodyGlassSim = (() => {
           ctx.restore();
         }
       }
-      const loopRef = useRef(() => {
+      const loopRef = React.useRef(() => {
       });
       loopRef.current = () => {
         const buf = preBufRef.current;
@@ -582,7 +581,7 @@ var ThreeBodyGlassSim = (() => {
         }
         rafRef.current = requestAnimationFrame(loopRef.current);
       };
-      useEffect(() => {
+      React.useEffect(() => {
         if (chosenDuration == null) return;
         preSimulateAndSetup({
           targetTEvent: mapRef.current.baseSpeed * chosenDuration,
@@ -592,15 +591,15 @@ var ThreeBodyGlassSim = (() => {
           if (rafRef.current) cancelAnimationFrame(rafRef.current);
         };
       }, [chosenDuration]);
-      useEffect(() => {
+      React.useEffect(() => {
         if (!isReady) return;
         if (rafRef.current) cancelAnimationFrame(rafRef.current);
         rafRef.current = requestAnimationFrame(loopRef.current);
       }, [isReady, isPlaying, speedMul, trailMax]);
-      useEffect(() => {
+      React.useEffect(() => {
         mapRef.current.realStart = performance.now() / 1e3 - liveRef.current.tSim / (mapRef.current.baseSpeed * speedMul);
       }, [speedMul]);
-      useEffect(() => {
+      React.useEffect(() => {
         initOuterObjects();
       }, []);
       function initOuterObjects() {

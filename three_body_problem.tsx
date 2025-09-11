@@ -1,8 +1,7 @@
-import type * as React from "react";
+import type * as ReactTypes from "react";
 // Use the globally provided React instance (loaded via script tags)
 // but keep type information from the React package.
-declare const React: typeof import("react");
-const { useEffect, useRef, useState } = React;
+declare const React: typeof ReactTypes;
 
 type OrientationPreset = {
   label: string;
@@ -100,25 +99,25 @@ const defaultSettings = { zoom: 1.35, speedMul: 1, trail: 90 };
 
 export default function ThreeBodyGlassSim() {
   // ======== UI State ========
-  const [isReady, setIsReady] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [eventType, setEventType] = useState<null | "collision" | "ejection">(null);
-  const [eventBodyInfo, setEventBodyInfo] = useState(""); // e.g., "1↔2" or "body 3"
-  const [countdown, setCountdown] = useState(120);
-  const [hexColors, setHexColors] = useState<string[]>(["#cccccc", "#cccccc", "#cccccc"]);
-  const [chosenDuration, setChosenDuration] = useState<number | null>(null); // real seconds until event
-  const [progressLines, setProgressLines] = useState<string[]>([]);
-  const [candidateInfo, setCandidateInfo] = useState("");
-  const [attemptInfo, setAttemptInfo] = useState("");
-  const [orientation, setOrientation] = useState<OrientationPreset | null>(null);
+  const [isReady, setIsReady] = React.useState(false);
+  const [isPlaying, setIsPlaying] = React.useState(true);
+  const [eventType, setEventType] = React.useState<null | "collision" | "ejection">(null);
+  const [eventBodyInfo, setEventBodyInfo] = React.useState(""); // e.g., "1↔2" or "body 3"
+  const [countdown, setCountdown] = React.useState(120);
+  const [hexColors, setHexColors] = React.useState<string[]>(["#cccccc", "#cccccc", "#cccccc"]);
+  const [chosenDuration, setChosenDuration] = React.useState<number | null>(null); // real seconds until event
+  const [progressLines, setProgressLines] = React.useState<string[]>([]);
+  const [candidateInfo, setCandidateInfo] = React.useState("");
+  const [attemptInfo, setAttemptInfo] = React.useState("");
+  const [orientation, setOrientation] = React.useState<OrientationPreset | null>(null);
 
-  const [zoom, setZoom] = useState(defaultSettings.zoom);
-  const orientationRef = useRef<OrientationPreset>(orientationPresets[0]);
-  const outerDefsRef = useRef<OuterObject[]>([]);
+  const [zoom, setZoom] = React.useState(defaultSettings.zoom);
+  const orientationRef = React.useRef<OrientationPreset>(orientationPresets[0]);
+  const outerDefsRef = React.useRef<OuterObject[]>([]);
 
   // ======== Canvas / Animation Refs ========
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const rafRef = useRef<number | null>(null);
+  const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
+  const rafRef = React.useRef<number | null>(null);
 
   // ======== Physics / Simulation Refs ========
   const G = 1.0; // gravitational constant in sim units
@@ -127,12 +126,12 @@ export default function ThreeBodyGlassSim() {
   const softEps = 1e-4; // gravitational softening
 
   // View scaling (px per sim unit)
-  const targetScaleRef = useRef<number>(180);
-  const scaleRef = useRef<number>(180);
-  const userZoomRef = useRef<number>(defaultSettings.zoom); // default: rather close
+  const targetScaleRef = React.useRef<number>(180);
+  const scaleRef = React.useRef<number>(180);
+  const userZoomRef = React.useRef<number>(defaultSettings.zoom); // default: rather close
 
   // Buffer from pre-sim to guarantee an event and reproducibility
-  const preBufRef = useRef<{
+  const preBufRef = React.useRef<{
     dt: number;
     states: Array<{ p: [number, number][], v: [number, number][] }>;
     tEvent: number; // sim seconds at event
@@ -141,7 +140,7 @@ export default function ThreeBodyGlassSim() {
   } | null>(null);
 
   // Live state after event time (or during preplay)
-  const liveRef = useRef({
+  const liveRef = React.useRef({
     p: [[0, 0], [0, 0], [0, 0]] as [number, number][],
     v: [[0, 0], [0, 0], [0, 0]] as [number, number][],
     tSim: 0,
@@ -149,21 +148,21 @@ export default function ThreeBodyGlassSim() {
 
   // Time mapping: real time → sim time
   // simRate = baseSpeed * speedMul (sim seconds / real second)
-  const mapRef = useRef({ realStart: 0, baseSpeed: 1 });
-  const [speedMul, setSpeedMul] = useState(1); // UI speed multiplier (0.25× .. 3×)
+  const mapRef = React.useRef({ realStart: 0, baseSpeed: 1 });
+  const [speedMul, setSpeedMul] = React.useState(1); // UI speed multiplier (0.25× .. 3×)
 
   // Trails
-  const trailsRef = useRef<[number, number][][]>([[], [], []]);
-  const [trailMax, setTrailMax] = useState(90); // short and quick fade by default
+  const trailsRef = React.useRef<[number, number][][]>([[], [], []]);
+  const [trailMax, setTrailMax] = React.useState(90); // short and quick fade by default
 
   // Panels
-  const [panelOpen, setPanelOpen] = useState(true);
+  const [panelOpen, setPanelOpen] = React.useState(true);
 
   // Which step index is the pre-sim event?
-  const eventIndexRef = useRef<number>(-1);
-  const shardsRef = useRef<Shard[]>([]);
-  const destroyedRef = useRef<[boolean, boolean, boolean]>([false, false, false]);
-  const collisionHandledRef = useRef(false);
+  const eventIndexRef = React.useRef<number>(-1);
+  const shardsRef = React.useRef<Shard[]>([]);
+  const destroyedRef = React.useRef<[boolean, boolean, boolean]>([false, false, false]);
+  const collisionHandledRef = React.useRef(false);
 
   // ======== Utility: Colors ========
   function hslToHex(h: number, s: number, l: number) {
@@ -581,7 +580,7 @@ export default function ThreeBodyGlassSim() {
   }
 
   // ======== Animation Loop ========
-  const loopRef = useRef<() => void>(() => {});
+  const loopRef = React.useRef<() => void>(() => {});
   loopRef.current = () => {
     const buf = preBufRef.current; if (!buf) return;
     const canvas = canvasRef.current; if (!canvas) return;
@@ -677,7 +676,7 @@ export default function ThreeBodyGlassSim() {
   };
 
   // ======== Effects ========
-  useEffect(() => {
+  React.useEffect(() => {
     if (chosenDuration == null) return;
     preSimulateAndSetup({
       targetTEvent: mapRef.current.baseSpeed * chosenDuration,
@@ -685,16 +684,16 @@ export default function ThreeBodyGlassSim() {
     });
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, [chosenDuration]);
-  useEffect(() => {
+  React.useEffect(() => {
     if (!isReady) return;
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(loopRef.current);
   }, [isReady, isPlaying, speedMul, trailMax]);
-  useEffect(() => {
+  React.useEffect(() => {
     mapRef.current.realStart = performance.now() / 1000 - liveRef.current.tSim / (mapRef.current.baseSpeed * speedMul);
   }, [speedMul]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     initOuterObjects();
   }, []);
 
@@ -733,7 +732,7 @@ export default function ThreeBodyGlassSim() {
     setSpeedMul(defaultSettings.speedMul);
     setTrailMax(defaultSettings.trail);
   }
-  function handleWheel(e: React.WheelEvent<HTMLDivElement>) {
+  function handleWheel(e: ReactTypes.WheelEvent<HTMLDivElement>) {
     e.preventDefault();
     const factor = Math.pow(1.05, -e.deltaY / 100);
     userZoomRef.current = Math.max(0.5, Math.min(2.5, userZoomRef.current * factor));
