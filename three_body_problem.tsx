@@ -1,8 +1,7 @@
 import type * as ReactTypes from "react";
-// Grab React off the global object at runtime so hooks are available
-// without embedding React in the bundle. TypeScript still uses the
-// imported types for checking.
-const React = (globalThis as any).React as typeof ReactTypes;
+// React is provided globally via the self-hosted bundle. We only import its
+// types so the compiler understands hooks, and we grab the runtime instance
+// once the component executes.
 type ReactWheelEvent<T = Element> = ReactTypes.WheelEvent<T>;
 
 type OrientationPreset = {
@@ -103,6 +102,7 @@ const defaultSettings = { zoom: 1.35, speedMul: 1, trail: 90 };
 // • Default view is close; trails are short and fade fast (editable)
 
 export default function ThreeBodyGlassSim() {
+  const React = (globalThis as any).React as typeof ReactTypes;
   // ======== UI State ========
   const [isReady, setIsReady] = React.useState(false);
   const [isPlaying, setIsPlaying] = React.useState(true);
