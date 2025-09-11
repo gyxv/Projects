@@ -1,5 +1,8 @@
-import React, { useEffect, useRef, useState, MouseEvent } from "react";
 import { motion } from "framer-motion";
+
+declare const React: typeof import("react");
+const { useEffect, useRef, useState } = React;
+type ReactMouseEvent<T = Element> = React.MouseEvent<T>;
 
 // Compact, ASCII-only, safer build: no template literals in styles, no bracketed Tailwind classes
 // Key fixes:
@@ -217,7 +220,7 @@ export default function EarthquakeTriangulation() {
   // Reset and click-to-set origin
   const reset = () => setSeed(s => s + 1);
   const resetAt = (x: number, y: number) => { setForceO({ x, y }); setSeed(s => s + 1); };
-  const clickBg = (e: MouseEvent<HTMLDivElement>) => { const t = e.target as HTMLElement; if (t.closest("._uiPanel")) return; const el = wrapRef.current; if (!el) return; const r = el.getBoundingClientRect(); resetAt(e.clientX - r.left, e.clientY - r.top); };
+  const clickBg = (e: ReactMouseEvent<HTMLDivElement>) => { const t = e.target as HTMLElement; if (t.closest("._uiPanel")) return; const el = wrapRef.current; if (!el) return; const r = el.getBoundingClientRect(); resetAt(e.clientX - r.left, e.clientY - r.top); };
 
   // Helpers for inline styles to avoid template strings
   const pctHeight = (p: number) => String(Math.max(2, p)) + "%";
