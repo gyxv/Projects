@@ -1,7 +1,8 @@
-import type * as ReactTypes from "react";
+import type ReactType from "react";
+import type { WheelEvent as ReactWheelEvent } from "react";
 // Use the globally provided React instance (loaded via script tags)
 // but keep type information from the React package.
-declare const React: typeof ReactTypes;
+declare const React: typeof ReactType;
 
 type OrientationPreset = {
   label: string;
@@ -36,6 +37,9 @@ function mul(a: [number, number], s: number): [number, number] {
 }
 function dot(a: [number, number], b: [number, number]): number {
   return a[0] * b[0] + a[1] * b[1];
+}
+function norm(a: [number, number]): number {
+  return Math.hypot(a[0], a[1]);
 }
 
 const orientationPresets: OrientationPreset[] = [
@@ -193,13 +197,6 @@ export default function ThreeBodyGlassSim() {
     return { base, tri: [hslToHex(tri1, s, l), hslToHex(tri2, s, l)] };
   }
 
-  // ======== Vector Math ========
-  const add = (a: number[], b: number[]) => [a[0] + b[0], a[1] + b[1]] as [number, number];
-  const sub = (a: number[], b: number[]) => [a[0] - b[0], a[1] - b[1]] as [number, number];
-  const mul = (a: number[], s: number) => [a[0] * s, a[1] * s] as [number, number];
-  const dot = (a: number[], b: number[]) => a[0] * b[0] + a[1] * b[1];
-  const norm = (a: number[]) => Math.hypot(a[0], a[1]);
-
   function accelerations(p: [number, number][], t: number, includeOuter: boolean) {
     const a: [number, number][] = [[0, 0], [0, 0], [0, 0]];
     for (let i = 0; i < 3; i++) {
@@ -286,20 +283,21 @@ export default function ThreeBodyGlassSim() {
       }
     }
   }
-  function energyOfBody(k: number, p: [number, number][], v: [number, number][]) {
-    const v2 = dot(v[k], v[k]);
-    let U = 0;
-    for (let j = 0; j < 3; j++) if (j !== k) {
-      const r = norm(sub(p[k], p[j]));
-      U -= G * mass * mass / Math.max(r, 1e-6);
+    function energyOfBody(k: number, p: [number, number][], v: [number, number][]) {
+      const v2 = dot(v[k], v[k]);
+      let U = 0;
+      for (let j = 0; j < 3; j++) if (j !== k) {
+        const r = norm(sub(p[k], p[j]));
+        U -= G * mass * mass / Math.max(r, 1e-6);
+      }
+      return 0.5 * mass * v2 + U;
     }
-    return 0.5 * mass * v2 + U;
-  }
-  function centerOfMass(p: [number, number][]) {
-    let pc = [0, 0];
-    for (let i = 0; i < 3; i++) pc = add(pc, p[i]);
-    return { pc: mul(pc, 1 / 3) };
-  }
+
+    function centerOfMass(p: [number, number][]) {
+      let pc: [number, number] = [0, 0];
+      for (let i = 0; i < 3; i++) pc = add(pc, p[i]);
+      return { pc: mul(pc, 1 / 3) };
+    }
 
   // ======== Pre-simulation (with optional target sim-event time) ========
   async function preSimulateAndSetup(opts?: { targetTEvent?: number; targetRealTime?: number }) {
@@ -732,7 +730,7 @@ export default function ThreeBodyGlassSim() {
     setSpeedMul(defaultSettings.speedMul);
     setTrailMax(defaultSettings.trail);
   }
-  function handleWheel(e: ReactTypes.WheelEvent<HTMLDivElement>) {
+  function handleWheel(e: ReactWheelEvent<HTMLDivElement>) {
     e.preventDefault();
     const factor = Math.pow(1.05, -e.deltaY / 100);
     userZoomRef.current = Math.max(0.5, Math.min(2.5, userZoomRef.current * factor));

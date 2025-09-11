@@ -31,6 +31,12 @@ var ThreeBodyGlassSim = (() => {
   function mul(a, s) {
     return [a[0] * s, a[1] * s];
   }
+  function dot(a, b) {
+    return a[0] * b[0] + a[1] * b[1];
+  }
+  function norm(a) {
+    return Math.hypot(a[0], a[1]);
+  }
   var orientationPresets = [
     {
       label: "Figure\u20118",
@@ -145,31 +151,26 @@ var ThreeBodyGlassSim = (() => {
       const base = hslToHex(hue, s, l);
       return { base, tri: [hslToHex(tri1, s, l), hslToHex(tri2, s, l)] };
     }
-    const add2 = (a, b) => [a[0] + b[0], a[1] + b[1]];
-    const sub2 = (a, b) => [a[0] - b[0], a[1] - b[1]];
-    const mul2 = (a, s) => [a[0] * s, a[1] * s];
-    const dot = (a, b) => a[0] * b[0] + a[1] * b[1];
-    const norm = (a) => Math.hypot(a[0], a[1]);
     function accelerations(p, t, includeOuter) {
       const a = [[0, 0], [0, 0], [0, 0]];
       for (let i = 0; i < 3; i++) {
         if (destroyedRef.current[i]) continue;
         for (let j = 0; j < 3; j++) if (j !== i && !destroyedRef.current[j]) {
-          const r = sub2(p[j], p[i]);
+          const r = sub(p[j], p[i]);
           const d2 = r[0] * r[0] + r[1] * r[1] + softEps * softEps;
           const d = Math.sqrt(d2);
           const fac = G * mass / (d2 * d);
-          a[i] = add2(a[i], mul2(r, fac));
+          a[i] = add(a[i], mul(r, fac));
         }
         if (includeOuter) {
           for (const obj of outerDefsRef.current) {
             const theta = obj.theta0 + obj.w * t;
             const pos = [obj.R * Math.cos(theta), obj.R * Math.sin(theta)];
-            const r = sub2(pos, p[i]);
+            const r = sub(pos, p[i]);
             const d2 = r[0] * r[0] + r[1] * r[1] + softEps * softEps;
             const d = Math.sqrt(d2);
             const fac = G * obj.m / (d2 * d);
-            a[i] = add2(a[i], mul2(r, fac));
+            a[i] = add(a[i], mul(r, fac));
           }
         }
       }
@@ -177,38 +178,38 @@ var ThreeBodyGlassSim = (() => {
     }
     function rk4Step(p, v, dt, t, includeOuter) {
       const a1 = accelerations(p, t, includeOuter);
-      const pv1 = p.map((pi, i) => add2(pi, mul2(v[i], dt * 0.5)));
-      const vv1 = v.map((vi, i) => add2(vi, mul2(a1[i], dt * 0.5)));
+      const pv1 = p.map((pi, i) => add(pi, mul(v[i], dt * 0.5)));
+      const vv1 = v.map((vi, i) => add(vi, mul(a1[i], dt * 0.5)));
       const a2 = accelerations(pv1, t + dt * 0.5, includeOuter);
-      const pv2 = p.map((pi, i) => add2(pi, mul2(vv1[i], dt * 0.5)));
-      const vv2 = v.map((vi, i) => add2(vi, mul2(a2[i], dt * 0.5)));
+      const pv2 = p.map((pi, i) => add(pi, mul(vv1[i], dt * 0.5)));
+      const vv2 = v.map((vi, i) => add(vi, mul(a2[i], dt * 0.5)));
       const a3 = accelerations(pv2, t + dt * 0.5, includeOuter);
-      const pv3 = p.map((pi, i) => add2(pi, mul2(vv2[i], dt)));
-      const vv3 = v.map((vi, i) => add2(vi, mul2(a3[i], dt)));
+      const pv3 = p.map((pi, i) => add(pi, mul(vv2[i], dt)));
+      const vv3 = v.map((vi, i) => add(vi, mul(a3[i], dt)));
       const a4 = accelerations(pv3, t + dt, includeOuter);
-      const pNext = p.map((pi, i) => add2(pi, mul2(add2(add2(v[i], mul2(add2(vv1[i], vv2[i]), 2)), vv3[i]), dt / 6)));
-      const vNext = v.map((vi, i) => add2(vi, mul2(add2(add2(a1[i], mul2(add2(a2[i], a3[i]), 2)), a4[i]), dt / 6)));
+      const pNext = p.map((pi, i) => add(pi, mul(add(add(v[i], mul(add(vv1[i], vv2[i]), 2)), vv3[i]), dt / 6)));
+      const vNext = v.map((vi, i) => add(vi, mul(add(add(a1[i], mul(add(a2[i], a3[i]), 2)), a4[i]), dt / 6)));
       return { p: pNext, v: vNext };
     }
     function handleCollision(p, v) {
       for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) {
         if (destroyedRef.current[i] || destroyedRef.current[j]) continue;
-        const rij = sub2(p[i], p[j]);
+        const rij = sub(p[i], p[j]);
         const d = norm(rij);
         if (d <= 2 * radius) {
-          const n = mul2(rij, 1 / (d || 1e-9));
-          const relv = sub2(v[i], v[j]);
+          const n = mul(rij, 1 / (d || 1e-9));
+          const relv = sub(v[i], v[j]);
           const vrn = dot(relv, n);
           if (vrn < 0) {
             const overlap = 2 * radius - d;
             if (overlap > 0) {
-              const corr = mul2(n, overlap * 0.5 + 1e-6);
-              p[i] = add2(p[i], corr);
-              p[j] = sub2(p[j], corr);
+              const corr = mul(n, overlap * 0.5 + 1e-6);
+              p[i] = add(p[i], corr);
+              p[j] = sub(p[j], corr);
             }
-            const impulse = mul2(n, vrn);
-            v[i] = sub2(v[i], impulse);
-            v[j] = add2(v[j], impulse);
+            const impulse = mul(n, vrn);
+            v[i] = sub(v[i], impulse);
+            v[j] = add(v[j], impulse);
           }
         }
       }
@@ -219,7 +220,7 @@ var ThreeBodyGlassSim = (() => {
         for (const obj of outerDefsRef.current) {
           const theta = obj.theta0 + obj.w * t;
           const pos = [obj.R * Math.cos(theta), obj.R * Math.sin(theta)];
-          const d = norm(sub2(p[i], pos));
+          const d = norm(sub(p[i], pos));
           if (d <= radius + obj.r) {
             const c = p[i];
             for (let s = 0; s < 40; s++) {
@@ -240,15 +241,15 @@ var ThreeBodyGlassSim = (() => {
       const v2 = dot(v[k], v[k]);
       let U = 0;
       for (let j = 0; j < 3; j++) if (j !== k) {
-        const r = norm(sub2(p[k], p[j]));
+        const r = norm(sub(p[k], p[j]));
         U -= G * mass * mass / Math.max(r, 1e-6);
       }
       return 0.5 * mass * v2 + U;
     }
     function centerOfMass(p) {
       let pc = [0, 0];
-      for (let i = 0; i < 3; i++) pc = add2(pc, p[i]);
-      return { pc: mul2(pc, 1 / 3) };
+      for (let i = 0; i < 3; i++) pc = add(pc, p[i]);
+      return { pc: mul(pc, 1 / 3) };
     }
     async function preSimulateAndSetup(opts) {
       const { base, tri } = randomTriadicHex();
@@ -280,7 +281,7 @@ var ThreeBodyGlassSim = (() => {
             let v = vBase.map((x) => [...x]);
             const ang = Math.random() * Math.PI * 2;
             const eps = epsCandidates[e];
-            v[0] = add2(v[0], [Math.cos(ang) * eps, Math.sin(ang) * eps]);
+            v[0] = add(v[0], [Math.cos(ang) * eps, Math.sin(ang) * eps]);
             const buffer = [];
             let found = false;
             let kind = "collision";
@@ -295,7 +296,7 @@ var ThreeBodyGlassSim = (() => {
               }
               let collidedPair = null;
               outer: for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) {
-                const d = norm(sub2(p[i], p[j]));
+                const d = norm(sub(p[i], p[j]));
                 if (d <= collR) {
                   collidedPair = [i, j];
                   break outer;
@@ -309,7 +310,7 @@ var ThreeBodyGlassSim = (() => {
                 break;
               }
               const { pc } = centerOfMass(p);
-              const pRel = p.map((pi) => sub2(pi, pc));
+              const pRel = p.map((pi) => sub(pi, pc));
               const vRel = v.map((vi) => vi);
               const R = pRel.map((ri) => norm(ri));
               for (let k = 0; k < 3; k++) {
@@ -326,7 +327,7 @@ var ThreeBodyGlassSim = (() => {
                     pTest = nxt.p;
                     vTest = nxt.v;
                     const { pc: pc2 } = centerOfMass(pTest);
-                    const pRel2 = pTest.map((pi) => sub2(pi, pc2));
+                    const pRel2 = pTest.map((pi) => sub(pi, pc2));
                     if (norm(pRel2[k]) < 6) {
                       stable = false;
                       break;
@@ -380,9 +381,9 @@ var ThreeBodyGlassSim = (() => {
         mapRef.current.realStart = performance.now() / 1e3;
         trailsRef.current = [[], [], []];
         const span = preBufRef.current && preBufRef.current.states.length ? Math.max(
-          norm(sub2(preBufRef.current.states[0].p[0], preBufRef.current.states[0].p[1])),
-          norm(sub2(preBufRef.current.states[0].p[1], preBufRef.current.states[0].p[2])),
-          norm(sub2(preBufRef.current.states[0].p[2], preBufRef.current.states[0].p[0]))
+          norm(sub(preBufRef.current.states[0].p[0], preBufRef.current.states[0].p[1])),
+          norm(sub(preBufRef.current.states[0].p[1], preBufRef.current.states[0].p[2])),
+          norm(sub(preBufRef.current.states[0].p[2], preBufRef.current.states[0].p[0]))
         ) : 1.2;
         targetScaleRef.current = Math.min(300, Math.max(140, 300 / Math.max(span, 0.4)));
         scaleRef.current = targetScaleRef.current * userZoomRef.current;
@@ -410,9 +411,9 @@ var ThreeBodyGlassSim = (() => {
         const H = ctx.canvas.clientHeight;
         const { pc } = centerOfMass(p);
         const maxR = Math.max(
-          norm(sub2(p[0], pc)),
-          norm(sub2(p[1], pc)),
-          norm(sub2(p[2], pc))
+          norm(sub(p[0], pc)),
+          norm(sub(p[1], pc)),
+          norm(sub(p[2], pc))
         );
         const baseTarget = maxR > 2.6 ? Math.max(70, 280 / (maxR + 0.6)) : targetScaleRef.current;
         const targetWithUser = baseTarget * userZoomRef.current;
@@ -531,7 +532,7 @@ var ThreeBodyGlassSim = (() => {
             }
             if (!collisionHandledRef.current && buf.kind === "collision" && simTimeTarget > tEvent) {
               const pair = buf.info.split("\u2194").map((n) => parseInt(n) - 1);
-              const c = mul2(add2(liveRef.current.p[pair[0]], liveRef.current.p[pair[1]]), 0.5);
+              const c = mul(add(liveRef.current.p[pair[0]], liveRef.current.p[pair[1]]), 0.5);
               for (let s = 0; s < 40; s++) {
                 const ang = Math.random() * Math.PI * 2;
                 const spd = 0.6 + Math.random() * 0.8;
@@ -556,7 +557,7 @@ var ThreeBodyGlassSim = (() => {
               handleCollision(liveRef.current.p, liveRef.current.v);
               handleOuterCollisions(liveRef.current.p, liveRef.current.tSim);
               for (const sh of shardsRef.current) {
-                sh.p = add2(sh.p, mul2(sh.v, step));
+                sh.p = add(sh.p, mul(sh.v, step));
                 sh.life -= step;
               }
               shardsRef.current = shardsRef.current.filter((s) => s.life > 0);
