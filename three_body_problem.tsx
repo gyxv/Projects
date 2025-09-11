@@ -499,7 +499,7 @@ export default function ThreeBodyGlassSim() {
     : eventType === "ejection" ? `ejection of ${eventBodyInfo}` : "an event";
 
   return (
-    <div className="relative w-full h-[88vh] md:h-[92vh] bg-black text-white overflow-hidden rounded-2xl shadow-2xl" onWheel={handleWheel}>
+    <div className="relative w-full h-[88vh] md:h-[92vh] bg-black text-white font-sans overflow-hidden rounded-2xl shadow-2xl" onWheel={handleWheel}>
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
 
       {/* Top-left: Countdown glass panel */}
