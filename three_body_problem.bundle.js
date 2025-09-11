@@ -30,6 +30,7 @@ var ThreeBodyGlassSim = (() => {
     const [eventBodyInfo, setEventBodyInfo] = useState("");
     const [countdown, setCountdown] = useState(120);
     const [hexColors, setHexColors] = useState(["#cccccc", "#cccccc", "#cccccc"]);
+    const [chosenDuration, setChosenDuration] = useState(null);
     const canvasRef = useRef(null);
     const rafRef = useRef(null);
     const G = 1;
@@ -166,6 +167,7 @@ var ThreeBodyGlassSim = (() => {
       const maxSteps = 22e4;
       const collR = 2 * radius;
       let best = null;
+      const target = opts?.targetTEvent ?? opts?.targetRealTime;
       for (let e = 0; e < epsCandidates.length; e++) {
         for (let attempt = 0; attempt < 6; attempt++) {
           let p = pBase.map((x) => [...x]);
@@ -218,9 +220,9 @@ var ThreeBodyGlassSim = (() => {
           if (found) {
             if (!best) {
               best = { buffer, tEvent, kind, info };
-            } else if (opts?.targetTEvent != null) {
-              const prevErr = Math.abs(best.tEvent - opts.targetTEvent);
-              const newErr = Math.abs(tEvent - opts.targetTEvent);
+            } else if (target != null) {
+              const prevErr = Math.abs(best.tEvent - target);
+              const newErr = Math.abs(tEvent - target);
               if (newErr < prevErr) best = { buffer, tEvent, kind, info };
             } else {
               if (tEvent < best.tEvent) best = { buffer, tEvent, kind, info };
@@ -245,9 +247,10 @@ var ThreeBodyGlassSim = (() => {
       } else {
         liveRef.current = { p: [[0, 0], [0, 0], [0, 0]], v: [[0, 0], [0, 0], [0, 0]], tSim: 0 };
       }
+      const desiredReal = opts?.targetRealTime ?? 120;
       mapRef.current = {
         realStart: performance.now() / 1e3,
-        baseSpeed: preBufRef.current ? preBufRef.current.tEvent / 120 : 1
+        baseSpeed: preBufRef.current ? preBufRef.current.tEvent / desiredReal : 1
       };
       trailsRef.current = [[], [], []];
       const span = preBufRef.current && preBufRef.current.states.length ? Math.max(
@@ -399,11 +402,12 @@ var ThreeBodyGlassSim = (() => {
       rafRef.current = requestAnimationFrame(loopRef.current);
     };
     useEffect(() => {
-      preSimulateAndSetup();
+      if (chosenDuration == null) return;
+      preSimulateAndSetup({ targetRealTime: chosenDuration });
       return () => {
         if (rafRef.current) cancelAnimationFrame(rafRef.current);
       };
-    }, []);
+    }, [chosenDuration]);
     useEffect(() => {
       if (!isReady) return;
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -414,7 +418,11 @@ var ThreeBodyGlassSim = (() => {
       setEventType(null);
       setEventBodyInfo("");
       setIsPlaying(true);
-      preSimulateAndSetup();
+      if (chosenDuration != null) {
+        preSimulateAndSetup({ targetRealTime: chosenDuration });
+      } else {
+        preSimulateAndSetup();
+      }
     }
     function handleWheel(e) {
       e.preventDefault();
@@ -422,17 +430,44 @@ var ThreeBodyGlassSim = (() => {
       userZoomRef.current = Math.max(0.5, Math.min(2.5, userZoomRef.current * factor));
     }
     function retargetEventRealTime(desiredSeconds) {
-      const simRate = mapRef.current.baseSpeed * speedMul;
-      const targetTEvent = Math.max(10, desiredSeconds * simRate);
       setIsReady(false);
       setEventType(null);
       setEventBodyInfo("");
-      preSimulateAndSetup({ targetTEvent }).then(() => {
+      setChosenDuration(desiredSeconds);
+      preSimulateAndSetup({ targetRealTime: desiredSeconds }).then(() => {
         mapRef.current.realStart = performance.now() / 1e3;
         setIsReady(true);
       });
     }
+    const durationOptions = [
+      { label: "30s", seconds: 30 },
+      { label: "2m", seconds: 120 },
+      { label: "5m", seconds: 300 },
+      { label: "10m", seconds: 600 },
+      { label: "15m", seconds: 900 },
+      { label: "30m", seconds: 1800 },
+      { label: "45m", seconds: 2700 },
+      { label: "1h", seconds: 3600 },
+      { label: "1.5h", seconds: 5400 },
+      { label: "2h", seconds: 7200 },
+      { label: "2.5h", seconds: 9e3 },
+      { label: "3h", seconds: 10800 },
+      { label: "6h", seconds: 21600 },
+      { label: "12h", seconds: 43200 },
+      { label: "24h", seconds: 86400 }
+    ];
     const eventLabel = eventType === "collision" ? `collision (${eventBodyInfo})` : eventType === "ejection" ? `ejection of ${eventBodyInfo}` : "an event";
+    if (chosenDuration === null) {
+      return /* @__PURE__ */ React.createElement("div", { className: "relative w-full h-[88vh] md:h-[92vh] bg-black text-white font-sans overflow-hidden rounded-2xl shadow-2xl flex items-center justify-center" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center" }, /* @__PURE__ */ React.createElement("div", { className: "text-lg mb-3" }, "Choose time until collision/ejection"), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-3 gap-2 text-sm" }, durationOptions.map((opt) => /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          key: opt.label,
+          onClick: () => setChosenDuration(opt.seconds),
+          className: "px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20"
+        },
+        opt.label
+      )))));
+    }
     return /* @__PURE__ */ React.createElement("div", { className: "relative w-full h-[88vh] md:h-[92vh] bg-black text-white font-sans overflow-hidden rounded-2xl shadow-2xl", onWheel: handleWheel }, /* @__PURE__ */ React.createElement("canvas", { ref: canvasRef, className: "absolute inset-0 w-full h-full" }), /* @__PURE__ */ React.createElement("div", { className: "absolute top-4 left-4 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-wider text-white/70" }, "Time to ", eventLabel), /* @__PURE__ */ React.createElement("div", { className: "text-3xl font-semibold tabular-nums" }, Math.floor(countdown / 60).toString().padStart(2, "0"), ":", Math.floor(countdown % 60).toString().padStart(2, "0"))), /* @__PURE__ */ React.createElement("div", { className: "absolute top-4 right-4 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-wider text-white/70 mb-1" }, "Triadic palette"), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3" }, hexColors.map((hex, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("div", { className: "w-5 h-5 rounded-full", style: { background: hex } }), /* @__PURE__ */ React.createElement("span", { className: "text-sm font-mono text-white/80" }, hex.toUpperCase()))))), /* @__PURE__ */ React.createElement("div", { className: "absolute left-1/2 -translate-x-1/2 bottom-4 flex items-center gap-3 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg" }, /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -487,10 +522,10 @@ var ThreeBodyGlassSim = (() => {
       "input",
       {
         type: "range",
-        min: 15,
-        max: 300,
+        min: 30,
+        max: 86400,
         step: 1,
-        value: Math.max(15, Math.min(300, Math.round(countdown))),
+        value: Math.max(30, Math.min(86400, Math.round(countdown))),
         onChange: (e) => retargetEventRealTime(parseFloat(e.target.value)),
         className: "w-full accent-white/90"
       }

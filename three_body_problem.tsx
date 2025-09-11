@@ -17,6 +17,7 @@ export default function ThreeBodyGlassSim() {
   const [eventBodyInfo, setEventBodyInfo] = useState(""); // e.g., "1↔2" or "body 3"
   const [countdown, setCountdown] = useState(120);
   const [hexColors, setHexColors] = useState<string[]>(["#cccccc", "#cccccc", "#cccccc"]);
+  const [chosenDuration, setChosenDuration] = useState<number | null>(null); // real seconds until event
 
   // ======== Canvas / Animation Refs ========
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -166,7 +167,7 @@ export default function ThreeBodyGlassSim() {
   }
 
   // ======== Pre-simulation (with optional target sim-event time) ========
-  async function preSimulateAndSetup(opts?: { targetTEvent?: number }) {
+  async function preSimulateAndSetup(opts?: { targetTEvent?: number; targetRealTime?: number }) {
     // Colors first (new random base + triad companions)
     const { base, tri } = randomTriadicHex();
     const codes = [base, tri[0], tri[1]];
@@ -193,6 +194,7 @@ export default function ThreeBodyGlassSim() {
       buffer: Array<{ p: [number, number][], v: [number, number][] }>;
       tEvent: number; kind: "collision" | "ejection"; info: string;
     } = null;
+    const target = opts?.targetTEvent ?? opts?.targetRealTime;
 
     // Search over small perturbations and random angles, choose earliest if no target; otherwise closest to target
     for (let e = 0; e < epsCandidates.length; e++) {
@@ -241,9 +243,9 @@ export default function ThreeBodyGlassSim() {
         if (found) {
           if (!best) {
             best = { buffer, tEvent, kind, info };
-          } else if (opts?.targetTEvent != null) {
-            const prevErr = Math.abs(best.tEvent - opts.targetTEvent);
-            const newErr = Math.abs(tEvent - opts.targetTEvent);
+          } else if (target != null) {
+            const prevErr = Math.abs(best.tEvent - target);
+            const newErr = Math.abs(tEvent - target);
             if (newErr < prevErr) best = { buffer, tEvent, kind, info };
           } else {
             // Prefer the earliest event if no target specified
@@ -274,10 +276,11 @@ export default function ThreeBodyGlassSim() {
       liveRef.current = { p: [[0,0],[0,0],[0,0]] as any, v: [[0,0],[0,0],[0,0]] as any, tSim: 0 };
     }
 
-    // Base mapping so that event would occur at ~120s initially (user can change speed or retarget via slider)
+    // Map sim time so that event occurs at desired real-time duration
+    const desiredReal = opts?.targetRealTime ?? 120;
     mapRef.current = {
       realStart: performance.now() / 1000,
-      baseSpeed: preBufRef.current ? preBufRef.current.tEvent / 120 : 1,
+      baseSpeed: preBufRef.current ? preBufRef.current.tEvent / desiredReal : 1,
     };
 
     // Trails reset
@@ -457,9 +460,10 @@ export default function ThreeBodyGlassSim() {
 
   // ======== Effects ========
   useEffect(() => {
-    preSimulateAndSetup();
+    if (chosenDuration == null) return;
+    preSimulateAndSetup({ targetRealTime: chosenDuration });
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, []);
+  }, [chosenDuration]);
   useEffect(() => {
     if (!isReady) return;
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -472,7 +476,11 @@ export default function ThreeBodyGlassSim() {
     setEventType(null);
     setEventBodyInfo("");
     setIsPlaying(true);
-    preSimulateAndSetup();
+    if (chosenDuration != null) {
+      preSimulateAndSetup({ targetRealTime: chosenDuration });
+    } else {
+      preSimulateAndSetup();
+    }
   }
   function handleWheel(e: React.WheelEvent<HTMLDivElement>) {
     e.preventDefault();
@@ -480,23 +488,58 @@ export default function ThreeBodyGlassSim() {
     userZoomRef.current = Math.max(0.5, Math.min(2.5, userZoomRef.current * factor));
   }
   function retargetEventRealTime(desiredSeconds: number) {
-    // keep current simRate; choose new pre-sim where tEvent ≈ desiredSeconds * simRate
-    const simRate = mapRef.current.baseSpeed * speedMul;
-    const targetTEvent = Math.max(10, desiredSeconds * simRate);
     setIsReady(false);
     setEventType(null);
     setEventBodyInfo("");
-    preSimulateAndSetup({ targetTEvent }).then(() => {
-      // preserve speed; restart timer baseline
+    setChosenDuration(desiredSeconds);
+    preSimulateAndSetup({ targetRealTime: desiredSeconds }).then(() => {
       mapRef.current.realStart = performance.now() / 1000;
       setIsReady(true);
     });
   }
 
   // ======== UI ========
+  const durationOptions = [
+    { label: "30s", seconds: 30 },
+    { label: "2m", seconds: 120 },
+    { label: "5m", seconds: 300 },
+    { label: "10m", seconds: 600 },
+    { label: "15m", seconds: 900 },
+    { label: "30m", seconds: 1800 },
+    { label: "45m", seconds: 2700 },
+    { label: "1h", seconds: 3600 },
+    { label: "1.5h", seconds: 5400 },
+    { label: "2h", seconds: 7200 },
+    { label: "2.5h", seconds: 9000 },
+    { label: "3h", seconds: 10800 },
+    { label: "6h", seconds: 21600 },
+    { label: "12h", seconds: 43200 },
+    { label: "24h", seconds: 86400 },
+  ];
   const eventLabel = eventType === "collision"
     ? `collision (${eventBodyInfo})`
     : eventType === "ejection" ? `ejection of ${eventBodyInfo}` : "an event";
+
+  if (chosenDuration === null) {
+    return (
+      <div className="relative w-full h-[88vh] md:h-[92vh] bg-black text-white font-sans overflow-hidden rounded-2xl shadow-2xl flex items-center justify-center">
+        <div className="px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center">
+          <div className="text-lg mb-3">Choose time until collision/ejection</div>
+          <div className="grid grid-cols-3 gap-2 text-sm">
+            {durationOptions.map((opt) => (
+              <button
+                key={opt.label}
+                onClick={() => setChosenDuration(opt.seconds)}
+                className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20"
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full h-[88vh] md:h-[92vh] bg-black text-white font-sans overflow-hidden rounded-2xl shadow-2xl" onWheel={handleWheel}>
@@ -586,8 +629,8 @@ export default function ThreeBodyGlassSim() {
             {/* Time to Event */}
             <div>
               <div className="flex items-center justify-between text-xs text-white/70"><span>Time to collision/ejection</span><span className="tabular-nums">{Math.max(0, Math.round(countdown))}s</span></div>
-              <input type="range" min={15} max={300} step={1}
-                value={Math.max(15, Math.min(300, Math.round(countdown)))}
+              <input type="range" min={30} max={86400} step={1}
+                value={Math.max(30, Math.min(86400, Math.round(countdown)))}
                 onChange={(e) => retargetEventRealTime(parseFloat(e.target.value))}
                 className="w-full accent-white/90" />
               <div className="text-[11px] text-white/60 mt-1">Keeps current speed; adjusts initial perturbation to aim for the chosen time.</div>
