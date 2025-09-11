@@ -155,6 +155,21 @@ export default function ThreeBodyGlassSim() {
   const panStartRef = useRef<[number, number]>([0, 0]);
   const postEventRef = useRef(false);
 
+  type Rocket = {
+    p: [number, number];
+    v: [number, number];
+    angle: number;
+    thrust: boolean;
+    rotL: boolean;
+    rotR: boolean;
+  };
+  const rocketRef = useRef<Rocket | null>(null);
+
+  const seedRef = useRef<string>("");
+  const [importOpen, setImportOpen] = useState(false);
+  const [seedInput, setSeedInput] = useState("");
+  const seedImportRef = useRef<{ p: [number, number][], v: [number, number][] } | null>(null);
+
   const outerObjectsRef = useRef<OuterObject[]>(generateRegion([0, 0]));
   const regionCentersRef = useRef<[number, number][]>([[0, 0]]);
 
@@ -331,6 +346,27 @@ export default function ThreeBodyGlassSim() {
       }
     }
   }
+
+  function rocketAcceleration(pos: [number, number], t: number) {
+    let a: [number, number] = [0, 0];
+    for (let i = 0; i < 3; i++) {
+      if (destroyedRef.current[i]) continue;
+      const r = sub(liveRef.current.p[i], pos);
+      const d2 = r[0] * r[0] + r[1] * r[1] + softEps * softEps;
+      const d = Math.sqrt(d2);
+      const fac = (G * mass) / (d2 * d);
+      a = add(a, mul(r, fac));
+    }
+    for (const obj of outerObjectsRef.current) {
+      const op = outerObjectPosition(obj, t);
+      const r = sub(op, pos);
+      const d2 = r[0] * r[0] + r[1] * r[1] + softEps * softEps;
+      const d = Math.sqrt(d2);
+      const fac = (G * obj.mass) / (d2 * d);
+      a = add(a, mul(r, fac));
+    }
+    return a;
+  }
   function energyOfBody(k: number, p: [number, number][], v: [number, number][]) {
     const v2 = dot(v[k], v[k]);
     let U = 0;
@@ -347,7 +383,7 @@ export default function ThreeBodyGlassSim() {
   }
 
   // ======== Pre-simulation (with optional target sim-event time) ========
-  async function preSimulateAndSetup(opts?: { targetTEvent?: number; targetRealTime?: number }) {
+  async function preSimulateAndSetup(opts?: { targetTEvent?: number; targetRealTime?: number; seed?: { p: [number, number][]; v: [number, number][] } }) {
     // Colors first (new random base + triad companions)
     const { base, tri } = randomTriadicHex();
     const codes = [base, tri[0], tri[1]];
@@ -359,9 +395,9 @@ export default function ThreeBodyGlassSim() {
     destroyedRef.current = [false, false, false];
     collisionHandledRef.current = false;
 
-    // Base initial conditions from selected orientation
-    let pBase = orientationRef.current.p.map((x) => [...x]) as [number, number][];
-    let vBase = orientationRef.current.v.map((x) => [...x]) as [number, number][];
+    // Base initial conditions from selected orientation or seed
+    let pBase = opts?.seed ? opts.seed.p.map((x) => [...x]) as [number, number][] : orientationRef.current.p.map((x) => [...x]) as [number, number][];
+    let vBase = opts?.seed ? opts.seed.v.map((x) => [...x]) as [number, number][] : orientationRef.current.v.map((x) => [...x]) as [number, number][];
 
     const epsCandidates = [1e-5, 5e-5, 1e-4, 3e-4, 1e-3, 3e-3, 7e-3, 1.2e-2];
     const dt = 0.004;
@@ -374,82 +410,127 @@ export default function ThreeBodyGlassSim() {
       tEvent: number; kind: "collision" | "ejection"; info: string;
     } = null;
 
-    // Search over small perturbations and random angles, choose earliest if no target; otherwise closest to target
-    for (let e = 0; e < epsCandidates.length; e++) {
-      setCandidateInfo(`∈ candidate ${e + 1}/${epsCandidates.length}`);
-      await new Promise((r) => setTimeout(r, 0));
-      for (let attempt = 0; attempt < 6; attempt++) {
-        setAttemptInfo(`attempt ${attempt + 1}/6`);
-        await new Promise((r) => setTimeout(r, 0));
-        let p = pBase.map((x) => [...x]) as [number, number][];
-        let v = vBase.map((x) => [...x]) as [number, number][];
-        const ang = Math.random() * Math.PI * 2;
-        const eps = epsCandidates[e];
-        v[0] = add(v[0], [Math.cos(ang) * eps, Math.sin(ang) * eps]) as [number, number];
-
-        const buffer: Array<{ p: [number, number][], v: [number, number][] }> = [];
-        let found = false;
-        let kind: "collision" | "ejection" = "collision";
-        let info = "";
-        let tEvent = 0;
-        let ejectCand: { k: number; step: number } | null = null;
-        const confirmSteps = 25000;
-
-        for (let step = 0; step < maxSteps; step++) {
-          buffer.push({ p: [[...p[0]], [...p[1]], [...p[2]]] as any, v: [[...v[0]], [...v[1]], [...v[2]]] as any });
-
-          if (step % 5000 === 0) {
-            const pct = ((step / maxSteps) * 100).toFixed(1);
-            setProgressLines((l) => [...l.slice(-40), `    ${pct}%`]);
-            await new Promise((r) => setTimeout(r, 0));
-          }
-
-          // Collision check
-          let collidedPair: [number, number] | null = null;
-          outer: for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) {
-            const d = norm(sub(p[i], p[j]));
-            if (d <= collR) { collidedPair = [i, j]; break outer; }
-          }
-          if (collidedPair) {
-            found = true; kind = "collision"; info = `${collidedPair[0] + 1}↔${collidedPair[1] + 1}`; tEvent = step * dt; break;
-          }
-
-          // Ejection detection with permanence check
-          const { pc } = centerOfMass(p);
-          const pRel = p.map((pi) => sub(pi, pc));
-          const vRel = v.map((vi) => vi);
-          const R = pRel.map((ri) => norm(ri));
-          if (!ejectCand) {
-            for (let k = 0; k < 3; k++) {
-              const eSpec = energyOfBody(k, pRel as any, vRel as any);
-              const outward = dot(pRel[k], vRel[k]) > 0;
-              if (R[k] > 7.0 && outward && eSpec > 0) { ejectCand = { k, step }; break; }
-            }
-          } else {
-            const k = ejectCand.k;
+    if (opts?.seed) {
+      let p = pBase.map((x) => [...x]) as [number, number][];
+      let v = vBase.map((x) => [...x]) as [number, number][];
+      const buffer: Array<{ p: [number, number][], v: [number, number][] }> = [];
+      let found = false; let kind: "collision" | "ejection" = "collision"; let info = ""; let tEvent = 0;
+      let ejectCand: { k: number; step: number } | null = null; const confirmSteps = 25000;
+      for (let step = 0; step < maxSteps; step++) {
+        buffer.push({ p: [[...p[0]], [...p[1]], [...p[2]]] as any, v: [[...v[0]], [...v[1]], [...v[2]]] as any });
+        if (step % 5000 === 0) {
+          const pct = ((step / maxSteps) * 100).toFixed(1);
+          setProgressLines((l) => [...l.slice(-40), `    ${pct}%`]);
+          await new Promise((r) => setTimeout(r, 0));
+        }
+        let collidedPair: [number, number] | null = null;
+        outer: for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) {
+          const d = norm(sub(p[i], p[j]));
+          if (d <= collR) { collidedPair = [i, j]; break outer; }
+        }
+        if (collidedPair) { found = true; kind = "collision"; info = `${collidedPair[0] + 1}↔${collidedPair[1] + 1}`; tEvent = step * dt; break; }
+        const { pc } = centerOfMass(p);
+        const pRel = p.map((pi) => sub(pi, pc));
+        const vRel = v.map((vi) => vi);
+        const R = pRel.map((ri) => norm(ri));
+        if (!ejectCand) {
+          for (let k = 0; k < 3; k++) {
             const eSpec = energyOfBody(k, pRel as any, vRel as any);
             const outward = dot(pRel[k], vRel[k]) > 0;
-            if (R[k] < 5.0 || !outward || eSpec < 0) {
-              ejectCand = null;
-            } else if (step - ejectCand.step > confirmSteps) {
-              found = true; kind = "ejection"; info = `body ${k + 1}`; tEvent = ejectCand.step * dt; break;
+            if (R[k] > 7.0 && outward && eSpec > 0) { ejectCand = { k, step }; break; }
+          }
+        } else {
+          const k = ejectCand.k;
+          const eSpec = energyOfBody(k, pRel as any, vRel as any);
+          const outward = dot(pRel[k], vRel[k]) > 0;
+          if (R[k] < 5.0 || !outward || eSpec < 0) {
+            ejectCand = null;
+          } else if (step - ejectCand.step > confirmSteps) {
+            found = true; kind = "ejection"; info = `body ${k + 1}`; tEvent = ejectCand.step * dt; break;
+          }
+        }
+        const next = rk4Step(p as any, v as any, dt, step * dt, false);
+        p = next.p as any; v = next.v as any;
+      }
+      if (found) best = { buffer, tEvent, kind, info };
+    } else {
+      // Search over small perturbations and random angles, choose earliest if no target; otherwise closest to target
+      for (let e = 0; e < epsCandidates.length; e++) {
+        setCandidateInfo(`∈ candidate ${e + 1}/${epsCandidates.length}`);
+        await new Promise((r) => setTimeout(r, 0));
+        for (let attempt = 0; attempt < 6; attempt++) {
+          setAttemptInfo(`attempt ${attempt + 1}/6`);
+          await new Promise((r) => setTimeout(r, 0));
+          let p = pBase.map((x) => [...x]) as [number, number][];
+          let v = vBase.map((x) => [...x]) as [number, number][];
+          const ang = Math.random() * Math.PI * 2;
+          const eps = epsCandidates[e];
+          v[0] = add(v[0], [Math.cos(ang) * eps, Math.sin(ang) * eps]) as [number, number];
+
+          const buffer: Array<{ p: [number, number][], v: [number, number][] }> = [];
+          let found = false;
+          let kind: "collision" | "ejection" = "collision";
+          let info = "";
+          let tEvent = 0;
+          let ejectCand: { k: number; step: number } | null = null;
+          const confirmSteps = 25000;
+
+          for (let step = 0; step < maxSteps; step++) {
+            buffer.push({ p: [[...p[0]], [...p[1]], [...p[2]]] as any, v: [[...v[0]], [...v[1]], [...v[2]]] as any });
+
+            if (step % 5000 === 0) {
+              const pct = ((step / maxSteps) * 100).toFixed(1);
+              setProgressLines((l) => [...l.slice(-40), `    ${pct}%`]);
+              await new Promise((r) => setTimeout(r, 0));
             }
+
+            // Collision check
+            let collidedPair: [number, number] | null = null;
+            outer: for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) {
+              const d = norm(sub(p[i], p[j]));
+              if (d <= collR) { collidedPair = [i, j]; break outer; }
+            }
+            if (collidedPair) {
+              found = true; kind = "collision"; info = `${collidedPair[0] + 1}↔${collidedPair[1] + 1}`; tEvent = step * dt; break;
+            }
+
+            // Ejection detection with permanence check
+            const { pc } = centerOfMass(p);
+            const pRel = p.map((pi) => sub(pi, pc));
+            const vRel = v.map((vi) => vi);
+            const R = pRel.map((ri) => norm(ri));
+            if (!ejectCand) {
+              for (let k = 0; k < 3; k++) {
+                const eSpec = energyOfBody(k, pRel as any, vRel as any);
+                const outward = dot(pRel[k], vRel[k]) > 0;
+                if (R[k] > 7.0 && outward && eSpec > 0) { ejectCand = { k, step }; break; }
+              }
+            } else {
+              const k = ejectCand.k;
+              const eSpec = energyOfBody(k, pRel as any, vRel as any);
+              const outward = dot(pRel[k], vRel[k]) > 0;
+              if (R[k] < 5.0 || !outward || eSpec < 0) {
+                ejectCand = null;
+              } else if (step - ejectCand.step > confirmSteps) {
+                found = true; kind = "ejection"; info = `body ${k + 1}`; tEvent = ejectCand.step * dt; break;
+              }
+            }
+
+            const next = rk4Step(p as any, v as any, dt, step * dt, false);
+            p = next.p as any; v = next.v as any;
           }
 
-          const next = rk4Step(p as any, v as any, dt, step * dt, false);
-          p = next.p as any; v = next.v as any;
-        }
-
-        if (found) {
-          if (!best) {
-            best = { buffer, tEvent, kind, info };
-          } else if (target != null) {
-            const prevErr = Math.abs(best.tEvent - target);
-            const newErr = Math.abs(tEvent - target);
-            if (newErr < prevErr) best = { buffer, tEvent, kind, info };
-          } else {
-            // Prefer the earliest event if no target specified
-            if (tEvent < best.tEvent) best = { buffer, tEvent, kind, info };
+          if (found) {
+            if (!best) {
+              best = { buffer, tEvent, kind, info };
+            } else if (target != null) {
+              const prevErr = Math.abs(best.tEvent - target);
+              const newErr = Math.abs(tEvent - target);
+              if (newErr < prevErr) best = { buffer, tEvent, kind, info };
+            } else {
+              // Prefer the earliest event if no target specified
+              if (tEvent < best.tEvent) best = { buffer, tEvent, kind, info };
+            }
           }
         }
       }
@@ -497,6 +578,11 @@ export default function ThreeBodyGlassSim() {
       : 1.2;
     targetScaleRef.current = Math.min(300, Math.max(140, 300 / Math.max(span, 0.4)));
     scaleRef.current = targetScaleRef.current * userZoomRef.current; // start close
+
+    if (preBufRef.current && preBufRef.current.states.length > 0) {
+      const init = preBufRef.current.states[0];
+      seedRef.current = btoa(JSON.stringify({ p: init.p, v: init.v, duration: opts?.targetRealTime ?? 0 }));
+    }
 
     setProgressLines((l) => [...l.slice(-40), "Finalizing setup..."]);
     await new Promise((r) => setTimeout(r, 0));
@@ -621,6 +707,22 @@ export default function ThreeBodyGlassSim() {
         ctx.restore();
       }
     }
+
+    if (rocketRef.current) {
+      const r = rocketRef.current;
+      const [x, y] = worldToScreen(r.p[0], r.p[1], W, H);
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(-r.angle);
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.moveTo(6, 0);
+      ctx.lineTo(-4, 3);
+      ctx.lineTo(-4, -3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
   }
 
   // ======== Animation Loop ========
@@ -689,6 +791,19 @@ export default function ThreeBodyGlassSim() {
           liveRef.current.v = next.v as any;
           handleCollision(liveRef.current.p as any, liveRef.current.v as any);
           handleOuterCollisions(liveRef.current.p as any, liveRef.current.v as any, liveRef.current.tSim);
+          if (rocketRef.current) {
+            const r = rocketRef.current;
+            const rot = 1.5;
+            if (r.rotL) r.angle += rot * step;
+            if (r.rotR) r.angle -= rot * step;
+            let acc = rocketAcceleration(r.p, liveRef.current.tSim);
+            if (r.thrust) {
+              const thrust = 0.4;
+              acc = add(acc, [Math.cos(r.angle) * thrust, Math.sin(r.angle) * thrust]);
+            }
+            r.v = add(r.v, mul(acc, step));
+            r.p = add(r.p, mul(r.v, step));
+          }
           for (const sh of shardsRef.current) {
             sh.p = add(sh.p, mul(sh.v, step)) as [number, number];
             sh.life -= step;
@@ -714,12 +829,17 @@ export default function ThreeBodyGlassSim() {
       for (let i = 0; i < 3; i++) {
         if (!destroyedRef.current[i]) ensureRegionAround(liveRef.current.p[i]);
       }
+      if (rocketRef.current) ensureRegionAround(rocketRef.current.p);
       if (followRef.current !== null) {
         const idx = followRef.current;
-        const target = destroyedRef.current[idx] ? shatterPosRef.current[idx] : liveRef.current.p[idx];
-        panRef.current = [target[0], target[1]];
-        setPan([target[0], target[1]]);
-        ensureRegionAround(panRef.current);
+        let target: [number, number] | null = null;
+        if (idx === 3 && rocketRef.current) target = rocketRef.current.p;
+        else if (idx <= 2) target = destroyedRef.current[idx] ? shatterPosRef.current[idx] : liveRef.current.p[idx];
+        if (target) {
+          panRef.current = [target[0], target[1]];
+          setPan([target[0], target[1]]);
+          ensureRegionAround(panRef.current);
+        }
       }
     }
 
@@ -742,7 +862,9 @@ export default function ThreeBodyGlassSim() {
     preSimulateAndSetup({
       targetTEvent: mapRef.current.baseSpeed * chosenDuration,
       targetRealTime: chosenDuration,
+      seed: seedImportRef.current || undefined,
     });
+    seedImportRef.current = null;
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, [chosenDuration]);
   useEffect(() => {
@@ -780,6 +902,7 @@ export default function ThreeBodyGlassSim() {
     postEventRef.current = false;
     outerObjectsRef.current = generateRegion([0, 0]);
     regionCentersRef.current = [[0, 0]];
+    rocketRef.current = null;
   }
   function handleWheel(e: React.WheelEvent<HTMLDivElement>) {
     e.preventDefault();
@@ -814,14 +937,35 @@ export default function ThreeBodyGlassSim() {
   }, []);
 
   useEffect(() => {
-    const key = (e: KeyboardEvent) => {
+    const down = (e: KeyboardEvent) => {
       if (!postEventRef.current) return;
       if (e.key === "1" || e.key === "2" || e.key === "3") {
         followRef.current = parseInt(e.key) - 1;
+      } else if (e.key === "0") {
+        if (e.shiftKey) {
+          if (!rocketRef.current) {
+            rocketRef.current = { p: [0, 0], v: [0, 0], angle: 0, thrust: false, rotL: false, rotR: false };
+            followRef.current = 3;
+          }
+        } else if (rocketRef.current) {
+          followRef.current = 3;
+        }
+      }
+      if (rocketRef.current) {
+        if (e.key === "w") rocketRef.current.thrust = true;
+        if (e.key === "s") rocketRef.current.thrust = false;
+        if (e.key === "a") rocketRef.current.rotL = true;
+        if (e.key === "d") rocketRef.current.rotR = true;
       }
     };
-    window.addEventListener("keydown", key);
-    return () => window.removeEventListener("keydown", key);
+    const up = (e: KeyboardEvent) => {
+      if (!rocketRef.current) return;
+      if (e.key === "a") rocketRef.current.rotL = false;
+      if (e.key === "d") rocketRef.current.rotR = false;
+    };
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    return () => { window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); };
   }, []);
 
   function resetControls() {
@@ -944,6 +1088,10 @@ export default function ThreeBodyGlassSim() {
             </div>
           ))}
         </div>
+        <div className="text-right mt-2">
+          <button onClick={() => seedRef.current && navigator.clipboard.writeText(seedRef.current)}
+            className="text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/20">Copy seed</button>
+        </div>
       </div>
 
       {/* Bottom controls */}
@@ -1016,7 +1164,7 @@ export default function ThreeBodyGlassSim() {
       {/* Loading badge */}
       {!isReady && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center">
+          <div className="px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center relative">
             <div className="text-xs uppercase tracking-widest text-white/70 mb-2">Preparing a near-perfect 3‑body setup…</div>
             <div className="text-lg font-medium">Searching for a slight perturbation that yields an event</div>
             <div className="mt-3 text-left text-xs font-mono text-white/80 w-64">
@@ -1030,7 +1178,31 @@ export default function ThreeBodyGlassSim() {
                 ))}
               </div>
             </div>
+            <button onClick={() => setImportOpen(true)} className="absolute bottom-3 right-3 text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/20">Skip Exploration</button>
           </div>
+          {importOpen && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center">
+                <div className="mb-2">Paste seed</div>
+                <textarea value={seedInput} onChange={e => setSeedInput(e.target.value)} className="w-64 h-24 text-black p-1 rounded" />
+                <div className="mt-3 text-right">
+                  <button onClick={() => {
+                      try {
+                        const data = JSON.parse(atob(seedInput.trim()));
+                        orientationRef.current = { label: "Seed", p: data.p, v: data.v };
+                        setOrientation({ label: "Seed", p: data.p, v: data.v });
+                        seedImportRef.current = { p: data.p, v: data.v };
+                        setChosenDuration(data.duration);
+                        setImportOpen(false);
+                      } catch (err) {
+                        alert("Invalid seed");
+                      }
+                    }}
+                    className="px-3 py-1 text-xs rounded-lg bg-white/10 border border-white/20">Import simulation</button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
