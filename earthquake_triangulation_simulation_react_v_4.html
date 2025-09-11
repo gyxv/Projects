@@ -24,7 +24,8 @@
   </script>
   <script src="./earthquake_triangulation_simulation_react_v_4.js"></script>
   <script>
-    mountReactApp(EarthquakeTriangulation, document.getElementById('root'));
+    const Comp = EarthquakeTriangulation.default || EarthquakeTriangulation;
+    mountReactApp(Comp, document.getElementById('root'));
   </script>
 </body>
 </html>
