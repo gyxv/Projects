@@ -62,6 +62,7 @@ export default function EarthquakeTriangulation() {
   const [infoOpen, setInfoOpen] = useState(true);
   const [controlsOpen, setControlsOpen] = useState(true);
   const baseAreaCnt = useRef(0);
+  const pauseAt = useRef<number | null>(null);
 
   // Tunables
   const vP = 260, vS = 150; // px/s
@@ -212,7 +213,7 @@ export default function EarthquakeTriangulation() {
       if (!frozen && sc.stations.every(s => s.revealed)) { setFrozen(true); setFreezeTS(now); }
       let k = 0; if (freezeTS) { k = clamp((now - freezeTS - finalDelay) / finalFade, 0, 1); }
       drawMask(bands, k);
-      if (run || k < 1) raf = requestAnimationFrame(tick);
+      if (run || (frozen && k < 1)) raf = requestAnimationFrame(tick);
     };
 
     raf = requestAnimationFrame(tick);
@@ -223,6 +224,23 @@ export default function EarthquakeTriangulation() {
   const reset = () => setSeed(s => s + 1);
   const resetAt = (x: number, y: number) => { setForceO({ x, y }); setSeed(s => s + 1); };
   const clickBg = (e: ReactMouseEvent<HTMLDivElement>) => { const t = e.target as HTMLElement; if (t.closest("._uiPanel")) return; const el = wrapRef.current; if (!el) return; const r = el.getBoundingClientRect(); resetAt(e.clientX - r.left, e.clientY - r.top); };
+  const toggleRun = (e: ReactMouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    setRun(r => {
+      if (r) {
+        pauseAt.current = performance.now() / 1000;
+        return false;
+      } else {
+        const now = performance.now() / 1000;
+        if (pauseAt.current != null) {
+          const delta = now - pauseAt.current;
+          setStartTS(s => (s !== null ? s + delta : null));
+        }
+        pauseAt.current = null;
+        return true;
+      }
+    });
+  };
 
   // Helpers for inline styles to avoid template strings
   const pctHeight = (p: number) => String(Math.max(2, p)) + "%";
@@ -295,7 +313,7 @@ export default function EarthquakeTriangulation() {
               Reset
             </button>
             <button
-              onClick={e => { e.stopPropagation(); setRun(r => !r); }}
+              onClick={toggleRun}
               className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-100 text-xs border border-white/20"
             >
               {run ? "Pause" : "Play"}
@@ -325,21 +343,86 @@ export default function EarthquakeTriangulation() {
       )}
 
       {/* coverage chart */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} className="_uiPanel absolute bottom-3 left-1/2 -translate-x-1/2 z-40 backdrop-blur-xl bg-white/10 border border-white/15 rounded-2xl px-3 py-2 text-slate-100" onClick={e => e.stopPropagation()}>
-        <button onClick={() => setChartOpen(o => !o)} className="text-xs underline-offset-2 hover:underline">{chartOpen ? "Hide coverage chart" : "Show coverage chart"}</button>
-          {chartOpen ? (
-            <div className="mt-2" style={{ width: 400, height: 160, position: "relative" }}>
-              <div style={{ position: "absolute", left: 0, right: 0, bottom: 28, height: 128, display: "flex", alignItems: "flex-end", gap: 12 }}>
-                {pct.map((p, i) => (
-                  <div key={i} style={{ width: 36, background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.25)", borderRadius: 6, height: pctHeight(p), position: "relative" }}>
-                    <span style={{ position: "absolute", top: -20, left: "50%", transform: "translateX(-50%)", fontSize: 12 }}>{Math.round(p)}%</span>
-                    <span style={{ position: "absolute", bottom: -20, left: "50%", transform: "translateX(-50%)", fontSize: 12 }}>{i + 1}</span>
-                  </div>
-                ))}
-              </div>
-              <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, textAlign: "center", fontSize: 12 }}>Station number -&gt;</div>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+        className="_uiPanel absolute bottom-3 left-1/2 -translate-x-1/2 z-40 backdrop-blur-xl bg-white/10 border border-white/15 rounded-2xl px-4 py-3 text-slate-100"
+        style={{ width: chartOpen ? 560 : undefined }}
+        onClick={e => e.stopPropagation()}
+      >
+        <button onClick={() => setChartOpen(o => !o)} className="text-xs underline-offset-2 hover:underline">
+          {chartOpen ? "Hide coverage chart" : "Show coverage chart"}
+        </button>
+        {chartOpen ? (
+          <div className="mt-4" style={{ width: 520, height: 200, position: "relative" }}>
+            <div
+              style={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                top: 0,
+                bottom: 60,
+                display: "flex",
+                alignItems: "flex-end",
+                gap: 16,
+              }}
+            >
+              {pct.map((p, i) => (
+                <div
+                  key={i}
+                  style={{
+                    width: 40,
+                    background: "rgba(255,255,255,0.2)",
+                    border: "1px solid rgba(255,255,255,0.25)",
+                    borderRadius: 6,
+                    height: pctHeight(p),
+                    position: "relative",
+                  }}
+                >
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: -24,
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      fontSize: 12,
+                    }}
+                  >
+                    {Math.round(p)}%
+                  </span>
+                </div>
+              ))}
             </div>
-          ) : null}
+            <div
+              style={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                bottom: 28,
+                display: "flex",
+                justifyContent: "space-around",
+                fontSize: 12,
+              }}
+            >
+              {pct.map((_, i) => (
+                <span key={i}>{i + 1}</span>
+              ))}
+            </div>
+            <div
+              style={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                bottom: 0,
+                textAlign: "center",
+                fontSize: 12,
+              }}
+            >
+              Station number
+            </div>
+          </div>
+        ) : null}
       </motion.div>
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 0.3 }} className="absolute bottom-14 left-1/2 -translate-x-1/2 text-center text-xs text-slate-300/60">Click anywhere to choose the next origin, or use Reset.</motion.div>
