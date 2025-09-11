@@ -18,6 +18,7 @@ export default function ThreeBodyGlassSim() {
   const [countdown, setCountdown] = useState(120);
   const [hexColors, setHexColors] = useState<string[]>(["#cccccc", "#cccccc", "#cccccc"]);
   const [chosenDuration, setChosenDuration] = useState<number | null>(null); // real seconds until event
+  const [progressLines, setProgressLines] = useState<string[]>([]);
 
   // ======== Canvas / Animation Refs ========
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -172,6 +173,7 @@ export default function ThreeBodyGlassSim() {
     const { base, tri } = randomTriadicHex();
     const codes = [base, tri[0], tri[1]];
     setHexColors(codes);
+    setProgressLines(["Starting search for perturbations..."]);
 
     // Base figure-8 initial conditions (equal masses, G=1)
     let pBase: [number, number][] = [
@@ -198,7 +200,11 @@ export default function ThreeBodyGlassSim() {
 
     // Search over small perturbations and random angles, choose earliest if no target; otherwise closest to target
     for (let e = 0; e < epsCandidates.length; e++) {
+      setProgressLines((l) => [...l.slice(-40), `ε candidate ${e + 1}/${epsCandidates.length}`]);
+      await new Promise((r) => setTimeout(r, 0));
       for (let attempt = 0; attempt < 6; attempt++) {
+        setProgressLines((l) => [...l.slice(-40), `  attempt ${attempt + 1}/6`]);
+        await new Promise((r) => setTimeout(r, 0));
         let p = pBase.map((x) => [...x]) as [number, number][];
         let v = vBase.map((x) => [...x]) as [number, number][];
         const ang = Math.random() * Math.PI * 2;
@@ -213,6 +219,11 @@ export default function ThreeBodyGlassSim() {
 
         for (let step = 0; step < maxSteps; step++) {
           buffer.push({ p: [[...p[0]], [...p[1]], [...p[2]]] as any, v: [[...v[0]], [...v[1]], [...v[2]]] as any });
+
+          if (step % 5000 === 0) {
+            setProgressLines((l) => [...l.slice(-40), `    step ${step}`]);
+            await new Promise((r) => setTimeout(r, 0));
+          }
 
           // Collision check
           let collidedPair: [number, number] | null = null;
@@ -297,7 +308,10 @@ export default function ThreeBodyGlassSim() {
     targetScaleRef.current = Math.min(300, Math.max(140, 300 / Math.max(span, 0.4)));
     scaleRef.current = targetScaleRef.current * userZoomRef.current; // start close
 
+    setProgressLines((l) => [...l.slice(-40), "Finalizing setup..."]);
+    await new Promise((r) => setTimeout(r, 0));
     setIsReady(true);
+    setProgressLines([]);
   }
 
   // ======== Canvas Helpers ========
@@ -472,15 +486,13 @@ export default function ThreeBodyGlassSim() {
 
   // ======== Interactions ========
   function resetAll() {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
     setIsReady(false);
     setEventType(null);
     setEventBodyInfo("");
     setIsPlaying(true);
-    if (chosenDuration != null) {
-      preSimulateAndSetup({ targetRealTime: chosenDuration });
-    } else {
-      preSimulateAndSetup();
-    }
+    setChosenDuration(null);
+    setProgressLines([]);
   }
   function handleWheel(e: React.WheelEvent<HTMLDivElement>) {
     e.preventDefault();
@@ -645,6 +657,11 @@ export default function ThreeBodyGlassSim() {
           <div className="px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center">
             <div className="text-xs uppercase tracking-widest text-white/70 mb-2">Preparing a near-perfect 3‑body setup…</div>
             <div className="text-lg font-medium">Searching for a slight perturbation that yields an event</div>
+            <div className="mt-3 text-left text-xs font-mono text-white/80 max-h-40 overflow-y-auto w-64">
+              {progressLines.map((line, i) => (
+                <div key={i}>{line}</div>
+              ))}
+            </div>
           </div>
         </div>
       )}

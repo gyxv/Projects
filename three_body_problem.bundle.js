@@ -31,6 +31,7 @@ var ThreeBodyGlassSim = (() => {
     const [countdown, setCountdown] = useState(120);
     const [hexColors, setHexColors] = useState(["#cccccc", "#cccccc", "#cccccc"]);
     const [chosenDuration, setChosenDuration] = useState(null);
+    const [progressLines, setProgressLines] = useState([]);
     const canvasRef = useRef(null);
     const rafRef = useRef(null);
     const G = 1;
@@ -152,6 +153,7 @@ var ThreeBodyGlassSim = (() => {
       const { base, tri } = randomTriadicHex();
       const codes = [base, tri[0], tri[1]];
       setHexColors(codes);
+      setProgressLines(["Starting search for perturbations..."]);
       let pBase = [
         [0.97000436, -0.24308753],
         [-0.97000436, 0.24308753],
@@ -169,7 +171,11 @@ var ThreeBodyGlassSim = (() => {
       let best = null;
       const target = opts?.targetTEvent ?? opts?.targetRealTime;
       for (let e = 0; e < epsCandidates.length; e++) {
+        setProgressLines((l) => [...l.slice(-40), `\u03B5 candidate ${e + 1}/${epsCandidates.length}`]);
+        await new Promise((r) => setTimeout(r, 0));
         for (let attempt = 0; attempt < 6; attempt++) {
+          setProgressLines((l) => [...l.slice(-40), `  attempt ${attempt + 1}/6`]);
+          await new Promise((r) => setTimeout(r, 0));
           let p = pBase.map((x) => [...x]);
           let v = vBase.map((x) => [...x]);
           const ang = Math.random() * Math.PI * 2;
@@ -182,6 +188,10 @@ var ThreeBodyGlassSim = (() => {
           let tEvent = 0;
           for (let step = 0; step < maxSteps; step++) {
             buffer.push({ p: [[...p[0]], [...p[1]], [...p[2]]], v: [[...v[0]], [...v[1]], [...v[2]]] });
+            if (step % 5e3 === 0) {
+              setProgressLines((l) => [...l.slice(-40), `    step ${step}`]);
+              await new Promise((r) => setTimeout(r, 0));
+            }
             let collidedPair = null;
             outer: for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) {
               const d = norm(sub(p[i], p[j]));
@@ -260,7 +270,10 @@ var ThreeBodyGlassSim = (() => {
       ) : 1.2;
       targetScaleRef.current = Math.min(300, Math.max(140, 300 / Math.max(span, 0.4)));
       scaleRef.current = targetScaleRef.current * userZoomRef.current;
+      setProgressLines((l) => [...l.slice(-40), "Finalizing setup..."]);
+      await new Promise((r) => setTimeout(r, 0));
       setIsReady(true);
+      setProgressLines([]);
     }
     function setupCanvas(ctx) {
       const dpr = Math.max(1, window.devicePixelRatio || 1);
@@ -414,15 +427,13 @@ var ThreeBodyGlassSim = (() => {
       rafRef.current = requestAnimationFrame(loopRef.current);
     }, [isReady, isPlaying, speedMul, trailMax]);
     function resetAll() {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
       setIsReady(false);
       setEventType(null);
       setEventBodyInfo("");
       setIsPlaying(true);
-      if (chosenDuration != null) {
-        preSimulateAndSetup({ targetRealTime: chosenDuration });
-      } else {
-        preSimulateAndSetup();
-      }
+      setChosenDuration(null);
+      setProgressLines([]);
     }
     function handleWheel(e) {
       e.preventDefault();
@@ -529,7 +540,7 @@ var ThreeBodyGlassSim = (() => {
         onChange: (e) => retargetEventRealTime(parseFloat(e.target.value)),
         className: "w-full accent-white/90"
       }
-    ), /* @__PURE__ */ React.createElement("div", { className: "text-[11px] text-white/60 mt-1" }, "Keeps current speed; adjusts initial perturbation to aim for the chosen time.")))), !isReady && /* @__PURE__ */ React.createElement("div", { className: "absolute inset-0 flex items-center justify-center" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-widest text-white/70 mb-2" }, "Preparing a near-perfect 3\u2011body setup\u2026"), /* @__PURE__ */ React.createElement("div", { className: "text-lg font-medium" }, "Searching for a slight perturbation that yields an event"))));
+    ), /* @__PURE__ */ React.createElement("div", { className: "text-[11px] text-white/60 mt-1" }, "Keeps current speed; adjusts initial perturbation to aim for the chosen time.")))), !isReady && /* @__PURE__ */ React.createElement("div", { className: "absolute inset-0 flex items-center justify-center" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-widest text-white/70 mb-2" }, "Preparing a near-perfect 3\u2011body setup\u2026"), /* @__PURE__ */ React.createElement("div", { className: "text-lg font-medium" }, "Searching for a slight perturbation that yields an event"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 text-left text-xs font-mono text-white/80 max-h-40 overflow-y-auto w-64" }, progressLines.map((line, i) => /* @__PURE__ */ React.createElement("div", { key: i }, line))))));
   }
   return __toCommonJS(three_body_problem_exports);
 })();
