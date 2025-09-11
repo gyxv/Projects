@@ -10,6 +10,18 @@
   <script src="./react/react.production.min.js"></script>
   <script src="./react/react-dom.production.min.js"></script>
   <script src="./react/loader.js"></script>
+  <script>
+    function require(name) {
+      if (name === 'react') return window.React;
+      if (name === 'react/jsx-runtime') return {
+        jsx: React.createElement,
+        jsxs: React.createElement,
+        Fragment: React.Fragment
+      };
+      if (name === '@emotion/is-prop-valid') return { default: () => true };
+      throw new Error('Cannot find module ' + name);
+    }
+  </script>
   <script src="./earthquake_triangulation_simulation_react_v_4.js"></script>
   <script>
     mountReactApp(EarthquakeTriangulation, document.getElementById('root'));
