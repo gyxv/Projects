@@ -23,3 +23,5 @@ react/cjs/react-jsx-runtime.production.min.js:
    * LICENSE file in the root directory of this source tree.
    *)
 */
+
+EarthquakeTriangulation=EarthquakeTriangulation.default;
