@@ -1,8 +1,8 @@
-import type ReactType from "react";
-import type { WheelEvent as ReactWheelEvent } from "react";
+import type * as ReactTypes from "react";
 // Use the globally provided React instance (loaded via script tags)
 // but keep type information from the React package.
-declare const React: typeof ReactType;
+declare const React: typeof ReactTypes;
+type ReactWheelEvent<T = Element> = ReactTypes.WheelEvent<T>;
 
 type OrientationPreset = {
   label: string;
