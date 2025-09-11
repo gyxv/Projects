@@ -1,7 +1,8 @@
 import type * as ReactTypes from "react";
-// Use the globally provided React instance (loaded via script tags)
-// but keep type information from the React package.
-declare const React: typeof ReactTypes;
+// Grab React off the global object at runtime so hooks are available
+// without embedding React in the bundle. TypeScript still uses the
+// imported types for checking.
+const React = (globalThis as any).React as typeof ReactTypes;
 type ReactWheelEvent<T = Element> = ReactTypes.WheelEvent<T>;
 
 type OrientationPreset = {
