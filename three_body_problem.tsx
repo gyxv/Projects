@@ -6,6 +6,12 @@ type OrientationPreset = {
   p: [number, number][];
   v: [number, number][];
 };
+type Shard = {
+  p: [number, number];
+  v: [number, number];
+  life: number;
+  color: string;
+};
 
 const orientationPresets: OrientationPreset[] = [
   {
@@ -37,14 +43,14 @@ const orientationPresets: OrientationPreset[] = [
   {
     label: "Spiral",
     p: [
-      [0.9, 0],
-      [-0.9, 0],
-      [0, 0.6],
+      [0.9, -0.2],
+      [-0.9, -0.2],
+      [0, 0.4],
     ],
     v: [
-      [0, 0.5],
-      [0, -0.5],
-      [0.6, 0],
+      [-0.2, 0.5],
+      [-0.2, -0.5],
+      [0.4, 0],
     ],
   },
   {
@@ -55,9 +61,9 @@ const orientationPresets: OrientationPreset[] = [
       [0, 0],
     ],
     v: [
-      [0, 0.6],
-      [0, -0.6],
-      [0.3, 0.6],
+      [-0.1, 0.4],
+      [-0.1, -0.8],
+      [0.2, 0.4],
     ],
   },
 ];
@@ -134,6 +140,9 @@ export default function ThreeBodyGlassSim() {
 
   // Which step index is the pre-sim event?
   const eventIndexRef = useRef<number>(-1);
+  const shardsRef = useRef<Shard[]>([]);
+  const destroyedRef = useRef<[boolean, boolean, boolean]>([false, false, false]);
+  const collisionHandledRef = useRef(false);
 
   // ======== Utility: Colors ========
   function hslToHex(h: number, s: number, l: number) {
@@ -174,7 +183,8 @@ export default function ThreeBodyGlassSim() {
   function accelerations(p: [number, number][]) {
     const a: [number, number][] = [[0, 0], [0, 0], [0, 0]];
     for (let i = 0; i < 3; i++) {
-      for (let j = 0; j < 3; j++) if (j !== i) {
+      if (destroyedRef.current[i]) continue;
+      for (let j = 0; j < 3; j++) if (j !== i && !destroyedRef.current[j]) {
         const r = sub(p[j], p[i]);
         const d2 = r[0] * r[0] + r[1] * r[1] + softEps * softEps;
         const d = Math.sqrt(d2);
@@ -201,6 +211,7 @@ export default function ThreeBodyGlassSim() {
   }
   function handleCollision(p: [number, number][], v: [number, number][]) {
     for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) {
+      if (destroyedRef.current[i] || destroyedRef.current[j]) continue;
       const rij = sub(p[i], p[j]);
       const d = norm(rij);
       if (d <= 2 * radius) {
@@ -245,6 +256,9 @@ export default function ThreeBodyGlassSim() {
     setProgressLines(["Starting search for perturbations..."]);
     setCandidateInfo("");
     setAttemptInfo("");
+    shardsRef.current = [];
+    destroyedRef.current = [false, false, false];
+    collisionHandledRef.current = false;
 
     // Base initial conditions from selected orientation
     let pBase = orientationRef.current.p.map((x) => [...x]) as [number, number][];
@@ -252,14 +266,14 @@ export default function ThreeBodyGlassSim() {
 
     const epsCandidates = [1e-5, 5e-5, 1e-4, 3e-4, 1e-3, 3e-3, 7e-3, 1.2e-2];
     const dt = 0.004;
-    const maxSteps = 220000; // ~880s sim time
+    const target = opts?.targetTEvent ?? opts?.targetRealTime;
+    const maxSteps = target ? Math.max(220000, Math.ceil(target / dt) + 5000) : 220000;
     const collR = 2 * radius;
 
     let best: null | {
       buffer: Array<{ p: [number, number][], v: [number, number][] }>;
       tEvent: number; kind: "collision" | "ejection"; info: string;
     } = null;
-    const target = opts?.targetTEvent ?? opts?.targetRealTime;
 
     // Search over small perturbations and random angles, choose earliest if no target; otherwise closest to target
     for (let e = 0; e < epsCandidates.length; e++) {
@@ -453,12 +467,25 @@ export default function ThreeBodyGlassSim() {
 
     // Bodies
     for (let i = 0; i < 3; i++) {
+      if (destroyedRef.current[i]) continue;
       const [x, y] = worldToScreen(p[i][0], p[i][1], W, H);
       ctx.save();
       glow(hexColors[i], 0.9);
       ctx.fillStyle = hexColors[i];
       ctx.beginPath();
       ctx.arc(x, y, radius * scaleRef.current, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Shards
+    for (const sh of shardsRef.current) {
+      const [x, y] = worldToScreen(sh.p[0], sh.p[1], W, H);
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, sh.life / 3);
+      ctx.fillStyle = sh.color;
+      ctx.beginPath();
+      ctx.arc(x, y, 1.5, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }
@@ -499,6 +526,23 @@ export default function ThreeBodyGlassSim() {
             if (buf.kind === "collision") handleCollision(liveRef.current.p as any, liveRef.current.v as any);
           }
         }
+        if (!collisionHandledRef.current && buf.kind === "collision" && simTimeTarget > tEvent) {
+          const pair = buf.info.split("↔").map((n) => parseInt(n) - 1) as [number, number];
+          const c = mul(add(liveRef.current.p[pair[0]], liveRef.current.p[pair[1]]), 0.5);
+          for (let s = 0; s < 40; s++) {
+            const ang = Math.random() * Math.PI * 2;
+            const spd = 0.6 + Math.random() * 0.8;
+            const color = hexColors[pair[Math.floor(Math.random() * 2)]];
+            shardsRef.current.push({ p: [c[0], c[1]], v: [Math.cos(ang) * spd, Math.sin(ang) * spd], life: 3, color });
+          }
+          destroyedRef.current[pair[0]] = true;
+          destroyedRef.current[pair[1]] = true;
+          liveRef.current.p[pair[0]] = [9999, 9999];
+          liveRef.current.p[pair[1]] = [9999, 9999];
+          liveRef.current.v[pair[0]] = [0, 0];
+          liveRef.current.v[pair[1]] = [0, 0];
+          collisionHandledRef.current = true;
+        }
         // integrate forward in real time after the event
         let dtLeft = simTimeTarget - liveRef.current.tSim;
         const h = 0.005;
@@ -508,6 +552,11 @@ export default function ThreeBodyGlassSim() {
           liveRef.current.p = next.p as any;
           liveRef.current.v = next.v as any;
           handleCollision(liveRef.current.p as any, liveRef.current.v as any);
+          for (const sh of shardsRef.current) {
+            sh.p = add(sh.p, mul(sh.v, step)) as [number, number];
+            sh.life -= step;
+          }
+          shardsRef.current = shardsRef.current.filter((s) => s.life > 0);
           liveRef.current.tSim += step;
           dtLeft -= step;
         }
@@ -518,6 +567,7 @@ export default function ThreeBodyGlassSim() {
     if (isPlaying) {
       const p = liveRef.current.p;
       for (let i = 0; i < 3; i++) {
+        if (destroyedRef.current[i]) continue;
         trailsRef.current[i].push([p[i][0], p[i][1]]);
         while (trailsRef.current[i].length > trailMax) trailsRef.current[i].shift();
       }
@@ -557,6 +607,9 @@ export default function ThreeBodyGlassSim() {
   // ======== Interactions ========
   function resetAll() {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    shardsRef.current = [];
+    destroyedRef.current = [false, false, false];
+    collisionHandledRef.current = false;
     setIsReady(false);
     setEventType(null);
     setEventBodyInfo("");
