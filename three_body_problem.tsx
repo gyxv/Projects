@@ -40,32 +40,6 @@ const orientationPresets: OrientationPreset[] = [
       [0.570, -0.329],
     ],
   },
-  {
-    label: "Spiral",
-    p: [
-      [0.9, -0.2],
-      [-0.9, -0.2],
-      [0, 0.4],
-    ],
-    v: [
-      [-0.2, 0.5],
-      [-0.2, -0.5],
-      [0.4, 0],
-    ],
-  },
-  {
-    label: "Chain",
-    p: [
-      [-0.8, 0.2],
-      [0.8, -0.2],
-      [0, 0],
-    ],
-    v: [
-      [-0.1, 0.4],
-      [-0.1, -0.8],
-      [0.2, 0.4],
-    ],
-  },
 ];
 
 const defaultSettings = { zoom: 1.35, speedMul: 1, trail: 90 };
@@ -143,6 +117,7 @@ export default function ThreeBodyGlassSim() {
   const shardsRef = useRef<Shard[]>([]);
   const destroyedRef = useRef<[boolean, boolean, boolean]>([false, false, false]);
   const collisionHandledRef = useRef(false);
+  const outerBodiesRef = useRef<{ p: [number, number]; mass: number; radius: number; color: string }[]>([]);
 
   // ======== Utility: Colors ========
   function hslToHex(h: number, s: number, l: number) {
@@ -173,6 +148,21 @@ export default function ThreeBodyGlassSim() {
     return { base, tri: [hslToHex(tri1, s, l), hslToHex(tri2, s, l)] };
   }
 
+  function generateOuterBodies() {
+    const objs: { p: [number, number]; mass: number; radius: number; color: string }[] = [];
+    const count = 5 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < count; i++) {
+      const r = 20 + Math.random() * 10;
+      const ang = Math.random() * Math.PI * 2;
+      const pos: [number, number] = [Math.cos(ang) * r, Math.sin(ang) * r];
+      const mass = 0.5 + Math.random() * 2;
+      const radius = 0.2 + Math.random() * 0.6;
+      const color = hslToHex(Math.random() * 360, 0.6, 0.6);
+      objs.push({ p: pos, mass, radius, color });
+    }
+    outerBodiesRef.current = objs;
+  }
+
   // ======== Vector Math ========
   const add = (a: number[], b: number[]) => [a[0] + b[0], a[1] + b[1]] as [number, number];
   const sub = (a: number[], b: number[]) => [a[0] - b[0], a[1] - b[1]] as [number, number];
@@ -189,6 +179,13 @@ export default function ThreeBodyGlassSim() {
         const d2 = r[0] * r[0] + r[1] * r[1] + softEps * softEps;
         const d = Math.sqrt(d2);
         const fac = (G * mass) / (d2 * d);
+        a[i] = add(a[i], mul(r, fac));
+      }
+      for (const ob of outerBodiesRef.current) {
+        const r = sub(ob.p, p[i]);
+        const d2 = r[0] * r[0] + r[1] * r[1] + softEps * softEps;
+        const d = Math.sqrt(d2);
+        const fac = (G * ob.mass) / (d2 * d);
         a[i] = add(a[i], mul(r, fac));
       }
     }
@@ -259,6 +256,7 @@ export default function ThreeBodyGlassSim() {
     shardsRef.current = [];
     destroyedRef.current = [false, false, false];
     collisionHandledRef.current = false;
+    outerBodiesRef.current = [];
 
     // Base initial conditions from selected orientation
     let pBase = orientationRef.current.p.map((x) => [...x]) as [number, number][];
@@ -293,6 +291,7 @@ export default function ThreeBodyGlassSim() {
         let kind: "collision" | "ejection" = "collision";
         let info = "";
         let tEvent = 0;
+        let ejectedIndex = -1;
 
         for (let step = 0; step < maxSteps; step++) {
           buffer.push({ p: [[...p[0]], [...p[1]], [...p[2]]] as any, v: [[...v[0]], [...v[1]], [...v[2]]] as any });
@@ -321,7 +320,7 @@ export default function ThreeBodyGlassSim() {
           for (let k = 0; k < 3; k++) {
             const eSpec = energyOfBody(k, pRel as any, vRel as any);
             const outward = dot(pRel[k], vRel[k]) > 0;
-            if (R[k] > 7.0 && outward && eSpec > 0) { found = true; kind = "ejection"; info = `body ${k + 1}`; tEvent = step * dt; break; }
+            if (R[k] > 7.0 && outward && eSpec > 0) { found = true; kind = "ejection"; info = `body ${k + 1}`; tEvent = step * dt; ejectedIndex = k; break; }
           }
           if (found) break;
 
@@ -330,6 +329,14 @@ export default function ThreeBodyGlassSim() {
         }
 
         if (found) {
+          if (kind === "ejection" && ejectedIndex >= 0) {
+            const prox = 3.0;
+            for (let b = buffer.length - 1; b >= 0; b--) {
+              const d1 = norm(sub(buffer[b].p[ejectedIndex], buffer[b].p[(ejectedIndex + 1) % 3]));
+              const d2 = norm(sub(buffer[b].p[ejectedIndex], buffer[b].p[(ejectedIndex + 2) % 3]));
+              if (d1 < prox || d2 < prox) { tEvent = (b + 1) * dt; break; }
+            }
+          }
           if (!best) {
             best = { buffer, tEvent, kind, info };
           } else if (target != null) {
@@ -356,6 +363,8 @@ export default function ThreeBodyGlassSim() {
       setEventType(best.kind);
       setEventBodyInfo(best.info);
     }
+
+    generateOuterBodies();
 
     // Reset live state from pre-sim start
     if (preBufRef.current && preBufRef.current.states.length > 0) {
@@ -462,6 +471,20 @@ export default function ThreeBodyGlassSim() {
           ctx.stroke();
           ctx.restore();
         }
+      }
+    }
+
+    // Outer bodies (visible when zoomed out)
+    if (userZoomRef.current < 0.8) {
+      for (const ob of outerBodiesRef.current) {
+        const [x, y] = worldToScreen(ob.p[0], ob.p[1], W, H);
+        ctx.save();
+        glow(ob.color, 0.7);
+        ctx.fillStyle = ob.color;
+        ctx.beginPath();
+        ctx.arc(x, y, ob.radius * scaleRef.current, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
       }
     }
 
