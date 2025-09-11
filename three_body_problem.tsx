@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
+import type React from "react";
+const { useEffect, useRef, useState } = React;
 
 // Three‑Body Glass Simulation (Zoom + Sliders)
 // • Equal masses, Newtonian gravity (RK4)
