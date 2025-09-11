@@ -1,25 +1,128 @@
-import React, { useEffect, useRef, useState } from "react";
+import type * as ReactTypes from "react";
+// React is provided globally via the self-hosted bundle. We only import its
+// types so the compiler understands hooks, and we grab the runtime instance
+// once the component executes.
+type ReactWheelEvent<T = Element> = ReactTypes.WheelEvent<T>;
+
+type OrientationPreset = {
+  label: string;
+  p: [number, number][];
+  v: [number, number][];
+};
+type Shard = {
+  p: [number, number];
+  v: [number, number];
+  life: number;
+  color: string;
+};
+
+type OuterObject = {
+  R: number;
+  theta0: number;
+  w: number;
+  m: number;
+  r: number;
+  color: string;
+};
+
+// Basic 2D vector helpers
+function add(a: [number, number], b: [number, number]): [number, number] {
+  return [a[0] + b[0], a[1] + b[1]];
+}
+function sub(a: [number, number], b: [number, number]): [number, number] {
+  return [a[0] - b[0], a[1] - b[1]];
+}
+function mul(a: [number, number], s: number): [number, number] {
+  return [a[0] * s, a[1] * s];
+}
+function dot(a: [number, number], b: [number, number]): number {
+  return a[0] * b[0] + a[1] * b[1];
+}
+function norm(a: [number, number]): number {
+  return Math.hypot(a[0], a[1]);
+}
+
+const orientationPresets: OrientationPreset[] = [
+  {
+    label: "Figure‑8",
+    p: [
+      [0.97000436, -0.24308753],
+      [-0.97000436, 0.24308753],
+      [0.0, 0.0],
+    ],
+    v: [
+      [0.466203685, 0.43236573],
+      [0.466203685, 0.43236573],
+      [-0.93240737, -0.86473146],
+    ],
+  },
+  {
+    label: "Circular",
+    p: [
+      [1, 0],
+      [-0.5, 0.8660254],
+      [-0.5, -0.8660254],
+    ],
+    v: [
+      [0, 0.658],
+      [-0.570, -0.329],
+      [0.570, -0.329],
+    ],
+  },
+];
+
+function randomOrientation(): OrientationPreset {
+  const p: [number, number][] = [];
+  for (let i = 0; i < 3; i++) {
+    p.push([Math.random() * 2 - 1, Math.random() * 2 - 1]);
+  }
+  const pc = p.reduce((acc, val) => add(acc, val), [0, 0] as [number, number]);
+  for (let i = 0; i < 3; i++) {
+    p[i] = sub(p[i], mul(pc, 1 / 3)) as [number, number];
+  }
+  const v: [number, number][] = [];
+  for (let i = 0; i < 3; i++) {
+    v.push([Math.random() - 0.5, Math.random() - 0.5]);
+  }
+  const vc = v.reduce((acc, val) => add(acc, val), [0, 0] as [number, number]);
+  for (let i = 0; i < 3; i++) {
+    v[i] = mul(sub(v[i], mul(vc, 1 / 3)), 0.5) as [number, number];
+  }
+  return { label: "Random", p, v };
+}
+
+const defaultSettings = { zoom: 1.35, speedMul: 1, trail: 90 };
 
 // Three‑Body Glass Simulation (Zoom + Sliders)
 // • Equal masses, Newtonian gravity (RK4)
 // • Elastic sphere–sphere collisions
 // • Pre-sim finds a near-perfect setup (slightly perturbed) that produces a first event (collision/ejection)
 // • Event is mapped to occur at a chosen real-time target using a time mapping (sim seconds per real second)
-// • UI adds: zoom (wheel + slider), speed slider, trail length slider, and a "Time‑to‑Event" slider
+// • UI adds: zoom (wheel + slider), speed slider, trail length slider
 // • Default view is close; trails are short and fade fast (editable)
 
 export default function ThreeBodyGlassSim() {
+  const React = (globalThis as any).React as typeof ReactTypes;
   // ======== UI State ========
-  const [isReady, setIsReady] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [eventType, setEventType] = useState<null | "collision" | "ejection">(null);
-  const [eventBodyInfo, setEventBodyInfo] = useState(""); // e.g., "1↔2" or "body 3"
-  const [countdown, setCountdown] = useState(120);
-  const [hexColors, setHexColors] = useState<string[]>(["#cccccc", "#cccccc", "#cccccc"]);
+  const [isReady, setIsReady] = React.useState(false);
+  const [isPlaying, setIsPlaying] = React.useState(true);
+  const [eventType, setEventType] = React.useState<null | "collision" | "ejection">(null);
+  const [eventBodyInfo, setEventBodyInfo] = React.useState(""); // e.g., "1↔2" or "body 3"
+  const [countdown, setCountdown] = React.useState(120);
+  const [hexColors, setHexColors] = React.useState<string[]>(["#cccccc", "#cccccc", "#cccccc"]);
+  const [chosenDuration, setChosenDuration] = React.useState<number | null>(null); // real seconds until event
+  const [progressLines, setProgressLines] = React.useState<string[]>([]);
+  const [candidateInfo, setCandidateInfo] = React.useState("");
+  const [attemptInfo, setAttemptInfo] = React.useState("");
+  const [orientation, setOrientation] = React.useState<OrientationPreset | null>(null);
+
+  const [zoom, setZoom] = React.useState(defaultSettings.zoom);
+  const orientationRef = React.useRef<OrientationPreset>(orientationPresets[0]);
+  const outerDefsRef = React.useRef<OuterObject[]>([]);
 
   // ======== Canvas / Animation Refs ========
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const rafRef = useRef<number | null>(null);
+  const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
+  const rafRef = React.useRef<number | null>(null);
 
   // ======== Physics / Simulation Refs ========
   const G = 1.0; // gravitational constant in sim units
@@ -28,12 +131,12 @@ export default function ThreeBodyGlassSim() {
   const softEps = 1e-4; // gravitational softening
 
   // View scaling (px per sim unit)
-  const targetScaleRef = useRef<number>(180);
-  const scaleRef = useRef<number>(180);
-  const userZoomRef = useRef<number>(1.35); // default: rather close
+  const targetScaleRef = React.useRef<number>(180);
+  const scaleRef = React.useRef<number>(180);
+  const userZoomRef = React.useRef<number>(defaultSettings.zoom); // default: rather close
 
   // Buffer from pre-sim to guarantee an event and reproducibility
-  const preBufRef = useRef<{
+  const preBufRef = React.useRef<{
     dt: number;
     states: Array<{ p: [number, number][], v: [number, number][] }>;
     tEvent: number; // sim seconds at event
@@ -42,7 +145,7 @@ export default function ThreeBodyGlassSim() {
   } | null>(null);
 
   // Live state after event time (or during preplay)
-  const liveRef = useRef({
+  const liveRef = React.useRef({
     p: [[0, 0], [0, 0], [0, 0]] as [number, number][],
     v: [[0, 0], [0, 0], [0, 0]] as [number, number][],
     tSim: 0,
@@ -50,18 +153,21 @@ export default function ThreeBodyGlassSim() {
 
   // Time mapping: real time → sim time
   // simRate = baseSpeed * speedMul (sim seconds / real second)
-  const mapRef = useRef({ realStart: 0, baseSpeed: 1 });
-  const [speedMul, setSpeedMul] = useState(1); // UI speed multiplier (0.25× .. 3×)
+  const mapRef = React.useRef({ realStart: 0, baseSpeed: 1 });
+  const [speedMul, setSpeedMul] = React.useState(1); // UI speed multiplier (0.25× .. 3×)
 
   // Trails
-  const trailsRef = useRef<[number, number][][]>([[], [], []]);
-  const [trailMax, setTrailMax] = useState(90); // short and quick fade by default
+  const trailsRef = React.useRef<[number, number][][]>([[], [], []]);
+  const [trailMax, setTrailMax] = React.useState(90); // short and quick fade by default
 
   // Panels
-  const [panelOpen, setPanelOpen] = useState(true);
+  const [panelOpen, setPanelOpen] = React.useState(true);
 
   // Which step index is the pre-sim event?
-  const eventIndexRef = useRef<number>(-1);
+  const eventIndexRef = React.useRef<number>(-1);
+  const shardsRef = React.useRef<Shard[]>([]);
+  const destroyedRef = React.useRef<[boolean, boolean, boolean]>([false, false, false]);
+  const collisionHandledRef = React.useRef(false);
 
   // ======== Utility: Colors ========
   function hslToHex(h: number, s: number, l: number) {
@@ -92,43 +198,49 @@ export default function ThreeBodyGlassSim() {
     return { base, tri: [hslToHex(tri1, s, l), hslToHex(tri2, s, l)] };
   }
 
-  // ======== Vector Math ========
-  const add = (a: number[], b: number[]) => [a[0] + b[0], a[1] + b[1]] as [number, number];
-  const sub = (a: number[], b: number[]) => [a[0] - b[0], a[1] - b[1]] as [number, number];
-  const mul = (a: number[], s: number) => [a[0] * s, a[1] * s] as [number, number];
-  const dot = (a: number[], b: number[]) => a[0] * b[0] + a[1] * b[1];
-  const norm = (a: number[]) => Math.hypot(a[0], a[1]);
-
-  function accelerations(p: [number, number][]) {
+  function accelerations(p: [number, number][], t: number, includeOuter: boolean) {
     const a: [number, number][] = [[0, 0], [0, 0], [0, 0]];
     for (let i = 0; i < 3; i++) {
-      for (let j = 0; j < 3; j++) if (j !== i) {
+      if (destroyedRef.current[i]) continue;
+      for (let j = 0; j < 3; j++) if (j !== i && !destroyedRef.current[j]) {
         const r = sub(p[j], p[i]);
         const d2 = r[0] * r[0] + r[1] * r[1] + softEps * softEps;
         const d = Math.sqrt(d2);
         const fac = (G * mass) / (d2 * d);
         a[i] = add(a[i], mul(r, fac));
       }
+      if (includeOuter) {
+        for (const obj of outerDefsRef.current) {
+          const theta = obj.theta0 + obj.w * t;
+          const pos: [number, number] = [obj.R * Math.cos(theta), obj.R * Math.sin(theta)];
+          const r = sub(pos, p[i]);
+          const d2 = r[0] * r[0] + r[1] * r[1] + softEps * softEps;
+          const d = Math.sqrt(d2);
+          const fac = (G * obj.m) / (d2 * d);
+          a[i] = add(a[i], mul(r, fac));
+        }
+      }
     }
     return a;
   }
-  function rk4Step(p: [number, number][], v: [number, number][], dt: number) {
-    const a1 = accelerations(p);
+  function rk4Step(p: [number, number][], v: [number, number][], dt: number, t: number, includeOuter: boolean) {
+    const a1 = accelerations(p, t, includeOuter);
     const pv1 = p.map((pi, i) => add(pi, mul(v[i], dt * 0.5))) as [number, number][];
     const vv1 = v.map((vi, i) => add(vi, mul(a1[i], dt * 0.5))) as [number, number][];
-    const a2 = accelerations(pv1);
+    const a2 = accelerations(pv1, t + dt * 0.5, includeOuter);
     const pv2 = p.map((pi, i) => add(pi, mul(vv1[i], dt * 0.5))) as [number, number][];
     const vv2 = v.map((vi, i) => add(vi, mul(a2[i], dt * 0.5))) as [number, number][];
-    const a3 = accelerations(pv2);
+    const a3 = accelerations(pv2, t + dt * 0.5, includeOuter);
     const pv3 = p.map((pi, i) => add(pi, mul(vv2[i], dt))) as [number, number][];
     const vv3 = v.map((vi, i) => add(vi, mul(a3[i], dt))) as [number, number][];
-    const a4 = accelerations(pv3);
+    const a4 = accelerations(pv3, t + dt, includeOuter);
     const pNext = p.map((pi, i) => add(pi, mul(add(add(v[i], mul(add(vv1[i], vv2[i]), 2)), vv3[i]), dt / 6))) as [number, number][];
     const vNext = v.map((vi, i) => add(vi, mul(add(add(a1[i], mul(add(a2[i], a3[i]), 2)), a4[i]), dt / 6))) as [number, number][];
     return { p: pNext, v: vNext };
   }
   function handleCollision(p: [number, number][], v: [number, number][]) {
     for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) {
+      if (destroyedRef.current[i] || destroyedRef.current[j]) continue;
       const rij = sub(p[i], p[j]);
       const d = norm(rij);
       if (d <= 2 * radius) {
@@ -149,58 +261,87 @@ export default function ThreeBodyGlassSim() {
       }
     }
   }
-  function energyOfBody(k: number, p: [number, number][], v: [number, number][]) {
-    const v2 = dot(v[k], v[k]);
-    let U = 0;
-    for (let j = 0; j < 3; j++) if (j !== k) {
-      const r = norm(sub(p[k], p[j]));
-      U -= G * mass * mass / Math.max(r, 1e-6);
+  function handleOuterCollisions(p: [number, number][], t: number) {
+    for (let i = 0; i < 3; i++) {
+      if (destroyedRef.current[i]) continue;
+      for (const obj of outerDefsRef.current) {
+        const theta = obj.theta0 + obj.w * t;
+        const pos: [number, number] = [obj.R * Math.cos(theta), obj.R * Math.sin(theta)];
+        const d = norm(sub(p[i], pos));
+        if (d <= radius + obj.r) {
+          const c = p[i];
+          for (let s = 0; s < 40; s++) {
+            const ang = Math.random() * Math.PI * 2;
+            const spd = 0.6 + Math.random() * 0.8;
+            const color = hexColors[i];
+            shardsRef.current.push({ p: [c[0], c[1]], v: [Math.cos(ang) * spd, Math.sin(ang) * spd], life: 3, color });
+          }
+          destroyedRef.current[i] = true;
+          liveRef.current.p[i] = [9999, 9999];
+          liveRef.current.v[i] = [0, 0];
+          break;
+        }
+      }
     }
-    return 0.5 * mass * v2 + U;
   }
-  function centerOfMass(p: [number, number][]) {
-    let pc = [0, 0];
-    for (let i = 0; i < 3; i++) pc = add(pc, p[i]);
-    return { pc: mul(pc, 1 / 3) };
-  }
+    function energyOfBody(k: number, p: [number, number][], v: [number, number][]) {
+      const v2 = dot(v[k], v[k]);
+      let U = 0;
+      for (let j = 0; j < 3; j++) if (j !== k) {
+        const r = norm(sub(p[k], p[j]));
+        U -= G * mass * mass / Math.max(r, 1e-6);
+      }
+      return 0.5 * mass * v2 + U;
+    }
+
+    function centerOfMass(p: [number, number][]) {
+      let pc: [number, number] = [0, 0];
+      for (let i = 0; i < 3; i++) pc = add(pc, p[i]);
+      return { pc: mul(pc, 1 / 3) };
+    }
 
   // ======== Pre-simulation (with optional target sim-event time) ========
-  async function preSimulateAndSetup(opts?: { targetTEvent?: number }) {
+  async function preSimulateAndSetup(opts?: { targetTEvent?: number; targetRealTime?: number }) {
     // Colors first (new random base + triad companions)
     const { base, tri } = randomTriadicHex();
     const codes = [base, tri[0], tri[1]];
     setHexColors(codes);
+    setProgressLines(["Starting search for perturbations..."]);
+    setCandidateInfo("");
+    setAttemptInfo("");
+    shardsRef.current = [];
+    destroyedRef.current = [false, false, false];
+    collisionHandledRef.current = false;
 
-    // Base figure-8 initial conditions (equal masses, G=1)
-    let pBase: [number, number][] = [
-      [ 0.97000436, -0.24308753],
-      [-0.97000436,  0.24308753],
-      [ 0.0,          0.0      ],
-    ];
-    let vBase: [number, number][] = [
-      [ 0.4662036850,  0.4323657300],
-      [ 0.4662036850,  0.4323657300],
-      [-0.93240737,   -0.86473146   ],
-    ];
+    // Base initial conditions from selected orientation
+    let pBase = orientationRef.current.p.map((x) => [...x]) as [number, number][];
+    let vBase = orientationRef.current.v.map((x) => [...x]) as [number, number][];
 
     const epsCandidates = [1e-5, 5e-5, 1e-4, 3e-4, 1e-3, 3e-3, 7e-3, 1.2e-2];
     const dt = 0.004;
-    const maxSteps = 220000; // ~880s sim time
+    const target = opts?.targetTEvent ?? opts?.targetRealTime;
+    const maxSteps = target ? Math.max(220000, Math.ceil(target / dt) + 5000) : 220000;
     const collR = 2 * radius;
 
     let best: null | {
       buffer: Array<{ p: [number, number][], v: [number, number][] }>;
       tEvent: number; kind: "collision" | "ejection"; info: string;
     } = null;
+    const tol = target ? Math.max(5, target * 0.02) : 0;
 
-    // Search over small perturbations and random angles, choose earliest if no target; otherwise closest to target
-    for (let e = 0; e < epsCandidates.length; e++) {
-      for (let attempt = 0; attempt < 6; attempt++) {
-        let p = pBase.map((x) => [...x]) as [number, number][];
-        let v = vBase.map((x) => [...x]) as [number, number][];
-        const ang = Math.random() * Math.PI * 2;
-        const eps = epsCandidates[e];
-        v[0] = add(v[0], [Math.cos(ang) * eps, Math.sin(ang) * eps]) as [number, number];
+    // Search over small perturbations and random angles, retry passes until within tolerance
+    for (let pass = 0; pass < 3; pass++) {
+      for (let e = 0; e < epsCandidates.length; e++) {
+        setCandidateInfo(`∈ candidate ${e + 1}/${epsCandidates.length}`);
+        await new Promise((r) => setTimeout(r, 0));
+        for (let attempt = 0; attempt < 6; attempt++) {
+          setAttemptInfo(`attempt ${attempt + 1}/6`);
+          await new Promise((r) => setTimeout(r, 0));
+          let p = pBase.map((x) => [...x]) as [number, number][];
+          let v = vBase.map((x) => [...x]) as [number, number][];
+          const ang = Math.random() * Math.PI * 2;
+          const eps = epsCandidates[e];
+          v[0] = add(v[0], [Math.cos(ang) * eps, Math.sin(ang) * eps]) as [number, number];
 
         const buffer: Array<{ p: [number, number][], v: [number, number][] }> = [];
         let found = false;
@@ -210,6 +351,12 @@ export default function ThreeBodyGlassSim() {
 
         for (let step = 0; step < maxSteps; step++) {
           buffer.push({ p: [[...p[0]], [...p[1]], [...p[2]]] as any, v: [[...v[0]], [...v[1]], [...v[2]]] as any });
+
+          if (step % 5000 === 0) {
+            const pct = ((step / maxSteps) * 100).toFixed(1);
+            setProgressLines((l) => [...l.slice(-40), `    ${pct}%`]);
+            await new Promise((r) => setTimeout(r, 0));
+          }
 
           // Collision check
           let collidedPair: [number, number] | null = null;
@@ -229,20 +376,37 @@ export default function ThreeBodyGlassSim() {
           for (let k = 0; k < 3; k++) {
             const eSpec = energyOfBody(k, pRel as any, vRel as any);
             const outward = dot(pRel[k], vRel[k]) > 0;
-            if (R[k] > 7.0 && outward && eSpec > 0) { found = true; kind = "ejection"; info = `body ${k + 1}`; tEvent = step * dt; break; }
+            if (R[k] > 7.0 && outward && eSpec > 0) {
+              let pTest = p.map((x) => [...x]) as [number, number][];
+              let vTest = v.map((x) => [...x]) as [number, number][];
+              let stable = true;
+              let tCurr = step * dt;
+              for (let s = 0; s < 5000; s++) {
+                const nxt = rk4Step(pTest as any, vTest as any, dt, tCurr, false);
+                tCurr += dt;
+                pTest = nxt.p as any;
+                vTest = nxt.v as any;
+                const { pc: pc2 } = centerOfMass(pTest);
+                const pRel2 = pTest.map((pi) => sub(pi, pc2));
+                if (norm(pRel2[k]) < 6.0) { stable = false; break; }
+              }
+              if (stable) {
+                found = true; kind = "ejection"; info = `body ${k + 1}`; tEvent = step * dt; break;
+              }
+            }
           }
           if (found) break;
 
-          const next = rk4Step(p as any, v as any, dt);
+          const next = rk4Step(p as any, v as any, dt, step * dt, false);
           p = next.p as any; v = next.v as any;
         }
 
         if (found) {
           if (!best) {
             best = { buffer, tEvent, kind, info };
-          } else if (opts?.targetTEvent != null) {
-            const prevErr = Math.abs(best.tEvent - opts.targetTEvent);
-            const newErr = Math.abs(tEvent - opts.targetTEvent);
+          } else if (target != null) {
+            const prevErr = Math.abs(best.tEvent - target);
+            const newErr = Math.abs(tEvent - target);
             if (newErr < prevErr) best = { buffer, tEvent, kind, info };
           } else {
             // Prefer the earliest event if no target specified
@@ -250,6 +414,7 @@ export default function ThreeBodyGlassSim() {
           }
         }
       }
+      if (best && target != null && Math.abs(best.tEvent - target) <= tol) break;
     }
 
     if (!best) {
@@ -273,11 +438,8 @@ export default function ThreeBodyGlassSim() {
       liveRef.current = { p: [[0,0],[0,0],[0,0]] as any, v: [[0,0],[0,0],[0,0]] as any, tSim: 0 };
     }
 
-    // Base mapping so that event would occur at ~120s initially (user can change speed or retarget via slider)
-    mapRef.current = {
-      realStart: performance.now() / 1000,
-      baseSpeed: preBufRef.current ? preBufRef.current.tEvent / 120 : 1,
-    };
+    // Map sim time so that event occurs at desired real-time duration
+    mapRef.current.realStart = performance.now() / 1000;
 
     // Trails reset
     trailsRef.current = [[], [], []];
@@ -293,7 +455,12 @@ export default function ThreeBodyGlassSim() {
     targetScaleRef.current = Math.min(300, Math.max(140, 300 / Math.max(span, 0.4)));
     scaleRef.current = targetScaleRef.current * userZoomRef.current; // start close
 
+    setProgressLines((l) => [...l.slice(-40), "Finalizing setup..."]);
+    await new Promise((r) => setTimeout(r, 0));
     setIsReady(true);
+    setProgressLines([]);
+    setCandidateInfo("");
+    setAttemptInfo("");
   }
 
   // ======== Canvas Helpers ========
@@ -371,8 +538,23 @@ export default function ThreeBodyGlassSim() {
       }
     }
 
+    // Outer celestial objects
+    for (const obj of outerDefsRef.current) {
+      const theta = obj.theta0 + obj.w * liveRef.current.tSim;
+      const pos: [number, number] = [obj.R * Math.cos(theta), obj.R * Math.sin(theta)];
+      const [x, y] = worldToScreen(pos[0], pos[1], W, H);
+      ctx.save();
+      glow(obj.color, 0.7);
+      ctx.fillStyle = obj.color;
+      ctx.beginPath();
+      ctx.arc(x, y, obj.r * scaleRef.current, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
     // Bodies
     for (let i = 0; i < 3; i++) {
+      if (destroyedRef.current[i]) continue;
       const [x, y] = worldToScreen(p[i][0], p[i][1], W, H);
       ctx.save();
       glow(hexColors[i], 0.9);
@@ -382,10 +564,22 @@ export default function ThreeBodyGlassSim() {
       ctx.fill();
       ctx.restore();
     }
+
+    // Shards
+    for (const sh of shardsRef.current) {
+      const [x, y] = worldToScreen(sh.p[0], sh.p[1], W, H);
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, sh.life / 3);
+      ctx.fillStyle = sh.color;
+      ctx.beginPath();
+      ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
   }
 
   // ======== Animation Loop ========
-  const loopRef = useRef<() => void>(() => {});
+  const loopRef = React.useRef<() => void>(() => {});
   loopRef.current = () => {
     const buf = preBufRef.current; if (!buf) return;
     const canvas = canvasRef.current; if (!canvas) return;
@@ -419,15 +613,38 @@ export default function ThreeBodyGlassSim() {
             if (buf.kind === "collision") handleCollision(liveRef.current.p as any, liveRef.current.v as any);
           }
         }
+        if (!collisionHandledRef.current && buf.kind === "collision" && simTimeTarget > tEvent) {
+          const pair = buf.info.split("↔").map((n) => parseInt(n) - 1) as [number, number];
+          const c = mul(add(liveRef.current.p[pair[0]], liveRef.current.p[pair[1]]), 0.5);
+          for (let s = 0; s < 40; s++) {
+            const ang = Math.random() * Math.PI * 2;
+            const spd = 0.6 + Math.random() * 0.8;
+            const color = hexColors[pair[Math.floor(Math.random() * 2)]];
+            shardsRef.current.push({ p: [c[0], c[1]], v: [Math.cos(ang) * spd, Math.sin(ang) * spd], life: 3, color });
+          }
+          destroyedRef.current[pair[0]] = true;
+          destroyedRef.current[pair[1]] = true;
+          liveRef.current.p[pair[0]] = [9999, 9999];
+          liveRef.current.p[pair[1]] = [9999, 9999];
+          liveRef.current.v[pair[0]] = [0, 0];
+          liveRef.current.v[pair[1]] = [0, 0];
+          collisionHandledRef.current = true;
+        }
         // integrate forward in real time after the event
         let dtLeft = simTimeTarget - liveRef.current.tSim;
         const h = 0.005;
         while (dtLeft > 1e-6) {
           const step = Math.min(h, dtLeft);
-          const next = rk4Step(liveRef.current.p as any, liveRef.current.v as any, step);
+          const next = rk4Step(liveRef.current.p as any, liveRef.current.v as any, step, liveRef.current.tSim, true);
           liveRef.current.p = next.p as any;
           liveRef.current.v = next.v as any;
           handleCollision(liveRef.current.p as any, liveRef.current.v as any);
+          handleOuterCollisions(liveRef.current.p as any, liveRef.current.tSim);
+          for (const sh of shardsRef.current) {
+            sh.p = add(sh.p, mul(sh.v, step)) as [number, number];
+            sh.life -= step;
+          }
+          shardsRef.current = shardsRef.current.filter((s) => s.life > 0);
           liveRef.current.tSim += step;
           dtLeft -= step;
         }
@@ -435,10 +652,13 @@ export default function ThreeBodyGlassSim() {
     }
 
     // Update trails
-    const p = liveRef.current.p;
-    for (let i = 0; i < 3; i++) {
-      trailsRef.current[i].push([p[i][0], p[i][1]]);
-      while (trailsRef.current[i].length > trailMax) trailsRef.current[i].shift();
+    if (isPlaying) {
+      const p = liveRef.current.p;
+      for (let i = 0; i < 3; i++) {
+        if (destroyedRef.current[i]) continue;
+        trailsRef.current[i].push([p[i][0], p[i][1]]);
+        while (trailsRef.current[i].length > trailMax) trailsRef.current[i].shift();
+      }
     }
 
     // Draw
@@ -455,50 +675,168 @@ export default function ThreeBodyGlassSim() {
   };
 
   // ======== Effects ========
-  useEffect(() => {
-    preSimulateAndSetup();
+  React.useEffect(() => {
+    if (chosenDuration == null) return;
+    preSimulateAndSetup({
+      targetTEvent: mapRef.current.baseSpeed * chosenDuration,
+      targetRealTime: chosenDuration,
+    });
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, []);
-  useEffect(() => {
+  }, [chosenDuration]);
+  React.useEffect(() => {
     if (!isReady) return;
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(loopRef.current);
   }, [isReady, isPlaying, speedMul, trailMax]);
+  React.useEffect(() => {
+    mapRef.current.realStart = performance.now() / 1000 - liveRef.current.tSim / (mapRef.current.baseSpeed * speedMul);
+  }, [speedMul]);
+
+  React.useEffect(() => {
+    initOuterObjects();
+  }, []);
 
   // ======== Interactions ========
+  function initOuterObjects() {
+    outerDefsRef.current = [];
+    const nOuter = 4 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < nOuter; i++) {
+      const R = 12 + Math.random() * 8;
+      const theta0 = Math.random() * Math.PI * 2;
+      const w = 0.02 + Math.random() * 0.05;
+      const m = 2 + Math.random() * 4;
+      const rObj = 0.15 + Math.random() * 0.3;
+      const color = hslToHex(Math.random() * 360, 0.6, 0.5);
+      outerDefsRef.current.push({ R, theta0, w, m, r: rObj, color });
+    }
+  }
   function resetAll() {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    shardsRef.current = [];
+    destroyedRef.current = [false, false, false];
+    collisionHandledRef.current = false;
     setIsReady(false);
     setEventType(null);
     setEventBodyInfo("");
     setIsPlaying(true);
-    preSimulateAndSetup();
+    setChosenDuration(null);
+    setProgressLines([]);
+    setCandidateInfo("");
+    setAttemptInfo("");
+    setOrientation(null);
+    orientationRef.current = orientationPresets[0];
+    initOuterObjects();
+    userZoomRef.current = defaultSettings.zoom;
+    setZoom(defaultSettings.zoom);
+    setSpeedMul(defaultSettings.speedMul);
+    setTrailMax(defaultSettings.trail);
   }
-  function handleWheel(e: React.WheelEvent<HTMLDivElement>) {
+  function handleWheel(e: ReactWheelEvent<HTMLDivElement>) {
     e.preventDefault();
     const factor = Math.pow(1.05, -e.deltaY / 100);
     userZoomRef.current = Math.max(0.5, Math.min(2.5, userZoomRef.current * factor));
+    setZoom(userZoomRef.current);
   }
-  function retargetEventRealTime(desiredSeconds: number) {
-    // keep current simRate; choose new pre-sim where tEvent ≈ desiredSeconds * simRate
-    const simRate = mapRef.current.baseSpeed * speedMul;
-    const targetTEvent = Math.max(10, desiredSeconds * simRate);
-    setIsReady(false);
-    setEventType(null);
-    setEventBodyInfo("");
-    preSimulateAndSetup({ targetTEvent }).then(() => {
-      // preserve speed; restart timer baseline
-      mapRef.current.realStart = performance.now() / 1000;
-      setIsReady(true);
-    });
+
+  function resetControls() {
+    userZoomRef.current = defaultSettings.zoom;
+    setZoom(defaultSettings.zoom);
+    setSpeedMul(defaultSettings.speedMul);
+    setTrailMax(defaultSettings.trail);
+  }
+
+  function togglePlay() {
+    if (isPlaying) {
+      setIsPlaying(false);
+    } else {
+      mapRef.current.realStart = performance.now() / 1000 - liveRef.current.tSim / (mapRef.current.baseSpeed * speedMul);
+      setIsPlaying(true);
+    }
   }
 
   // ======== UI ========
+  const durationOptions = [
+    { label: "30s", seconds: 30 },
+    { label: "2m", seconds: 120 },
+    { label: "5m", seconds: 300 },
+    { label: "10m", seconds: 600 },
+    { label: "15m", seconds: 900 },
+    { label: "30m", seconds: 1800 },
+    { label: "45m", seconds: 2700 },
+    { label: "1h", seconds: 3600 },
+    { label: "1.5h", seconds: 5400 },
+    { label: "2h", seconds: 7200 },
+    { label: "2.5h", seconds: 9000 },
+    { label: "3h", seconds: 10800 },
+    { label: "6h", seconds: 21600 },
+    { label: "12h", seconds: 43200 },
+    { label: "24h", seconds: 86400 },
+  ];
   const eventLabel = eventType === "collision"
     ? `collision (${eventBodyInfo})`
     : eventType === "ejection" ? `ejection of ${eventBodyInfo}` : "an event";
 
+  if (orientation === null) {
+    return (
+      <div className="relative w-full h-[88vh] md:h-[92vh] bg-black text-white font-sans overflow-hidden rounded-2xl shadow-2xl flex items-center justify-center">
+        <div className="px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center">
+          <div className="text-lg mb-3">Choose starting orientation</div>
+          <div className="grid grid-cols-2 gap-2 text-sm mb-3">
+            {orientationPresets.map((opt) => (
+              <button
+                key={opt.label}
+                onClick={() => { orientationRef.current = opt; setOrientation(opt); }}
+                className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20"
+              >
+                {opt.label}
+              </button>
+            ))}
+            <button
+              onClick={() => {
+                const rand = randomOrientation();
+                orientationRef.current = rand;
+                setOrientation(rand);
+              }}
+              className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20"
+            >
+              Random
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (chosenDuration === null) {
+    return (
+      <div className="relative w-full h-[88vh] md:h-[92vh] bg-black text-white font-sans overflow-hidden rounded-2xl shadow-2xl flex items-center justify-center">
+        <div className="px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center">
+          <div className="text-lg mb-3">Choose time until collision/ejection</div>
+          <div className="grid grid-cols-3 gap-2 text-sm">
+            {durationOptions.map((opt) => (
+              <button
+                key={opt.label}
+                onClick={() => {
+                  mapRef.current.baseSpeed = 0.35 + Math.random() * (1.5 - 0.35);
+                  setSpeedMul(defaultSettings.speedMul);
+                  setTrailMax(defaultSettings.trail);
+                  userZoomRef.current = defaultSettings.zoom;
+                  setZoom(defaultSettings.zoom);
+                  setChosenDuration(opt.seconds);
+                }}
+                className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20"
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="relative w-full h-[88vh] md:h-[92vh] bg-black text-white overflow-hidden rounded-2xl shadow-2xl" onWheel={handleWheel}>
+    <div className="relative w-full h-[88vh] md:h-[92vh] bg-black text-white font-sans overflow-hidden rounded-2xl shadow-2xl" onWheel={handleWheel}>
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
 
       {/* Top-left: Countdown glass panel */}
@@ -525,7 +863,7 @@ export default function ThreeBodyGlassSim() {
       {/* Bottom controls */}
       <div className="absolute left-1/2 -translate-x-1/2 bottom-4 flex items-center gap-3 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg">
         <button
-          onClick={() => setIsPlaying((p) => !p)}
+          onClick={togglePlay}
           className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 transition"
         >
           {isPlaying ? "Pause" : "Play"}
@@ -560,10 +898,10 @@ export default function ThreeBodyGlassSim() {
           <div className="space-y-3">
             {/* Zoom */}
             <div>
-              <div className="flex items-center justify-between text-xs text-white/70"><span>Zoom</span><span className="tabular-nums">{userZoomRef.current.toFixed(2)}×</span></div>
+              <div className="flex items-center justify-between text-xs text-white/70"><span>Zoom</span><span className="tabular-nums">{zoom.toFixed(2)}×</span></div>
               <input type="range" min={0.5} max={2.5} step={0.01}
-                value={userZoomRef.current}
-                onChange={(e) => { userZoomRef.current = parseFloat(e.target.value); }}
+                value={zoom}
+                onChange={(e) => { const z = parseFloat(e.target.value); setZoom(z); userZoomRef.current = z; }}
                 className="w-full accent-white/90" />
             </div>
             {/* Speed */}
@@ -582,14 +920,8 @@ export default function ThreeBodyGlassSim() {
                 onChange={(e) => setTrailMax(parseInt(e.target.value))}
                 className="w-full accent-white/90" />
             </div>
-            {/* Time to Event */}
-            <div>
-              <div className="flex items-center justify-between text-xs text-white/70"><span>Time to collision/ejection</span><span className="tabular-nums">{Math.max(0, Math.round(countdown))}s</span></div>
-              <input type="range" min={15} max={300} step={1}
-                value={Math.max(15, Math.min(300, Math.round(countdown)))}
-                onChange={(e) => retargetEventRealTime(parseFloat(e.target.value))}
-                className="w-full accent-white/90" />
-              <div className="text-[11px] text-white/60 mt-1">Keeps current speed; adjusts initial perturbation to aim for the chosen time.</div>
+            <div className="pt-1 text-right">
+              <button onClick={resetControls} className="px-3 py-1 text-xs rounded-lg bg-white/10 hover:bg-white/20 border border-white/20">Reset</button>
             </div>
           </div>
         )}
@@ -601,9 +933,21 @@ export default function ThreeBodyGlassSim() {
           <div className="px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center">
             <div className="text-xs uppercase tracking-widest text-white/70 mb-2">Preparing a near-perfect 3‑body setup…</div>
             <div className="text-lg font-medium">Searching for a slight perturbation that yields an event</div>
+            <div className="mt-3 text-left text-xs font-mono text-white/80 w-64">
+              <div className="flex justify-between mb-1">
+                <div>{candidateInfo}</div>
+                <div>{attemptInfo}</div>
+              </div>
+              <div className="max-h-40 overflow-y-auto">
+                {progressLines.map((line, i) => (
+                  <div key={i}>{line}</div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}
     </div>
   );
+}
 }

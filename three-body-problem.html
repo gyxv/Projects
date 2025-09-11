@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Three-Body Problem Simulation</title>
+  <link rel="stylesheet" href="./three_body_problem.css" />
+  <link rel="icon" href="data:," />
+</head>
+  <body class="bg-black">
+    <div id="root"></div>
+    <script src="./react/react.production.min.js" defer></script>
+    <script src="./react/react-dom.production.min.js" defer></script>
+    <script src="./react/loader.js" defer></script>
+    <script src="./three_body_problem.bundle.js" defer></script>
+    <script>
+      window.addEventListener('DOMContentLoaded', () => {
+        console.log('DOMContentLoaded', {
+          mountReactApp: !!window.mountReactApp,
+          hasSim: !!window.ThreeBodyGlassSim?.default,
+        });
+        if (window.mountReactApp && window.ThreeBodyGlassSim?.default) {
+          mountReactApp(
+            ThreeBodyGlassSim.default,
+            document.getElementById('root')
+          );
+        } else {
+          console.error('Simulation failed to load', {
+            mountReactApp: window.mountReactApp,
+            ThreeBodyGlassSim: window.ThreeBodyGlassSim,
+          });
+        }
+      });
+    </script>
+  </body>
+</html>
