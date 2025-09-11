@@ -1,27 +1,5 @@
-var ThreeBodyGlassSim = (() => {
-  var __defProp = Object.defineProperty;
-  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-  var __getOwnPropNames = Object.getOwnPropertyNames;
-  var __hasOwnProp = Object.prototype.hasOwnProperty;
-  var __export = (target, all) => {
-    for (var name in all)
-      __defProp(target, name, { get: all[name], enumerable: true });
-  };
-  var __copyProps = (to, from, except, desc) => {
-    if (from && typeof from === "object" || typeof from === "function") {
-      for (let key of __getOwnPropNames(from))
-        if (!__hasOwnProp.call(to, key) && key !== except)
-          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
-    }
-    return to;
-  };
-  var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
-
+(() => {
   // three_body_problem.tsx
-  var three_body_problem_exports = {};
-  __export(three_body_problem_exports, {
-    default: () => ThreeBodyGlassSim
-  });
   var { useEffect, useRef, useState } = React;
   var orientationPresets = [
     {
@@ -49,34 +27,127 @@ var ThreeBodyGlassSim = (() => {
         [-0.57, -0.329],
         [0.57, -0.329]
       ]
-    },
-    {
-      label: "Spiral",
-      p: [
-        [0.9, -0.2],
-        [-0.9, -0.2],
-        [0, 0.4]
-      ],
-      v: [
-        [-0.2, 0.5],
-        [-0.2, -0.5],
-        [0.4, 0]
-      ]
-    },
-    {
-      label: "Chain",
-      p: [
-        [-0.8, 0.2],
-        [0.8, -0.2],
-        [0, 0]
-      ],
-      v: [
-        [-0.1, 0.4],
-        [-0.1, -0.8],
-        [0.2, 0.4]
-      ]
     }
   ];
+  function randomOrientation() {
+    const rand = () => Math.random() * 2 - 1;
+    return {
+      label: "Random",
+      p: [
+        [rand(), rand()],
+        [rand(), rand()],
+        [rand(), rand()]
+      ],
+      v: [
+        [rand() * 0.5, rand() * 0.5],
+        [rand() * 0.5, rand() * 0.5],
+        [rand() * 0.5, rand() * 0.5]
+      ]
+    };
+  }
+  function createStarSystem(center) {
+    const objs = [];
+    const star = {
+      mass: 4 + Math.random() * 3,
+      radius: 0.12 + Math.random() * 0.05,
+      orbitCenter: center,
+      orbitRadius: 0,
+      omega: 0,
+      phase: 0,
+      color: "#ffdd88"
+    };
+    objs.push(star);
+    const planetCount = 1 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < planetCount; i++) {
+      const r = 2 + Math.random() * 3;
+      const omega = Math.sqrt(star.mass / Math.pow(r, 3));
+      objs.push({
+        mass: 0.2 + Math.random() * 0.3,
+        radius: 0.04 + Math.random() * 0.03,
+        orbitCenter: center,
+        orbitRadius: r,
+        omega,
+        phase: Math.random() * Math.PI * 2,
+        color: "#88aaff"
+      });
+    }
+    return objs;
+  }
+  function createTwinPlanets(center) {
+    const objs = [];
+    const r = 0.6;
+    const m = 0.5;
+    const omega = Math.sqrt(2 * m / Math.pow(r, 3));
+    objs.push({
+      mass: m,
+      radius: 0.07,
+      orbitCenter: center,
+      orbitRadius: r / 2,
+      omega,
+      phase: 0,
+      color: "#ffaa55"
+    });
+    objs.push({
+      mass: m,
+      radius: 0.07,
+      orbitCenter: center,
+      orbitRadius: r / 2,
+      omega,
+      phase: Math.PI,
+      color: "#55ffaa"
+    });
+    return objs;
+  }
+  function createAsteroidBelt(center) {
+    const objs = [];
+    const beltR = 1.5 + Math.random();
+    const centralMass = 1;
+    const count = 6 + Math.floor(Math.random() * 6);
+    for (let i = 0; i < count; i++) {
+      const r = beltR + (Math.random() - 0.5) * 0.3;
+      const omega = Math.sqrt(centralMass / Math.pow(r, 3));
+      objs.push({
+        mass: 0.01,
+        radius: 0.02,
+        orbitCenter: center,
+        orbitRadius: r,
+        omega,
+        phase: Math.random() * Math.PI * 2,
+        color: "#aaaaaa"
+      });
+    }
+    return objs;
+  }
+  function generateClusterAround(center) {
+    const clusters = [];
+    const type = Math.floor(Math.random() * 3);
+    if (type === 0) clusters.push(...createStarSystem(center));
+    else if (type === 1) clusters.push(...createTwinPlanets(center));
+    else clusters.push(...createAsteroidBelt(center));
+    outerObjects.push(...clusters);
+  }
+  function outerObjectPosition(obj, t) {
+    const [cx, cy] = obj.orbitCenter;
+    if (obj.orbitRadius === 0) return [cx, cy];
+    const ang = obj.phase + obj.omega * t;
+    return [cx + Math.cos(ang) * obj.orbitRadius, cy + Math.sin(ang) * obj.orbitRadius];
+  }
+  var outerObjects = [];
+  var generatedRegions = /* @__PURE__ */ new Set();
+  function ensureOuterObjectsAround(pos) {
+    const regionSize = 40;
+    const key = `${Math.floor(pos[0] / regionSize)},${Math.floor(pos[1] / regionSize)}`;
+    if (generatedRegions.has(key)) return;
+    generatedRegions.add(key);
+    const clusterCount = 2 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < clusterCount; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const dist = 20 + Math.random() * 10;
+      const c = [pos[0] + Math.cos(ang) * dist, pos[1] + Math.sin(ang) * dist];
+      generateClusterAround(c);
+    }
+  }
+  ensureOuterObjectsAround([0, 0]);
   var defaultSettings = { zoom: 1.35, speedMul: 1, trail: 90 };
   function ThreeBodyGlassSim() {
     const [isReady, setIsReady] = useState(false);
@@ -94,6 +165,11 @@ var ThreeBodyGlassSim = (() => {
     const orientationRef = useRef(orientationPresets[0]);
     const canvasRef = useRef(null);
     const rafRef = useRef(null);
+    const camOffsetRef = useRef([0, 0]);
+    const followRef = useRef(null);
+    const shatterPosRef = useRef([null, null, null]);
+    const isDraggingRef = useRef(false);
+    const dragPosRef = useRef([0, 0]);
     const G = 1;
     const mass = 1;
     const radius = 0.035;
@@ -148,7 +224,7 @@ var ThreeBodyGlassSim = (() => {
     const mul = (a, s) => [a[0] * s, a[1] * s];
     const dot = (a, b) => a[0] * b[0] + a[1] * b[1];
     const norm = (a) => Math.hypot(a[0], a[1]);
-    function accelerations(p) {
+    function accelerations(p, t, includeOuter) {
       const a = [[0, 0], [0, 0], [0, 0]];
       for (let i = 0; i < 3; i++) {
         if (destroyedRef.current[i]) continue;
@@ -159,20 +235,30 @@ var ThreeBodyGlassSim = (() => {
           const fac = G * mass / (d2 * d);
           a[i] = add(a[i], mul(r, fac));
         }
+        if (includeOuter) {
+          for (const obj of outerObjects) {
+            const pos = outerObjectPosition(obj, t);
+            const r = sub(pos, p[i]);
+            const d2 = r[0] * r[0] + r[1] * r[1] + softEps * softEps;
+            const d = Math.sqrt(d2);
+            const fac = G * obj.mass / (d2 * d);
+            a[i] = add(a[i], mul(r, fac));
+          }
+        }
       }
       return a;
     }
-    function rk4Step(p, v, dt) {
-      const a1 = accelerations(p);
+    function rk4Step(p, v, dt, t, includeOuter) {
+      const a1 = accelerations(p, t, includeOuter);
       const pv1 = p.map((pi, i) => add(pi, mul(v[i], dt * 0.5)));
       const vv1 = v.map((vi, i) => add(vi, mul(a1[i], dt * 0.5)));
-      const a2 = accelerations(pv1);
+      const a2 = accelerations(pv1, t + dt * 0.5, includeOuter);
       const pv2 = p.map((pi, i) => add(pi, mul(vv1[i], dt * 0.5)));
       const vv2 = v.map((vi, i) => add(vi, mul(a2[i], dt * 0.5)));
-      const a3 = accelerations(pv2);
+      const a3 = accelerations(pv2, t + dt * 0.5, includeOuter);
       const pv3 = p.map((pi, i) => add(pi, mul(vv2[i], dt)));
       const vv3 = v.map((vi, i) => add(vi, mul(a3[i], dt)));
-      const a4 = accelerations(pv3);
+      const a4 = accelerations(pv3, t + dt, includeOuter);
       const pNext = p.map((pi, i) => add(pi, mul(add(add(v[i], mul(add(vv1[i], vv2[i]), 2)), vv3[i]), dt / 6)));
       const vNext = v.map((vi, i) => add(vi, mul(add(add(a1[i], mul(add(a2[i], a3[i]), 2)), a4[i]), dt / 6)));
       return { p: pNext, v: vNext };
@@ -200,6 +286,25 @@ var ThreeBodyGlassSim = (() => {
         }
       }
     }
+    function handleOuterCollisions(p, v, t) {
+      if (!preBufRef.current) return;
+      if (t < preBufRef.current.tEvent) return;
+      for (let i = 0; i < 3; i++) {
+        if (destroyedRef.current[i]) continue;
+        for (const obj of outerObjects) {
+          const pos = outerObjectPosition(obj, t);
+          const rij = sub(p[i], pos);
+          const d = norm(rij);
+          if (d <= radius + obj.radius) {
+            const n = mul(rij, 1 / (d || 1e-9));
+            const vrn = dot(v[i], n);
+            if (vrn < 0) {
+              v[i] = sub(v[i], mul(n, 2 * vrn));
+            }
+          }
+        }
+      }
+    }
     function energyOfBody(k, p, v) {
       const v2 = dot(v[k], v[k]);
       let U = 0;
@@ -215,6 +320,7 @@ var ThreeBodyGlassSim = (() => {
       return { pc: mul(pc, 1 / 3) };
     }
     async function preSimulateAndSetup(opts) {
+      var _a;
       const { base, tri } = randomTriadicHex();
       const codes = [base, tri[0], tri[1]];
       setHexColors(codes);
@@ -224,11 +330,17 @@ var ThreeBodyGlassSim = (() => {
       shardsRef.current = [];
       destroyedRef.current = [false, false, false];
       collisionHandledRef.current = false;
+      shatterPosRef.current = [null, null, null];
+      camOffsetRef.current = [0, 0];
+      followRef.current = null;
+      outerObjects = [];
+      generatedRegions.clear();
+      ensureOuterObjectsAround([0, 0]);
       let pBase = orientationRef.current.p.map((x) => [...x]);
       let vBase = orientationRef.current.v.map((x) => [...x]);
       const epsCandidates = [1e-5, 5e-5, 1e-4, 3e-4, 1e-3, 3e-3, 7e-3, 0.012];
       const dt = 4e-3;
-      const target = opts?.targetTEvent ?? opts?.targetRealTime;
+      const target = (_a = opts == null ? void 0 : opts.targetTEvent) != null ? _a : opts == null ? void 0 : opts.targetRealTime;
       const maxSteps = target ? Math.max(22e4, Math.ceil(target / dt) + 5e3) : 22e4;
       const collR = 2 * radius;
       let best = null;
@@ -248,6 +360,8 @@ var ThreeBodyGlassSim = (() => {
           let kind = "collision";
           let info = "";
           let tEvent = 0;
+          let ejectCand = null;
+          const confirmSteps = 25e3;
           for (let step = 0; step < maxSteps; step++) {
             buffer.push({ p: [[...p[0]], [...p[1]], [...p[2]]], v: [[...v[0]], [...v[1]], [...v[2]]] });
             if (step % 5e3 === 0) {
@@ -274,19 +388,30 @@ var ThreeBodyGlassSim = (() => {
             const pRel = p.map((pi) => sub(pi, pc));
             const vRel = v.map((vi) => vi);
             const R = pRel.map((ri) => norm(ri));
-            for (let k = 0; k < 3; k++) {
+            if (!ejectCand) {
+              for (let k = 0; k < 3; k++) {
+                const eSpec = energyOfBody(k, pRel, vRel);
+                const outward = dot(pRel[k], vRel[k]) > 0;
+                if (R[k] > 7 && outward && eSpec > 0) {
+                  ejectCand = { k, step };
+                  break;
+                }
+              }
+            } else {
+              const k = ejectCand.k;
               const eSpec = energyOfBody(k, pRel, vRel);
               const outward = dot(pRel[k], vRel[k]) > 0;
-              if (R[k] > 7 && outward && eSpec > 0) {
+              if (R[k] < 5 || !outward || eSpec < 0) {
+                ejectCand = null;
+              } else if (step - ejectCand.step > confirmSteps) {
                 found = true;
                 kind = "ejection";
                 info = `body ${k + 1}`;
-                tEvent = step * dt;
+                tEvent = ejectCand.step * dt;
                 break;
               }
             }
-            if (found) break;
-            const next = rk4Step(p, v, dt);
+            const next = rk4Step(p, v, dt, step * dt, false);
             p = next.p;
             v = next.v;
           }
@@ -313,6 +438,10 @@ var ThreeBodyGlassSim = (() => {
         eventIndexRef.current = Math.floor(best.tEvent / dt);
         setEventType(best.kind);
         setEventBodyInfo(best.info);
+      }
+      if (preBufRef.current && (opts == null ? void 0 : opts.targetRealTime)) {
+        mapRef.current.baseSpeed = preBufRef.current.tEvent / opts.targetRealTime;
+        mapRef.current.realStart = performance.now() / 1e3;
       }
       if (preBufRef.current && preBufRef.current.states.length > 0) {
         const startState = preBufRef.current.states[0];
@@ -346,7 +475,8 @@ var ThreeBodyGlassSim = (() => {
     function worldToScreen(x, y, W, H) {
       const s = scaleRef.current;
       const cx = W / 2, cy = H / 2;
-      return [cx + x * s, cy - y * s];
+      const [ox, oy] = camOffsetRef.current;
+      return [cx + (x - ox) * s, cy - (y - oy) * s];
     }
     function drawScene(ctx, p) {
       const W = ctx.canvas.clientWidth;
@@ -425,10 +555,22 @@ var ThreeBodyGlassSim = (() => {
         ctx.fill();
         ctx.restore();
       }
+      for (const obj of outerObjects) {
+        const pos = outerObjectPosition(obj, liveRef.current.tSim);
+        const [x, y] = worldToScreen(pos[0], pos[1], W, H);
+        ctx.save();
+        glow(obj.color, 0.8);
+        ctx.fillStyle = obj.color;
+        ctx.beginPath();
+        ctx.arc(x, y, obj.radius * scaleRef.current, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
     }
     const loopRef = useRef(() => {
     });
     loopRef.current = () => {
+      var _a;
       const buf = preBufRef.current;
       if (!buf) return;
       const canvas = canvasRef.current;
@@ -444,7 +586,7 @@ var ThreeBodyGlassSim = (() => {
         const tEvent = buf.tEvent;
         if (simTimeTarget <= tEvent) {
           const idx = Math.min(buf.states.length - 1, Math.floor(simTimeTarget / buf.dt));
-          const state = buf.states[idx] ?? buf.states[buf.states.length - 1];
+          const state = (_a = buf.states[idx]) != null ? _a : buf.states[buf.states.length - 1];
           if (state) {
             liveRef.current.p = state.p.map((x) => [...x]);
             liveRef.current.v = state.v.map((x) => [...x]);
@@ -458,6 +600,7 @@ var ThreeBodyGlassSim = (() => {
               liveRef.current.v = exact.v.map((x) => [...x]);
               liveRef.current.tSim = tEvent;
               if (buf.kind === "collision") handleCollision(liveRef.current.p, liveRef.current.v);
+              handleOuterCollisions(liveRef.current.p, liveRef.current.v, liveRef.current.tSim);
             }
           }
           if (!collisionHandledRef.current && buf.kind === "collision" && simTimeTarget > tEvent) {
@@ -471,6 +614,8 @@ var ThreeBodyGlassSim = (() => {
             }
             destroyedRef.current[pair[0]] = true;
             destroyedRef.current[pair[1]] = true;
+            shatterPosRef.current[pair[0]] = [c[0], c[1]];
+            shatterPosRef.current[pair[1]] = [c[0], c[1]];
             liveRef.current.p[pair[0]] = [9999, 9999];
             liveRef.current.p[pair[1]] = [9999, 9999];
             liveRef.current.v[pair[0]] = [0, 0];
@@ -481,10 +626,11 @@ var ThreeBodyGlassSim = (() => {
           const h = 5e-3;
           while (dtLeft > 1e-6) {
             const step = Math.min(h, dtLeft);
-            const next = rk4Step(liveRef.current.p, liveRef.current.v, step);
+            const next = rk4Step(liveRef.current.p, liveRef.current.v, step, liveRef.current.tSim, true);
             liveRef.current.p = next.p;
             liveRef.current.v = next.v;
             handleCollision(liveRef.current.p, liveRef.current.v);
+            handleOuterCollisions(liveRef.current.p, liveRef.current.v, liveRef.current.tSim);
             for (const sh of shardsRef.current) {
               sh.p = add(sh.p, mul(sh.v, step));
               sh.life -= step;
@@ -501,6 +647,19 @@ var ThreeBodyGlassSim = (() => {
           if (destroyedRef.current[i]) continue;
           trailsRef.current[i].push([p[i][0], p[i][1]]);
           while (trailsRef.current[i].length > trailMax) trailsRef.current[i].shift();
+        }
+      }
+      if (preBufRef.current && liveRef.current.tSim >= preBufRef.current.tEvent) {
+        ensureOuterObjectsAround(camOffsetRef.current);
+        for (let i = 0; i < 3; i++) ensureOuterObjectsAround(liveRef.current.p[i]);
+        if (followRef.current !== null) {
+          const k = followRef.current;
+          if (destroyedRef.current[k]) {
+            const sp = shatterPosRef.current[k];
+            if (sp) camOffsetRef.current = [sp[0], sp[1]];
+          } else {
+            camOffsetRef.current = [liveRef.current.p[k][0], liveRef.current.p[k][1]];
+          }
         }
       }
       drawScene(ctx, liveRef.current.p);
@@ -529,6 +688,16 @@ var ThreeBodyGlassSim = (() => {
     useEffect(() => {
       mapRef.current.realStart = performance.now() / 1e3 - liveRef.current.tSim / (mapRef.current.baseSpeed * speedMul);
     }, [speedMul]);
+    useEffect(() => {
+      const handler = (e) => {
+        if (!preBufRef.current || liveRef.current.tSim < preBufRef.current.tEvent) return;
+        if (e.key === "1" || e.key === "2" || e.key === "3") {
+          followRef.current = parseInt(e.key) - 1;
+        }
+      };
+      window.addEventListener("keydown", handler);
+      return () => window.removeEventListener("keydown", handler);
+    }, []);
     function resetAll() {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       shardsRef.current = [];
@@ -548,12 +717,33 @@ var ThreeBodyGlassSim = (() => {
       setZoom(defaultSettings.zoom);
       setSpeedMul(defaultSettings.speedMul);
       setTrailMax(defaultSettings.trail);
+      camOffsetRef.current = [0, 0];
+      followRef.current = null;
+      outerObjects = [];
+      generatedRegions.clear();
+      ensureOuterObjectsAround([0, 0]);
     }
     function handleWheel(e) {
       e.preventDefault();
       const factor = Math.pow(1.05, -e.deltaY / 100);
       userZoomRef.current = Math.max(0.5, Math.min(2.5, userZoomRef.current * factor));
       setZoom(userZoomRef.current);
+    }
+    function handleMouseDown(e) {
+      if (!preBufRef.current || liveRef.current.tSim < preBufRef.current.tEvent) return;
+      isDraggingRef.current = true;
+      dragPosRef.current = [e.clientX, e.clientY];
+      followRef.current = null;
+    }
+    function handleMouseMove(e) {
+      if (!isDraggingRef.current) return;
+      const dx = (e.clientX - dragPosRef.current[0]) / scaleRef.current;
+      const dy = (e.clientY - dragPosRef.current[1]) / scaleRef.current;
+      camOffsetRef.current = [camOffsetRef.current[0] - dx, camOffsetRef.current[1] + dy];
+      dragPosRef.current = [e.clientX, e.clientY];
+    }
+    function handleMouseUp() {
+      isDraggingRef.current = false;
     }
     function resetControls() {
       userZoomRef.current = defaultSettings.zoom;
@@ -603,7 +793,7 @@ var ThreeBodyGlassSim = (() => {
         "button",
         {
           onClick: () => {
-            const rand = orientationPresets[Math.floor(Math.random() * orientationPresets.length)];
+            const rand = randomOrientation();
             orientationRef.current = rand;
             setOrientation(rand);
           },
@@ -618,7 +808,7 @@ var ThreeBodyGlassSim = (() => {
         {
           key: opt.label,
           onClick: () => {
-            mapRef.current.baseSpeed = 0.35 + Math.random() * (1.5 - 0.35);
+            mapRef.current.baseSpeed = 1;
             setSpeedMul(defaultSettings.speedMul);
             setTrailMax(defaultSettings.trail);
             userZoomRef.current = defaultSettings.zoom;
@@ -630,59 +820,74 @@ var ThreeBodyGlassSim = (() => {
         opt.label
       )))));
     }
-    return /* @__PURE__ */ React.createElement("div", { className: "relative w-full h-[88vh] md:h-[92vh] bg-black text-white font-sans overflow-hidden rounded-2xl shadow-2xl", onWheel: handleWheel }, /* @__PURE__ */ React.createElement("canvas", { ref: canvasRef, className: "absolute inset-0 w-full h-full" }), /* @__PURE__ */ React.createElement("div", { className: "absolute top-4 left-4 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-wider text-white/70" }, "Time to ", eventLabel), /* @__PURE__ */ React.createElement("div", { className: "text-3xl font-semibold tabular-nums" }, Math.floor(countdown / 60).toString().padStart(2, "0"), ":", Math.floor(countdown % 60).toString().padStart(2, "0"))), /* @__PURE__ */ React.createElement("div", { className: "absolute top-4 right-4 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-wider text-white/70 mb-1" }, "Triadic palette"), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3" }, hexColors.map((hex, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("div", { className: "w-5 h-5 rounded-full", style: { background: hex } }), /* @__PURE__ */ React.createElement("span", { className: "text-sm font-mono text-white/80" }, hex.toUpperCase()))))), /* @__PURE__ */ React.createElement("div", { className: "absolute left-1/2 -translate-x-1/2 bottom-4 flex items-center gap-3 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg" }, /* @__PURE__ */ React.createElement(
-      "button",
+    return /* @__PURE__ */ React.createElement(
+      "div",
       {
-        onClick: togglePlay,
-        className: "px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 transition"
+        className: "relative w-full h-[88vh] md:h-[92vh] bg-black text-white font-sans overflow-hidden rounded-2xl shadow-2xl",
+        onWheel: handleWheel,
+        onMouseDown: handleMouseDown,
+        onMouseMove: handleMouseMove,
+        onMouseUp: handleMouseUp,
+        onMouseLeave: handleMouseUp
       },
-      isPlaying ? "Pause" : "Play"
-    ), /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        onClick: resetAll,
-        className: "px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 transition leading-tight"
-      },
-      /* @__PURE__ */ React.createElement("span", { className: "block" }, "Reset"),
-      /* @__PURE__ */ React.createElement("span", { className: "block text-xs opacity-80" }, "(new colors)")
-    ), isReady && preBufRef.current && /* @__PURE__ */ React.createElement("div", { className: "text-sm text-white/70 font-medium" }, "Event: ", /* @__PURE__ */ React.createElement("span", { className: "text-white/90" }, eventLabel), /* @__PURE__ */ React.createElement("span", { className: "mx-2" }, "\u2022"), "Sim @ event: ", /* @__PURE__ */ React.createElement("span", { className: "tabular-nums text-white/90" }, preBufRef.current.tEvent.toFixed(2), "s"), /* @__PURE__ */ React.createElement("span", { className: "mx-2" }, "\u2022"), "Speed: ", /* @__PURE__ */ React.createElement("span", { className: "tabular-nums text-white/90" }, "\xD7", (mapRef.current.baseSpeed * speedMul).toFixed(2)))), /* @__PURE__ */ React.createElement("div", { className: "absolute left-4 bottom-24 md:bottom-28 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg w-[min(88vw,420px)]" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-2" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-widest text-white/70" }, "Controls"), /* @__PURE__ */ React.createElement("button", { onClick: () => setPanelOpen((v) => !v), className: "text-white/80 text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/20" }, panelOpen ? "Minimize" : "Expand")), panelOpen && /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between text-xs text-white/70" }, /* @__PURE__ */ React.createElement("span", null, "Zoom"), /* @__PURE__ */ React.createElement("span", { className: "tabular-nums" }, zoom.toFixed(2), "\xD7")), /* @__PURE__ */ React.createElement(
-      "input",
-      {
-        type: "range",
-        min: 0.5,
-        max: 2.5,
-        step: 0.01,
-        value: zoom,
-        onChange: (e) => {
-          const z = parseFloat(e.target.value);
-          setZoom(z);
-          userZoomRef.current = z;
+      /* @__PURE__ */ React.createElement("canvas", { ref: canvasRef, className: "absolute inset-0 w-full h-full" }),
+      /* @__PURE__ */ React.createElement("div", { className: "absolute top-4 left-4 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-wider text-white/70" }, "Time to ", eventLabel), /* @__PURE__ */ React.createElement("div", { className: "text-3xl font-semibold tabular-nums" }, Math.floor(countdown / 60).toString().padStart(2, "0"), ":", Math.floor(countdown % 60).toString().padStart(2, "0"))),
+      /* @__PURE__ */ React.createElement("div", { className: "absolute top-4 right-4 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-wider text-white/70 mb-1" }, "Triadic palette"), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3" }, hexColors.map((hex, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("div", { className: "w-5 h-5 rounded-full", style: { background: hex } }), /* @__PURE__ */ React.createElement("span", { className: "text-sm font-mono text-white/80" }, hex.toUpperCase()))))),
+      /* @__PURE__ */ React.createElement("div", { className: "absolute left-1/2 -translate-x-1/2 bottom-4 flex items-center gap-3 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg" }, /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          onClick: togglePlay,
+          className: "px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 transition"
         },
-        className: "w-full accent-white/90"
-      }
-    )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between text-xs text-white/70" }, /* @__PURE__ */ React.createElement("span", null, "Speed"), /* @__PURE__ */ React.createElement("span", { className: "tabular-nums" }, "\xD7", (mapRef.current.baseSpeed * speedMul).toFixed(2))), /* @__PURE__ */ React.createElement(
-      "input",
-      {
-        type: "range",
-        min: 0.25,
-        max: 3,
-        step: 0.01,
-        value: speedMul,
-        onChange: (e) => setSpeedMul(parseFloat(e.target.value)),
-        className: "w-full accent-white/90"
-      }
-    )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between text-xs text-white/70" }, /* @__PURE__ */ React.createElement("span", null, "Trail length"), /* @__PURE__ */ React.createElement("span", { className: "tabular-nums" }, trailMax)), /* @__PURE__ */ React.createElement(
-      "input",
-      {
-        type: "range",
-        min: 20,
-        max: 600,
-        step: 1,
-        value: trailMax,
-        onChange: (e) => setTrailMax(parseInt(e.target.value)),
-        className: "w-full accent-white/90"
-      }
-    )), /* @__PURE__ */ React.createElement("div", { className: "pt-1 text-right" }, /* @__PURE__ */ React.createElement("button", { onClick: resetControls, className: "px-3 py-1 text-xs rounded-lg bg-white/10 hover:bg-white/20 border border-white/20" }, "Reset")))), !isReady && /* @__PURE__ */ React.createElement("div", { className: "absolute inset-0 flex items-center justify-center" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-widest text-white/70 mb-2" }, "Preparing a near-perfect 3\u2011body setup\u2026"), /* @__PURE__ */ React.createElement("div", { className: "text-lg font-medium" }, "Searching for a slight perturbation that yields an event"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 text-left text-xs font-mono text-white/80 w-64" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between mb-1" }, /* @__PURE__ */ React.createElement("div", null, candidateInfo), /* @__PURE__ */ React.createElement("div", null, attemptInfo)), /* @__PURE__ */ React.createElement("div", { className: "max-h-40 overflow-y-auto" }, progressLines.map((line, i) => /* @__PURE__ */ React.createElement("div", { key: i }, line)))))));
+        isPlaying ? "Pause" : "Play"
+      ), /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          onClick: resetAll,
+          className: "px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 transition leading-tight"
+        },
+        /* @__PURE__ */ React.createElement("span", { className: "block" }, "Reset"),
+        /* @__PURE__ */ React.createElement("span", { className: "block text-xs opacity-80" }, "(new colors)")
+      ), isReady && preBufRef.current && /* @__PURE__ */ React.createElement("div", { className: "text-sm text-white/70 font-medium" }, "Event: ", /* @__PURE__ */ React.createElement("span", { className: "text-white/90" }, eventLabel), /* @__PURE__ */ React.createElement("span", { className: "mx-2" }, "\u2022"), "Sim @ event: ", /* @__PURE__ */ React.createElement("span", { className: "tabular-nums text-white/90" }, preBufRef.current.tEvent.toFixed(2), "s"), /* @__PURE__ */ React.createElement("span", { className: "mx-2" }, "\u2022"), "Speed: ", /* @__PURE__ */ React.createElement("span", { className: "tabular-nums text-white/90" }, "\xD7", (mapRef.current.baseSpeed * speedMul).toFixed(2)))),
+      /* @__PURE__ */ React.createElement("div", { className: "absolute left-4 bottom-24 md:bottom-28 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg w-[min(88vw,420px)]" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-2" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-widest text-white/70" }, "Controls"), /* @__PURE__ */ React.createElement("button", { onClick: () => setPanelOpen((v) => !v), className: "text-white/80 text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/20" }, panelOpen ? "Minimize" : "Expand")), panelOpen && /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between text-xs text-white/70" }, /* @__PURE__ */ React.createElement("span", null, "Zoom"), /* @__PURE__ */ React.createElement("span", { className: "tabular-nums" }, zoom.toFixed(2), "\xD7")), /* @__PURE__ */ React.createElement(
+        "input",
+        {
+          type: "range",
+          min: 0.5,
+          max: 2.5,
+          step: 0.01,
+          value: zoom,
+          onChange: (e) => {
+            const z = parseFloat(e.target.value);
+            setZoom(z);
+            userZoomRef.current = z;
+          },
+          className: "w-full accent-white/90"
+        }
+      )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between text-xs text-white/70" }, /* @__PURE__ */ React.createElement("span", null, "Speed"), /* @__PURE__ */ React.createElement("span", { className: "tabular-nums" }, "\xD7", (mapRef.current.baseSpeed * speedMul).toFixed(2))), /* @__PURE__ */ React.createElement(
+        "input",
+        {
+          type: "range",
+          min: 0.25,
+          max: 3,
+          step: 0.01,
+          value: speedMul,
+          onChange: (e) => setSpeedMul(parseFloat(e.target.value)),
+          className: "w-full accent-white/90"
+        }
+      )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between text-xs text-white/70" }, /* @__PURE__ */ React.createElement("span", null, "Trail length"), /* @__PURE__ */ React.createElement("span", { className: "tabular-nums" }, trailMax)), /* @__PURE__ */ React.createElement(
+        "input",
+        {
+          type: "range",
+          min: 20,
+          max: 600,
+          step: 1,
+          value: trailMax,
+          onChange: (e) => setTrailMax(parseInt(e.target.value)),
+          className: "w-full accent-white/90"
+        }
+      )), /* @__PURE__ */ React.createElement("div", { className: "pt-1 text-right" }, /* @__PURE__ */ React.createElement("button", { onClick: resetControls, className: "px-3 py-1 text-xs rounded-lg bg-white/10 hover:bg-white/20 border border-white/20" }, "Reset")))),
+      !isReady && /* @__PURE__ */ React.createElement("div", { className: "absolute inset-0 flex items-center justify-center" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-widest text-white/70 mb-2" }, "Preparing a near-perfect 3\u2011body setup\u2026"), /* @__PURE__ */ React.createElement("div", { className: "text-lg font-medium" }, "Searching for a slight perturbation that yields an event"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 text-left text-xs font-mono text-white/80 w-64" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between mb-1" }, /* @__PURE__ */ React.createElement("div", null, candidateInfo), /* @__PURE__ */ React.createElement("div", null, attemptInfo)), /* @__PURE__ */ React.createElement("div", { className: "max-h-40 overflow-y-auto" }, progressLines.map((line, i) => /* @__PURE__ */ React.createElement("div", { key: i }, line))))))
+    );
   }
-  return __toCommonJS(three_body_problem_exports);
 })();
