@@ -23,6 +23,15 @@ var ThreeBodyGlassSim = (() => {
     default: () => ThreeBodyGlassSim
   });
   var { useEffect, useRef, useState } = React;
+  function add(a, b) {
+    return [a[0] + b[0], a[1] + b[1]];
+  }
+  function sub(a, b) {
+    return [a[0] - b[0], a[1] - b[1]];
+  }
+  function mul(a, s) {
+    return [a[0] * s, a[1] * s];
+  }
   var orientationPresets = [
     {
       label: "Figure\u20118",

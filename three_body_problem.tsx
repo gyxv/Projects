@@ -1,4 +1,7 @@
-import type React from "react";
+import type * as React from "react";
+// Use the globally provided React instance (loaded via script tags)
+// but keep type information from the React package.
+declare const React: typeof import("react");
 const { useEffect, useRef, useState } = React;
 
 type OrientationPreset = {
@@ -21,6 +24,20 @@ type OuterObject = {
   r: number;
   color: string;
 };
+
+// Basic 2D vector helpers
+function add(a: [number, number], b: [number, number]): [number, number] {
+  return [a[0] + b[0], a[1] + b[1]];
+}
+function sub(a: [number, number], b: [number, number]): [number, number] {
+  return [a[0] - b[0], a[1] - b[1]];
+}
+function mul(a: [number, number], s: number): [number, number] {
+  return [a[0] * s, a[1] * s];
+}
+function dot(a: [number, number], b: [number, number]): number {
+  return a[0] * b[0] + a[1] * b[1];
+}
 
 const orientationPresets: OrientationPreset[] = [
   {
