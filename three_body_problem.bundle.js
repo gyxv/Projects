@@ -1,4 +1,4 @@
-(() => {
+var ThreeBodyGlassSim = (() => {
   var __create = Object.create;
   var __defProp = Object.defineProperty;
   var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -7,6 +7,10 @@
   var __hasOwnProp = Object.prototype.hasOwnProperty;
   var __commonJS = (cb, mod) => function __require() {
     return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+  };
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, { get: all[name], enumerable: true });
   };
   var __copyProps = (to, from, except, desc) => {
     if (from && typeof from === "object" || typeof from === "function") {
@@ -24,6 +28,7 @@
     isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
     mod
   ));
+  var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
   // node_modules/react/cjs/react.development.js
   var require_react_development = __commonJS({
@@ -2801,6 +2806,10 @@
   });
 
   // three_body_problem.tsx
+  var three_body_problem_exports = {};
+  __export(three_body_problem_exports, {
+    default: () => ThreeBodyGlassSim
+  });
   var import_react = __toESM(require_react());
   var import_jsx_runtime = __toESM(require_jsx_runtime());
   var orientationPresets = [
@@ -4131,6 +4140,7 @@
       ] })
     ] });
   }
+  return __toCommonJS(three_body_problem_exports);
 })();
 /*! Bundled license information:
 
@@ -4156,3 +4166,4 @@ react/cjs/react-jsx-runtime.development.js:
    * LICENSE file in the root directory of this source tree.
    *)
 */
+//# sourceMappingURL=three_body_problem.bundle.js.map

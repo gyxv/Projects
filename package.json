@@ -7,7 +7,9 @@
     "test": "test"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "esbuild three_body_problem.tsx --bundle --outfile=three_body_problem.bundle.js --format=iife --global-name=ThreeBodyGlassSim --sourcemap",
+    "dev": "esbuild three_body_problem.tsx --bundle --outfile=three_body_problem.bundle.js --format=iife --global-name=ThreeBodyGlassSim --sourcemap --watch"
   },
   "keywords": [],
   "author": "",
