@@ -20,6 +20,9 @@
   "devDependencies": {
     "@tailwindcss/cli": "^4.1.13",
     "esbuild": "^0.25.9",
-    "tailwindcss": "^4.1.13"
+    "tailwindcss": "^4.1.13",
+    "typescript": "^5.4.5",
+    "@types/react": "^18.2.20",
+    "@types/react-dom": "^18.2.7"
   }
 }

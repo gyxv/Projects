@@ -1,5 +1,4 @@
-import type React from "react";
-const { useEffect, useRef, useState } = React;
+import React, { useEffect, useRef, useState } from "react";
 
 type OrientationPreset = {
   label: string;
