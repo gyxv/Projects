@@ -1,27 +1,5 @@
-var ThreeBodyGlassSim = (() => {
-  var __defProp = Object.defineProperty;
-  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-  var __getOwnPropNames = Object.getOwnPropertyNames;
-  var __hasOwnProp = Object.prototype.hasOwnProperty;
-  var __export = (target, all) => {
-    for (var name in all)
-      __defProp(target, name, { get: all[name], enumerable: true });
-  };
-  var __copyProps = (to, from, except, desc) => {
-    if (from && typeof from === "object" || typeof from === "function") {
-      for (let key of __getOwnPropNames(from))
-        if (!__hasOwnProp.call(to, key) && key !== except)
-          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
-    }
-    return to;
-  };
-  var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
-
+(() => {
   // three_body_problem.tsx
-  var three_body_problem_exports = {};
-  __export(three_body_problem_exports, {
-    default: () => ThreeBodyGlassSim
-  });
   var { useEffect, useRef, useState } = React;
   var orientationPresets = [
     {
@@ -115,6 +93,7 @@ var ThreeBodyGlassSim = (() => {
     return [cx + Math.cos(ang) * obj.orbitRadius, cy + Math.sin(ang) * obj.orbitRadius];
   }
   var defaultSettings = { zoom: 1.35, speedMul: 1, trail: 90 };
+  var MPH_PER_UNIT = 1e4;
   function ThreeBodyGlassSim() {
     const [isReady, setIsReady] = useState(false);
     const [isPlaying, setIsPlaying] = useState(true);
@@ -145,6 +124,8 @@ var ThreeBodyGlassSim = (() => {
     const seedImportRef = useRef(null);
     const outerObjectsRef = useRef(generateRegion([0, 0]));
     const regionCentersRef = useRef([[0, 0]]);
+    const showSpeedRef = useRef(false);
+    const showGravityRef = useRef(false);
     useEffect(() => {
       if (!importOpen) return;
       const handler = (e) => {
@@ -552,6 +533,52 @@ var ThreeBodyGlassSim = (() => {
       const cx = W / 2, cy = H / 2;
       return [cx + (x - px) * s, cy - (y - py) * s];
     }
+    function screenToWorld(x, y, W, H) {
+      const s = scaleRef.current;
+      const [px, py] = panRef.current;
+      const cx = W / 2, cy = H / 2;
+      return [px + (x - cx) / s, py - (y - cy) / s];
+    }
+    function topGravitySources(p, W, H) {
+      const masses = [];
+      for (let i = 0; i < 3; i++) if (!destroyedRef.current[i]) masses.push({ pos: p[i], mass });
+      for (const obj of outerObjectsRef.current) {
+        masses.push({ pos: outerObjectPosition(obj, liveRef.current.tSim), mass: obj.mass });
+      }
+      const objects = [];
+      for (let i = 0; i < 3; i++) {
+        if (destroyedRef.current[i]) continue;
+        const [sx, sy] = worldToScreen(p[i][0], p[i][1], W, H);
+        if (sx >= 0 && sx <= W && sy >= 0 && sy <= H) objects.push(p[i]);
+      }
+      if (rocketRef.current) {
+        const [sx, sy] = worldToScreen(rocketRef.current.p[0], rocketRef.current.p[1], W, H);
+        if (sx >= 0 && sx <= W && sy >= 0 && sy <= H) objects.push(rocketRef.current.p);
+      }
+      if (objects.length === 0) objects.push(screenToWorld(W / 2, H / 2, W, H));
+      const infl = masses.map((m) => {
+        let strength = 0;
+        for (const o of objects) {
+          const r = sub(m.pos, o);
+          const d2 = r[0] * r[0] + r[1] * r[1] + softEps * softEps;
+          const s = m.mass / d2;
+          if (s > strength) strength = s;
+        }
+        return { pos: m.pos, mass: m.mass, strength };
+      });
+      infl.sort((a, b) => b.strength - a.strength);
+      return infl.slice(0, 3);
+    }
+    function distortPoint(pt, infl) {
+      let off = [0, 0];
+      for (const m of infl) {
+        const r = sub(pt, m.pos);
+        const d2 = r[0] * r[0] + r[1] * r[1] + 1e-6;
+        const fac = m.mass / d2 * 0.2;
+        off = add(off, mul(r, -fac));
+      }
+      return add(pt, off);
+    }
     function drawScene(ctx, p) {
       const W = ctx.canvas.clientWidth;
       const H = ctx.canvas.clientHeight;
@@ -569,24 +596,60 @@ var ThreeBodyGlassSim = (() => {
       grad.addColorStop(1, "#060912");
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, W, H);
-      ctx.save();
-      ctx.globalAlpha = 0.08;
-      const step = 80;
-      ctx.beginPath();
-      for (let x = 0; x < W; x += step) {
-        ctx.moveTo(x + 0.5, 0);
-        ctx.lineTo(x + 0.5, H);
+      if (showGravityRef.current) {
+        const step = 80;
+        const influencers = topGravitySources(p, W, H);
+        ctx.save();
+        ctx.globalAlpha = 0.15;
+        ctx.beginPath();
+        for (let x = 0; x <= W; x += step) {
+          let first = true;
+          for (let y = 0; y <= H; y += step) {
+            const world = screenToWorld(x, y, W, H);
+            const disp = distortPoint(world, influencers);
+            const [sx, sy] = worldToScreen(disp[0], disp[1], W, H);
+            if (first) {
+              ctx.moveTo(sx, sy);
+              first = false;
+            } else ctx.lineTo(sx, sy);
+          }
+        }
+        for (let y = 0; y <= H; y += step) {
+          let first = true;
+          for (let x = 0; x <= W; x += step) {
+            const world = screenToWorld(x, y, W, H);
+            const disp = distortPoint(world, influencers);
+            const [sx, sy] = worldToScreen(disp[0], disp[1], W, H);
+            if (first) {
+              ctx.moveTo(sx, sy);
+              first = false;
+            } else ctx.lineTo(sx, sy);
+          }
+        }
+        ctx.strokeStyle = "#ffffff";
+        ctx.stroke();
+        ctx.restore();
       }
-      for (let y = 0; y < H; y += step) {
-        ctx.moveTo(0, y + 0.5);
-        ctx.lineTo(W, y + 0.5);
-      }
-      ctx.strokeStyle = "#ffffff";
-      ctx.stroke();
-      ctx.restore();
       const glow = (hex, alpha = 0.9) => {
         ctx.shadowBlur = 22;
         ctx.shadowColor = hex + Math.floor(alpha * 255).toString(16).padStart(2, "0");
+      };
+      const drawSpeedBox = (x, y, speed) => {
+        const text = Math.round(speed * MPH_PER_UNIT).toLocaleString() + " mph";
+        ctx.save();
+        ctx.translate(x, y - 20);
+        ctx.font = "12px sans-serif";
+        const w = ctx.measureText(text).width + 10;
+        const h = 18;
+        ctx.fillStyle = "rgba(255,255,255,0.15)";
+        ctx.strokeStyle = "rgba(255,255,255,0.4)";
+        ctx.fillRect(-w / 2, -h, w, h);
+        ctx.strokeRect(-w / 2, -h, w, h);
+        ctx.fillStyle = "#ffffff";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(text, 0, -h / 2);
+        ctx.restore();
       };
       for (let i = 0; i < 3; i++) {
         const trail = trailsRef.current[i];
@@ -618,6 +681,9 @@ var ThreeBodyGlassSim = (() => {
         ctx.arc(x, y, radius * scaleRef.current, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
+        if (showSpeedRef.current && x >= 0 && x <= W && y >= 0 && y <= H) {
+          drawSpeedBox(x, y, norm(liveRef.current.v[i]));
+        }
       }
       for (const sh of shardsRef.current) {
         const [x, y] = worldToScreen(sh.p[0], sh.p[1], W, H);
@@ -655,7 +721,38 @@ var ThreeBodyGlassSim = (() => {
         ctx.lineTo(-4, -3);
         ctx.closePath();
         ctx.fill();
+        if (r.thrustPower > 0) {
+          const len = 4 + r.thrustPower * 20;
+          ctx.fillStyle = "#ff9933";
+          ctx.beginPath();
+          ctx.moveTo(-4, 2);
+          ctx.lineTo(-4 - len, 0);
+          ctx.lineTo(-4, -2);
+          ctx.closePath();
+          ctx.fill();
+        }
+        if (r.rotL) {
+          ctx.fillStyle = "#ffaa33";
+          ctx.beginPath();
+          ctx.moveTo(-4, -3);
+          ctx.lineTo(-8, -4);
+          ctx.lineTo(-4, -1);
+          ctx.closePath();
+          ctx.fill();
+        }
+        if (r.rotR) {
+          ctx.fillStyle = "#ffaa33";
+          ctx.beginPath();
+          ctx.moveTo(-4, 3);
+          ctx.lineTo(-8, 4);
+          ctx.lineTo(-4, 1);
+          ctx.closePath();
+          ctx.fill();
+        }
         ctx.restore();
+        if (showSpeedRef.current && x >= 0 && x <= W && y >= 0 && y <= H) {
+          drawSpeedBox(x, y, norm(r.v));
+        }
       }
     }
     const loopRef = useRef(() => {
@@ -727,10 +824,11 @@ var ThreeBodyGlassSim = (() => {
               const rot = 1.5;
               if (r.rotL) r.angle += rot * step;
               if (r.rotR) r.angle -= rot * step;
+              if (r.thrustUp) r.thrustPower = Math.min(1.2, r.thrustPower + 1 * step);
+              if (r.thrustDown) r.thrustPower = Math.max(0, r.thrustPower - 1 * step);
               let acc = rocketAcceleration(r.p, liveRef.current.tSim);
-              if (r.thrust) {
-                const thrust = 0.4;
-                acc = add(acc, [Math.cos(r.angle) * thrust, Math.sin(r.angle) * thrust]);
+              if (r.thrustPower > 0) {
+                acc = add(acc, [Math.cos(r.angle) * r.thrustPower, Math.sin(r.angle) * r.thrustPower]);
               }
               r.v = add(r.v, mul(acc, step));
               r.p = add(r.p, mul(r.v, step));
@@ -866,13 +964,24 @@ var ThreeBodyGlassSim = (() => {
           followRef.current = parseInt(e.code.slice(-1)) - 1;
         } else if (e.code === "Digit0") {
           if (e.shiftKey && !rocketRef.current) {
-            rocketRef.current = { p: [0, 0], v: [0, 0], angle: 0, thrust: false, rotL: false, rotR: false };
+            rocketRef.current = {
+              p: [0, 0],
+              v: [0, 0],
+              angle: 0,
+              thrustPower: 0,
+              thrustUp: false,
+              thrustDown: false,
+              rotL: false,
+              rotR: false
+            };
           }
           if (rocketRef.current) followRef.current = 3;
         }
+        if (e.key === "s" && !e.repeat) showSpeedRef.current = !showSpeedRef.current;
+        if (e.key === "g" && !e.repeat) showGravityRef.current = !showGravityRef.current;
         if (rocketRef.current) {
-          if (e.key === "w") rocketRef.current.thrust = true;
-          if (e.key === "s") rocketRef.current.thrust = false;
+          if (e.key === "w") rocketRef.current.thrustUp = true;
+          if (e.key === "s") rocketRef.current.thrustDown = true;
           if (e.key === "a") rocketRef.current.rotL = true;
           if (e.key === "d") rocketRef.current.rotR = true;
         }
@@ -881,7 +990,8 @@ var ThreeBodyGlassSim = (() => {
         if (!rocketRef.current) return;
         if (e.key === "a") rocketRef.current.rotL = false;
         if (e.key === "d") rocketRef.current.rotR = false;
-        if (e.key === "w" || e.key === "s") rocketRef.current.thrust = false;
+        if (e.key === "w") rocketRef.current.thrustUp = false;
+        if (e.key === "s") rocketRef.current.thrustDown = false;
       };
       window.addEventListener("keydown", down);
       window.addEventListener("keyup", up);
@@ -1050,5 +1160,4 @@ var ThreeBodyGlassSim = (() => {
       "Import simulation"
     ))))));
   }
-  return __toCommonJS(three_body_problem_exports);
 })();
