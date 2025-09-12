@@ -224,8 +224,8 @@ export default function ThreeBodyGlassSim() {
   const mapRef = useRef({ realStart: 0, baseSpeed: 1 });
   const [speedMul, setSpeedMul] = useState(1); // UI speed multiplier (0.25× .. 3×)
 
-  // Trails
-  const trailsRef = useRef<[number, number][][]>([[], [], []]);
+  // Trails (bodies + rocket)
+  const trailsRef = useRef<[number, number][][]>([[], [], [], []]);
   const [trailMax, setTrailMax] = useState(90); // short and quick fade by default
 
   // Panels
@@ -235,6 +235,7 @@ export default function ThreeBodyGlassSim() {
   const eventIndexRef = useRef<number>(-1);
   const shardsRef = useRef<Shard[]>([]);
   const destroyedRef = useRef<[boolean, boolean, boolean]>([false, false, false]);
+  const pausedRef = useRef<[boolean, boolean, boolean, boolean]>([false, false, false, false]);
   const collisionHandledRef = useRef(false);
 
   // ======== Utility: Colors ========
@@ -581,7 +582,8 @@ export default function ThreeBodyGlassSim() {
     mapRef.current.realStart = performance.now() / 1000;
 
     // Trails reset
-    trailsRef.current = [[], [], []];
+    trailsRef.current = [[], [], [], []];
+    pausedRef.current = [false, false, false, false];
 
     // Initialize scale (close view by default)
     const span = preBufRef.current && preBufRef.current.states.length
@@ -646,56 +648,84 @@ export default function ThreeBodyGlassSim() {
     ctx.fillRect(0, 0, W, H);
 
     if (showGravity) {
-      // World-anchored grid
-      ctx.save();
-      ctx.globalAlpha = 0.08;
-      const step = 1; // world units
+      const step = 1;
       const s = scaleRef.current;
       const [px, py] = panRef.current;
       const worldW = W / s;
       const worldH = H / s;
       const startX = Math.floor((px - worldW / 2) / step) * step;
       const startY = Math.floor((py - worldH / 2) / step) * step;
-      ctx.beginPath();
-      for (let x = startX; x < px + worldW / 2; x += step) {
-        const sx = (x - px) * s + W / 2;
-        ctx.moveTo(sx + 0.5, 0);
-        ctx.lineTo(sx + 0.5, H);
-      }
-      for (let y = startY; y < py + worldH / 2; y += step) {
-        const sy = H / 2 - (y - py) * s;
-        ctx.moveTo(0, sy + 0.5);
-        ctx.lineTo(W, sy + 0.5);
-      }
-      ctx.strokeStyle = "#ffffff";
-      ctx.stroke();
-      ctx.restore();
 
-      // Highlight top gravitational influences
-      const influences: { pos: [number, number]; strength: number }[] = [];
+      // Determine top three influences on visible bodies/rocket or view center
+      const targets: [number, number][] = [];
       for (let i = 0; i < 3; i++) {
         if (destroyedRef.current[i]) continue;
-        const pos = p[i];
-        const d = norm(sub(pos, panRef.current));
-        influences.push({ pos, strength: mass / (d * d + 1e-6) });
+        const [sx, sy] = worldToScreen(p[i][0], p[i][1], W, H);
+        if (sx >= 0 && sy >= 0 && sx <= W && sy <= H) targets.push(p[i]);
       }
-      for (const obj of outerObjectsRef.current) {
-        const pos = outerObjectPosition(obj, liveRef.current.tSim);
-        const d = norm(sub(pos, panRef.current));
-        influences.push({ pos, strength: obj.mass / (d * d + 1e-6) });
+      if (rocketRef.current) {
+        const [sx, sy] = worldToScreen(rocketRef.current.p[0], rocketRef.current.p[1], W, H);
+        if (sx >= 0 && sy >= 0 && sx <= W && sy <= H) targets.push(rocketRef.current.p);
       }
-      influences.sort((a, b) => b.strength - a.strength);
-      influences.slice(0, 3).forEach((inf) => {
-        const [sx, sy] = worldToScreen(inf.pos[0], inf.pos[1], W, H);
-        const rad = Math.sqrt(inf.strength) * 60;
-        const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, rad);
-        g.addColorStop(0, "rgba(255,255,255,0.25)");
-        g.addColorStop(1, "rgba(255,255,255,0)");
-        ctx.fillStyle = g;
+      if (targets.length === 0) targets.push([px, py]);
+      const infMap = new Map<string, { pos: [number, number]; mass: number; strength: number }>();
+      const consider = (pos: [number, number], mass: number, target: [number, number]) => {
+        const r = sub(pos, target);
+        const d2 = r[0] * r[0] + r[1] * r[1] + 1e-6;
+        const strength = mass / d2;
+        const key = pos.join(",");
+        const existing = infMap.get(key);
+        if (!existing || existing.strength < strength) infMap.set(key, { pos, mass, strength });
+      };
+      for (const t of targets) {
+        for (let i = 0; i < 3; i++) {
+          if (destroyedRef.current[i]) continue;
+          consider(p[i], mass, t);
+        }
+        for (const obj of outerObjectsRef.current) {
+          consider(outerObjectPosition(obj, liveRef.current.tSim), obj.mass, t);
+        }
+      }
+      const influences = Array.from(infMap.values()).sort((a, b) => b.strength - a.strength).slice(0, 3);
+
+      const warp = (x: number, y: number): [number, number] => {
+        let wx = x, wy = y;
+        for (const inf of influences) {
+          const r = sub([wx, wy], inf.pos);
+          const d = norm(r) + 0.1;
+          const k = (inf.mass / (d * d)) * 0.3;
+          wx += (r[0] / d) * k;
+          wy += (r[1] / d) * k;
+        }
+        return [wx, wy];
+      };
+
+      ctx.save();
+      ctx.globalAlpha = 0.1;
+      ctx.strokeStyle = "#ffffff";
+      for (let x = startX; x < px + worldW / 2; x += step) {
         ctx.beginPath();
-        ctx.arc(sx, sy, rad, 0, Math.PI * 2);
-        ctx.fill();
-      });
+        let first = true;
+        for (let y = startY; y < py + worldH / 2; y += step) {
+          const [wx, wy] = warp(x, y);
+          const [sx, sy] = worldToScreen(wx, wy, W, H);
+          if (first) { ctx.moveTo(sx + 0.5, sy + 0.5); first = false; }
+          else ctx.lineTo(sx + 0.5, sy + 0.5);
+        }
+        ctx.stroke();
+      }
+      for (let y = startY; y < py + worldH / 2; y += step) {
+        ctx.beginPath();
+        let first = true;
+        for (let x = startX; x < px + worldW / 2; x += step) {
+          const [wx, wy] = warp(x, y);
+          const [sx, sy] = worldToScreen(wx, wy, W, H);
+          if (first) { ctx.moveTo(sx + 0.5, sy + 0.5); first = false; }
+          else ctx.lineTo(sx + 0.5, sy + 0.5);
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
     }
 
     const glow = (hex: string, alpha = 0.9) => {
@@ -716,6 +746,26 @@ export default function ThreeBodyGlassSim() {
           ctx.globalAlpha = 0.15 + 0.55 * t * t; // quick fade near tail
           ctx.lineWidth = 1.8 + 0.6 * t;
           ctx.strokeStyle = hexColors[i];
+          ctx.beginPath();
+          ctx.moveTo(x0, y0);
+          ctx.lineTo(x1, y1);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+    }
+    if (rocketRef.current) {
+      const trail = trailsRef.current[3];
+      const n = trail.length;
+      if (n > 2) {
+        for (let k = 1; k < n; k++) {
+          const [x0, y0] = worldToScreen(trail[k - 1][0], trail[k - 1][1], W, H);
+          const [x1, y1] = worldToScreen(trail[k][0], trail[k][1], W, H);
+          const t = k / n;
+          ctx.save();
+          ctx.globalAlpha = 0.1 + 0.5 * t * t;
+          ctx.lineWidth = 1.5 + 0.5 * t;
+          ctx.strokeStyle = "#ffffff";
           ctx.beginPath();
           ctx.moveTo(x0, y0);
           ctx.lineTo(x1, y1);
@@ -781,10 +831,15 @@ export default function ThreeBodyGlassSim() {
 
       // Thruster flames
       if (r.power > 0) {
-        ctx.fillStyle = "#ffa000";
+        const len = 10 + Math.random() * 6 * r.power;
+        const grad = ctx.createLinearGradient(-4, 0, -4 - len, 0);
+        grad.addColorStop(0, "#ffffaa");
+        grad.addColorStop(0.4, "#ff8800");
+        grad.addColorStop(1, "rgba(255,0,0,0)");
+        ctx.fillStyle = grad;
         ctx.beginPath();
         ctx.moveTo(-4, 2);
-        ctx.lineTo(-4 - 10 * r.power, 0);
+        ctx.lineTo(-4 - len, 0);
         ctx.lineTo(-4, -2);
         ctx.closePath();
         ctx.fill();
@@ -813,7 +868,7 @@ export default function ThreeBodyGlassSim() {
         const speed = norm(r.v) * 3600;
         ctx.save();
         ctx.translate(x, y - 20);
-        ctx.fillStyle = "rgba(255,255,255,0.15)";
+        ctx.fillStyle = "rgba(255,255,255,0.2)";
         ctx.fillRect(-30, -12, 60, 24);
         ctx.fillStyle = "#fff";
         ctx.textAlign = "center";
@@ -821,6 +876,18 @@ export default function ThreeBodyGlassSim() {
         ctx.fillText(`${speed.toFixed(0)} mph`, 0, 4);
         ctx.restore();
       }
+
+      // Thruster gauge
+      ctx.save();
+      ctx.translate(W - 40, H / 2);
+      ctx.fillStyle = "rgba(255,255,255,0.1)";
+      ctx.fillRect(0, -50, 14, 100);
+      ctx.fillStyle = "#ff8800";
+      ctx.fillRect(0, -50 + (1 - r.power) * 100, 14, r.power * 100);
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(0, -50, 14, 100);
+      ctx.restore();
     }
 
     if (showSpeed) {
@@ -831,7 +898,7 @@ export default function ThreeBodyGlassSim() {
         const speed = norm(liveRef.current.v[i]) * 3600;
         ctx.save();
         ctx.translate(sx, sy - 20);
-        ctx.fillStyle = "rgba(255,255,255,0.15)";
+        ctx.fillStyle = "rgba(255,255,255,0.2)";
         ctx.fillRect(-30, -12, 60, 24);
         ctx.fillStyle = "#fff";
         ctx.textAlign = "center";
@@ -903,14 +970,22 @@ export default function ThreeBodyGlassSim() {
         const h = 0.005;
         while (dtLeft > 1e-6) {
           const step = Math.min(h, dtLeft);
+          const prevP = liveRef.current.p.map((x) => [...x]) as [number, number][];
           const next = rk4Step(liveRef.current.p as any, liveRef.current.v as any, step, liveRef.current.tSim, true);
           liveRef.current.p = next.p as any;
           liveRef.current.v = next.v as any;
+          for (let i = 0; i < 3; i++) {
+            if (pausedRef.current[i]) {
+              liveRef.current.p[i] = prevP[i];
+              liveRef.current.v[i] = [0, 0];
+            }
+          }
           handleCollision(liveRef.current.p as any, liveRef.current.v as any);
           handleOuterCollisions(liveRef.current.p as any, liveRef.current.v as any, liveRef.current.tSim);
           if (rocketRef.current) {
             const r = rocketRef.current;
             const rot = 1.5;
+            const prevRp: [number, number] = [r.p[0], r.p[1]];
             if (r.rotL) r.angle += rot * step;
             if (r.rotR) r.angle -= rot * step;
             if (r.wDown) r.power = Math.min(1, r.power + step);
@@ -922,6 +997,10 @@ export default function ThreeBodyGlassSim() {
             }
             r.v = add(r.v, mul(acc, step));
             r.p = add(r.p, mul(r.v, step));
+            if (pausedRef.current[3]) {
+              r.p = prevRp;
+              r.v = [0, 0];
+            }
           }
           for (const sh of shardsRef.current) {
             sh.p = add(sh.p, mul(sh.v, step)) as [number, number];
@@ -941,6 +1020,10 @@ export default function ThreeBodyGlassSim() {
         if (destroyedRef.current[i]) continue;
         trailsRef.current[i].push([p[i][0], p[i][1]]);
         while (trailsRef.current[i].length > trailMax) trailsRef.current[i].shift();
+      }
+      if (rocketRef.current) {
+        trailsRef.current[3].push([rocketRef.current.p[0], rocketRef.current.p[1]]);
+        while (trailsRef.current[3].length > trailMax) trailsRef.current[3].shift();
       }
     }
 
@@ -1063,20 +1146,28 @@ export default function ThreeBodyGlassSim() {
       } else if (e.code === "Digit0") {
         if (e.shiftKey && !rocketRef.current) {
           rocketRef.current = { p: [0, 0], v: [0, 0], angle: 0, power: 0, wDown: false, sDown: false, rotL: false, rotR: false };
+          trailsRef.current[3] = [];
+          pausedRef.current[3] = false;
         }
         if (rocketRef.current) followRef.current = 3;
       }
+      if (e.key === "S") {
+        setShowSpeed((s) => !s);
+      } else if (e.key === "g") {
+        setShowGravity((s) => !s);
+      } else if (e.key === "p") {
+        if (followRef.current !== null) {
+          const idx = followRef.current;
+          pausedRef.current[idx] = !pausedRef.current[idx];
+        } else {
+          setIsPlaying((p) => !p);
+        }
+      }
       if (rocketRef.current) {
         if (e.key === "w") rocketRef.current.wDown = true;
-        if (e.key === "S") rocketRef.current.sDown = true;
+        if (e.key === "s" && !e.shiftKey) rocketRef.current.sDown = true;
         if (e.key === "a") rocketRef.current.rotL = true;
         if (e.key === "d") rocketRef.current.rotR = true;
-      }
-      if (e.key === "s" && !e.shiftKey) {
-        setShowSpeed((s) => !s);
-      }
-      if (e.key === "g") {
-        setShowGravity((s) => !s);
       }
     };
     const up = (e: KeyboardEvent) => {
@@ -1084,7 +1175,7 @@ export default function ThreeBodyGlassSim() {
         if (e.key === "a") rocketRef.current.rotL = false;
         if (e.key === "d") rocketRef.current.rotR = false;
         if (e.key === "w") rocketRef.current.wDown = false;
-        if (e.key === "S") rocketRef.current.sDown = false;
+        if (e.key === "s" && !e.shiftKey) rocketRef.current.sDown = false;
       }
     };
     window.addEventListener("keydown", down);
