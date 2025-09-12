@@ -925,6 +925,10 @@ export default function ThreeBodyGlassSim() {
       const simTimeTarget = Math.max(0, realElapsed * simRate);
       const tEvent = buf.tEvent;
 
+      if (!postEventRef.current && simTimeTarget > tEvent) {
+        postEventRef.current = true;
+      }
+
       if (simTimeTarget <= tEvent) {
         const idx = Math.min(buf.states.length - 1, Math.floor(simTimeTarget / buf.dt));
         const state = buf.states[idx] ?? buf.states[buf.states.length - 1];
@@ -934,7 +938,6 @@ export default function ThreeBodyGlassSim() {
           liveRef.current.tSim = idx * buf.dt;
         }
       } else {
-        postEventRef.current = true;
         if (Math.abs(liveRef.current.tSim - tEvent) < buf.dt) {
           const exact = buf.states[Math.min(buf.states.length - 1, Math.floor(tEvent / buf.dt))];
           if (exact) {
@@ -1139,7 +1142,13 @@ export default function ThreeBodyGlassSim() {
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
+      const k = e.key.toLowerCase();
+
+      if (k === "g") setShowGravity((s) => !s);
+      if (k === "v") setShowSpeed((s) => !s);
+
       if (!postEventRef.current) return;
+
       if (e.code === "Digit1" || e.code === "Digit2" || e.code === "Digit3") {
         followRef.current = parseInt(e.code.slice(-1)) - 1;
       } else if (e.code === "Digit0") {
@@ -1149,33 +1158,29 @@ export default function ThreeBodyGlassSim() {
           pausedRef.current[3] = false;
         }
         if (rocketRef.current) followRef.current = 3;
-      }
-      if (e.key === "S") {
-        setShowSpeed((s) => !s);
-      } else if (e.key === "g") {
-        setShowGravity((s) => !s);
-      } else if (e.key === "p") {
+      } else if (k === "p") {
         if (followRef.current !== null) {
-          const idx = followRef.current;
-          pausedRef.current[idx] = !pausedRef.current[idx];
+          pausedRef.current[followRef.current] = !pausedRef.current[followRef.current];
         } else {
           setIsPlaying((p) => !p);
         }
       }
+
       if (rocketRef.current) {
-        if (e.key === "w") rocketRef.current.wDown = true;
-        if (e.key === "s" && !e.shiftKey) rocketRef.current.sDown = true;
-        if (e.key === "a") rocketRef.current.rotL = true;
-        if (e.key === "d") rocketRef.current.rotR = true;
+        if (k === "w") rocketRef.current.wDown = true;
+        if (k === "s" && !e.shiftKey) rocketRef.current.sDown = true;
+        if (k === "a") rocketRef.current.rotL = true;
+        if (k === "d") rocketRef.current.rotR = true;
       }
     };
+
     const up = (e: KeyboardEvent) => {
-      if (rocketRef.current) {
-        if (e.key === "a") rocketRef.current.rotL = false;
-        if (e.key === "d") rocketRef.current.rotR = false;
-        if (e.key === "w") rocketRef.current.wDown = false;
-        if (e.key === "s" && !e.shiftKey) rocketRef.current.sDown = false;
-      }
+      const k = e.key.toLowerCase();
+      if (!rocketRef.current) return;
+      if (k === "a") rocketRef.current.rotL = false;
+      if (k === "d") rocketRef.current.rotR = false;
+      if (k === "w") rocketRef.current.wDown = false;
+      if (k === "s" && !e.shiftKey) rocketRef.current.sDown = false;
     };
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
