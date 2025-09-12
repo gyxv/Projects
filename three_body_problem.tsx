@@ -159,7 +159,9 @@ export default function ThreeBodyGlassSim() {
     p: [number, number];
     v: [number, number];
     angle: number;
-    thrust: boolean;
+    thrustPower: number;
+    thrustUp: boolean;
+    thrustDown: boolean;
     rotL: boolean;
     rotR: boolean;
   };
@@ -225,6 +227,8 @@ export default function ThreeBodyGlassSim() {
 
   // Panels
   const [panelOpen, setPanelOpen] = useState(true);
+  const [showSpeed, setShowSpeed] = useState(false);
+  const [showGravity, setShowGravity] = useState(false);
 
   // Which step index is the pre-sim event?
   const eventIndexRef = useRef<number>(-1);
@@ -616,6 +620,12 @@ export default function ThreeBodyGlassSim() {
     const cx = W / 2, cy = H / 2;
     return [cx + (x - px) * s, cy - (y - py) * s];
   }
+  function screenToWorld(x: number, y: number, W: number, H: number): [number, number] {
+    const s = scaleRef.current;
+    const [px, py] = panRef.current;
+    const cx = W / 2, cy = H / 2;
+    return [px + (x - cx) / s, py - (y - cy) / s];
+  }
 
   // ======== Drawing ========
   function drawScene(ctx: CanvasRenderingContext2D, p: [number, number][]) {
@@ -639,17 +649,84 @@ export default function ThreeBodyGlassSim() {
     grad.addColorStop(1, "#060912");
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
-
-    // Subtle grid
-    ctx.save();
-    ctx.globalAlpha = 0.08;
-    const step = 80;
-    ctx.beginPath();
-    for (let x = 0; x < W; x += step) { ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, H); }
-    for (let y = 0; y < H; y += step) { ctx.moveTo(0, y + 0.5); ctx.lineTo(W, y + 0.5); }
-    ctx.strokeStyle = "#ffffff";
-    ctx.stroke();
-    ctx.restore();
+    if (showGravity) {
+      const targets: { pos: [number, number]; idx: number }[] = [];
+      for (let i = 0; i < 3; i++) {
+        if (destroyedRef.current[i]) continue;
+        const [sx, sy] = worldToScreen(p[i][0], p[i][1], W, H);
+        if (sx >= 0 && sx <= W && sy >= 0 && sy <= H) targets.push({ pos: p[i], idx: i });
+      }
+      if (rocketRef.current) {
+        const r = rocketRef.current;
+        const [sx, sy] = worldToScreen(r.p[0], r.p[1], W, H);
+        if (sx >= 0 && sx <= W && sy >= 0 && sy <= H) targets.push({ pos: r.p, idx: -1 });
+      }
+      if (targets.length === 0) {
+        const mid = screenToWorld(W / 2, H / 2, W, H);
+        targets.push({ pos: mid, idx: -99 });
+      }
+      const infl: { pos: [number, number]; mass: number; strength: number }[] = [];
+      const addInfl = (pos: [number, number], mass: number, target: [number, number]) => {
+        const r = sub(pos, target);
+        const d2 = r[0] * r[0] + r[1] * r[1] + softEps * softEps;
+        const strength = mass / d2;
+        infl.push({ pos, mass, strength });
+      };
+      for (const t of targets) {
+        for (let j = 0; j < 3; j++) {
+          if (destroyedRef.current[j]) continue;
+          if (t.idx === j) continue;
+          addInfl(p[j], mass, t.pos);
+        }
+        for (const obj of outerObjectsRef.current) {
+          const op = outerObjectPosition(obj, liveRef.current.tSim);
+          addInfl(op, obj.mass, t.pos);
+        }
+      }
+      infl.sort((a, b) => b.strength - a.strength);
+      const sources: { pos: [number, number]; mass: number }[] = [];
+      for (const s of infl) {
+        if (!sources.some(o => Math.hypot(o.pos[0] - s.pos[0], o.pos[1] - s.pos[1]) < 1e-6)) {
+          sources.push({ pos: s.pos, mass: s.mass });
+          if (sources.length >= 3) break;
+        }
+      }
+      const distort = (x: number, y: number): [number, number] => {
+        let off: [number, number] = [0, 0];
+        for (const s of sources) {
+          const r = sub(s.pos, [x, y]);
+          const d2 = r[0] * r[0] + r[1] * r[1] + 1e-6;
+          const fac = s.mass / d2 * 0.2;
+          off = add(off, mul(r, fac));
+        }
+        return add([x, y], off) as [number, number];
+      };
+      const [wx0, wy0] = screenToWorld(0, H, W, H);
+      const [wx1, wy1] = screenToWorld(W, 0, W, H);
+      const step = 2;
+      ctx.save();
+      ctx.globalAlpha = 0.1;
+      ctx.strokeStyle = "#ffffff";
+      for (let x = Math.floor(wx0 / step) * step; x <= wx1; x += step) {
+        ctx.beginPath();
+        for (let y = wy0; y <= wy1; y += step) {
+          const [dx, dy] = distort(x, y);
+          const [sx, sy] = worldToScreen(dx, dy, W, H);
+          if (y === wy0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+        }
+        ctx.stroke();
+      }
+      for (let y = Math.floor(wy0 / step) * step; y <= wy1; y += step) {
+        ctx.beginPath();
+        for (let x = wx0; x <= wx1; x += step) {
+          const [dx, dy] = distort(x, y);
+          const [sx, sy] = worldToScreen(dx, dy, W, H);
+          if (x === wx0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
 
     const glow = (hex: string, alpha = 0.9) => {
       ctx.shadowBlur = 22;
@@ -731,6 +808,63 @@ export default function ThreeBodyGlassSim() {
       ctx.lineTo(-4, -3);
       ctx.closePath();
       ctx.fill();
+      if (r.thrustPower > 0) {
+        ctx.fillStyle = "#ff9933";
+        ctx.beginPath();
+        ctx.moveTo(-4, -2);
+        ctx.lineTo(-4 - 6 * Math.min(1, r.thrustPower), 0);
+        ctx.lineTo(-4, 2);
+        ctx.closePath();
+        ctx.fill();
+      }
+      if (r.rotL) {
+        ctx.fillStyle = "#ff9933";
+        ctx.beginPath();
+        ctx.moveTo(-2, 3);
+        ctx.lineTo(-6, 5);
+        ctx.lineTo(-2, 4);
+        ctx.closePath();
+        ctx.fill();
+      }
+      if (r.rotR) {
+        ctx.fillStyle = "#ff9933";
+        ctx.beginPath();
+        ctx.moveTo(-2, -3);
+        ctx.lineTo(-6, -5);
+        ctx.lineTo(-2, -4);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+    if (showSpeed) {
+      ctx.save();
+      ctx.font = "12px sans-serif";
+      ctx.textAlign = "center";
+      const drawSpeed = (sx: number, sy: number, v: [number, number]) => {
+        const mph = (norm(v) * 3600).toFixed(1);
+        const text = `${mph} mph`;
+        const pad = 4;
+        const w = ctx.measureText(text).width + pad * 2;
+        const h = 16;
+        const ty = sy - 24;
+        ctx.fillStyle = "rgba(255,255,255,0.2)";
+        ctx.fillRect(sx - w / 2, ty - h / 2, w, h);
+        ctx.strokeStyle = "rgba(255,255,255,0.4)";
+        ctx.strokeRect(sx - w / 2, ty - h / 2, w, h);
+        ctx.fillStyle = "rgba(255,255,255,0.85)";
+        ctx.fillText(text, sx, ty + 5);
+      };
+      for (let i = 0; i < 3; i++) {
+        if (destroyedRef.current[i]) continue;
+        const [sx, sy] = worldToScreen(p[i][0], p[i][1], W, H);
+        if (sx >= 0 && sx <= W && sy >= 0 && sy <= H) drawSpeed(sx, sy, liveRef.current.v[i]);
+      }
+      if (rocketRef.current) {
+        const r = rocketRef.current;
+        const [sx, sy] = worldToScreen(r.p[0], r.p[1], W, H);
+        if (sx >= 0 && sx <= W && sy >= 0 && sy <= H) drawSpeed(sx, sy, r.v);
+      }
       ctx.restore();
     }
   }
@@ -806,10 +940,11 @@ export default function ThreeBodyGlassSim() {
             const rot = 1.5;
             if (r.rotL) r.angle += rot * step;
             if (r.rotR) r.angle -= rot * step;
+            if (r.thrustUp) r.thrustPower = Math.min(r.thrustPower + step, 5);
+            if (r.thrustDown) r.thrustPower = Math.max(0, r.thrustPower - step);
             let acc = rocketAcceleration(r.p, liveRef.current.tSim);
-            if (r.thrust) {
-              const thrust = 0.4;
-              acc = add(acc, [Math.cos(r.angle) * thrust, Math.sin(r.angle) * thrust]);
+            if (r.thrustPower > 0) {
+              acc = add(acc, [Math.cos(r.angle) * r.thrustPower, Math.sin(r.angle) * r.thrustPower]);
             }
             r.v = add(r.v, mul(acc, step));
             r.p = add(r.p, mul(r.v, step));
@@ -953,13 +1088,15 @@ export default function ThreeBodyGlassSim() {
         followRef.current = parseInt(e.code.slice(-1)) - 1;
       } else if (e.code === "Digit0") {
         if (e.shiftKey && !rocketRef.current) {
-          rocketRef.current = { p: [0, 0], v: [0, 0], angle: 0, thrust: false, rotL: false, rotR: false };
+          rocketRef.current = { p: [0, 0], v: [0, 0], angle: 0, thrustPower: 0, thrustUp: false, thrustDown: false, rotL: false, rotR: false };
         }
         if (rocketRef.current) followRef.current = 3;
       }
+      if (e.key === "s" && !e.repeat) setShowSpeed(v => !v);
+      if (e.key === "g" && !e.repeat) setShowGravity(v => !v);
       if (rocketRef.current) {
-        if (e.key === "w") rocketRef.current.thrust = true;
-        if (e.key === "s") rocketRef.current.thrust = false;
+        if (e.key === "w") rocketRef.current.thrustUp = true;
+        if (e.key === "S") rocketRef.current.thrustDown = true;
         if (e.key === "a") rocketRef.current.rotL = true;
         if (e.key === "d") rocketRef.current.rotR = true;
       }
@@ -968,7 +1105,8 @@ export default function ThreeBodyGlassSim() {
       if (!rocketRef.current) return;
       if (e.key === "a") rocketRef.current.rotL = false;
       if (e.key === "d") rocketRef.current.rotR = false;
-      if (e.key === "w" || e.key === "s") rocketRef.current.thrust = false;
+      if (e.key === "w") rocketRef.current.thrustUp = false;
+      if (e.key === "S") rocketRef.current.thrustDown = false;
     };
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
