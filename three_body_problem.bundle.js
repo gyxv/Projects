@@ -1,25 +1,1188 @@
-(()=>{var dn=Object.create;var _t=Object.defineProperty;var bn=Object.getOwnPropertyDescriptor;var pn=Object.getOwnPropertyNames;var hn=Object.getPrototypeOf,vn=Object.prototype.hasOwnProperty;var Ke=(e,n)=>()=>(n||e((n={exports:{}}).exports,n),n.exports);var yn=(e,n,m,c)=>{if(n&&typeof n=="object"||typeof n=="function")for(let f of pn(n))!vn.call(e,f)&&f!==m&&_t(e,f,{get:()=>n[f],enumerable:!(c=bn(n,f))||c.enumerable});return e};var Ot=(e,n,m)=>(m=e!=null?dn(hn(e)):{},yn(n||!e||!e.__esModule?_t(m,"default",{value:e,enumerable:!0}):m,e));var Ht=Ke(S=>{"use strict";var Oe=Symbol.for("react.element"),gn=Symbol.for("react.portal"),wn=Symbol.for("react.fragment"),xn=Symbol.for("react.strict_mode"),Mn=Symbol.for("react.profiler"),Sn=Symbol.for("react.provider"),kn=Symbol.for("react.context"),Rn=Symbol.for("react.forward_ref"),En=Symbol.for("react.suspense"),Nn=Symbol.for("react.memo"),Cn=Symbol.for("react.lazy"),jt=Symbol.iterator;function Pn(e){return e===null||typeof e!="object"?null:(e=jt&&e[jt]||e["@@iterator"],typeof e=="function"?e:null)}var $t={isMounted:function(){return!1},enqueueForceUpdate:function(){},enqueueReplaceState:function(){},enqueueSetState:function(){}},Lt=Object.assign,At={};function Se(e,n,m){this.props=e,this.context=n,this.refs=At,this.updater=m||$t}Se.prototype.isReactComponent={};Se.prototype.setState=function(e,n){if(typeof e!="object"&&typeof e!="function"&&e!=null)throw Error("setState(...): takes an object of state variables to update or a function which returns an object of state variables.");this.updater.enqueueSetState(this,e,n,"setState")};Se.prototype.forceUpdate=function(e){this.updater.enqueueForceUpdate(this,e,"forceUpdate")};function Dt(){}Dt.prototype=Se.prototype;function bt(e,n,m){this.props=e,this.context=n,this.refs=At,this.updater=m||$t}var pt=bt.prototype=new Dt;pt.constructor=bt;Lt(pt,Se.prototype);pt.isPureReactComponent=!0;var Tt=Array.isArray,Ft=Object.prototype.hasOwnProperty,ht={current:null},qt={key:!0,ref:!0,__self:!0,__source:!0};function zt(e,n,m){var c,f={},w=null,x=null;if(n!=null)for(c in n.ref!==void 0&&(x=n.ref),n.key!==void 0&&(w=""+n.key),n)Ft.call(n,c)&&!qt.hasOwnProperty(c)&&(f[c]=n[c]);var R=arguments.length-2;if(R===1)f.children=m;else if(1<R){for(var P=Array(R),U=0;U<R;U++)P[U]=arguments[U+2];f.children=P}if(e&&e.defaultProps)for(c in R=e.defaultProps,R)f[c]===void 0&&(f[c]=R[c]);return{$$typeof:Oe,type:e,key:w,ref:x,props:f,_owner:ht.current}}function _n(e,n){return{$$typeof:Oe,type:e.type,key:n,ref:e.ref,props:e.props,_owner:e._owner}}function vt(e){return typeof e=="object"&&e!==null&&e.$$typeof===Oe}function On(e){var n={"=":"=0",":":"=2"};return"$"+e.replace(/[=:]/g,function(m){return n[m]})}var It=/\/+/g;function dt(e,n){return typeof e=="object"&&e!==null&&e.key!=null?On(""+e.key):n.toString(36)}function Ye(e,n,m,c,f){var w=typeof e;(w==="undefined"||w==="boolean")&&(e=null);var x=!1;if(e===null)x=!0;else switch(w){case"string":case"number":x=!0;break;case"object":switch(e.$$typeof){case Oe:case gn:x=!0}}if(x)return x=e,f=f(x),e=c===""?"."+dt(x,0):c,Tt(f)?(m="",e!=null&&(m=e.replace(It,"$&/")+"/"),Ye(f,n,m,"",function(U){return U})):f!=null&&(vt(f)&&(f=_n(f,m+(!f.key||x&&x.key===f.key?"":(""+f.key).replace(It,"$&/")+"/")+e)),n.push(f)),1;if(x=0,c=c===""?".":c+":",Tt(e))for(var R=0;R<e.length;R++){w=e[R];var P=c+dt(w,R);x+=Ye(w,n,m,P,f)}else if(P=Pn(e),typeof P=="function")for(e=P.call(e),R=0;!(w=e.next()).done;)w=w.value,P=c+dt(w,R++),x+=Ye(w,n,m,P,f);else if(w==="object")throw n=String(e),Error("Objects are not valid as a React child (found: "+(n==="[object Object]"?"object with keys {"+Object.keys(e).join(", ")+"}":n)+"). If you meant to render a collection of children, use an array instead.");return x}function Ge(e,n,m){if(e==null)return e;var c=[],f=0;return Ye(e,c,"","",function(w){return n.call(m,w,f++)}),c}function jn(e){if(e._status===-1){var n=e._result;n=n(),n.then(function(m){(e._status===0||e._status===-1)&&(e._status=1,e._result=m)},function(m){(e._status===0||e._status===-1)&&(e._status=2,e._result=m)}),e._status===-1&&(e._status=0,e._result=n)}if(e._status===1)return e._result.default;throw e._result}var W={current:null},Je={transition:null},Tn={ReactCurrentDispatcher:W,ReactCurrentBatchConfig:Je,ReactCurrentOwner:ht};S.Children={map:Ge,forEach:function(e,n,m){Ge(e,function(){n.apply(this,arguments)},m)},count:function(e){var n=0;return Ge(e,function(){n++}),n},toArray:function(e){return Ge(e,function(n){return n})||[]},only:function(e){if(!vt(e))throw Error("React.Children.only expected to receive a single React element child.");return e}};S.Component=Se;S.Fragment=wn;S.Profiler=Mn;S.PureComponent=bt;S.StrictMode=xn;S.Suspense=En;S.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED=Tn;S.cloneElement=function(e,n,m){if(e==null)throw Error("React.cloneElement(...): The argument must be a React element, but you passed "+e+".");var c=Lt({},e.props),f=e.key,w=e.ref,x=e._owner;if(n!=null){if(n.ref!==void 0&&(w=n.ref,x=ht.current),n.key!==void 0&&(f=""+n.key),e.type&&e.type.defaultProps)var R=e.type.defaultProps;for(P in n)Ft.call(n,P)&&!qt.hasOwnProperty(P)&&(c[P]=n[P]===void 0&&R!==void 0?R[P]:n[P])}var P=arguments.length-2;if(P===1)c.children=m;else if(1<P){R=Array(P);for(var U=0;U<P;U++)R[U]=arguments[U+2];c.children=R}return{$$typeof:Oe,type:e.type,key:f,ref:w,props:c,_owner:x}};S.createContext=function(e){return e={$$typeof:kn,_currentValue:e,_currentValue2:e,_threadCount:0,Provider:null,Consumer:null,_defaultValue:null,_globalName:null},e.Provider={$$typeof:Sn,_context:e},e.Consumer=e};S.createElement=zt;S.createFactory=function(e){var n=zt.bind(null,e);return n.type=e,n};S.createRef=function(){return{current:null}};S.forwardRef=function(e){return{$$typeof:Rn,render:e}};S.isValidElement=vt;S.lazy=function(e){return{$$typeof:Cn,_payload:{_status:-1,_result:e},_init:jn}};S.memo=function(e,n){return{$$typeof:Nn,type:e,compare:n===void 0?null:n}};S.startTransition=function(e){var n=Je.transition;Je.transition={};try{e()}finally{Je.transition=n}};S.unstable_act=function(){throw Error("act(...) is not supported in production builds of React.")};S.useCallback=function(e,n){return W.current.useCallback(e,n)};S.useContext=function(e){return W.current.useContext(e)};S.useDebugValue=function(){};S.useDeferredValue=function(e){return W.current.useDeferredValue(e)};S.useEffect=function(e,n){return W.current.useEffect(e,n)};S.useId=function(){return W.current.useId()};S.useImperativeHandle=function(e,n,m){return W.current.useImperativeHandle(e,n,m)};S.useInsertionEffect=function(e,n){return W.current.useInsertionEffect(e,n)};S.useLayoutEffect=function(e,n){return W.current.useLayoutEffect(e,n)};S.useMemo=function(e,n){return W.current.useMemo(e,n)};S.useReducer=function(e,n,m){return W.current.useReducer(e,n,m)};S.useRef=function(e){return W.current.useRef(e)};S.useState=function(e){return W.current.useState(e)};S.useSyncExternalStore=function(e,n,m){return W.current.useSyncExternalStore(e,n,m)};S.useTransition=function(){return W.current.useTransition()};S.version="18.2.0"});var Ut=Ke((Vn,Bt)=>{"use strict";Bt.exports=Ht()});var Vt=Ke(Ze=>{"use strict";var In=Ut(),$n=Symbol.for("react.element"),Ln=Symbol.for("react.fragment"),An=Object.prototype.hasOwnProperty,Dn=In.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED.ReactCurrentOwner,Fn={key:!0,ref:!0,__self:!0,__source:!0};function Wt(e,n,m){var c,f={},w=null,x=null;m!==void 0&&(w=""+m),n.key!==void 0&&(w=""+n.key),n.ref!==void 0&&(x=n.ref);for(c in n)An.call(n,c)&&!Fn.hasOwnProperty(c)&&(f[c]=n[c]);if(e&&e.defaultProps)for(c in n=e.defaultProps,n)f[c]===void 0&&(f[c]=n[c]);return{$$typeof:$n,type:e,key:w,ref:x,props:f,_owner:Dn.current}}Ze.Fragment=Ln;Ze.jsx=Wt;Ze.jsxs=Wt});var yt=Ke((Gn,Kt)=>{"use strict";Kt.exports=Vt()});var u=Ot(yt()),{useEffect:ke,useRef:C,useState:q}=React,gt=[{label:"Figure\u20118",p:[[.97000436,-.24308753],[-.97000436,.24308753],[0,0]],v:[[.466203685,.43236573],[.466203685,.43236573],[-.93240737,-.86473146]]},{label:"Circular",p:[[1,0],[-.5,.8660254],[-.5,-.8660254]],v:[[0,.658],[-.57,-.329],[.57,-.329]]}];function qn(){let e=()=>Math.random()*2-1;return{label:"Random",p:[[e(),e()],[e(),e()],[e(),e()]],v:[[e()*.5,e()*.5],[e()*.5,e()*.5],[e()*.5,e()*.5]]}}function j(e,n){return e+Math.random()*(n-e)}function he(){let e=Math.random()*360,n=.5+Math.random()*.4,m=.4+Math.random()*.4;return hslToHex(e,n,m)}function zn(e){let n=[],m=Math.random();if(m<.15){let c=j(8,12),f={mass:c,radius:j(.2,.3),color:he(),orbitCenter:e,orbitRadius:0,omega:0,phase:0};n.push(f);let w=2+Math.floor(Math.random()*3);for(let x=0;x<w;x++){let R=3+x*j(1.5,2.5),P=j(.5,1.5),U=Math.sqrt(c/Math.pow(R,3)),te={mass:P,radius:j(.05,.12),color:he(),orbitCenter:e,orbitRadius:R,omega:U,phase:Math.random()*Math.PI*2};Math.random()<.3&&(te.ring=!0),n.push(te);let Xe=Math.random()<.5?Math.floor(Math.random()*2)+1:0;for(let oe=0;oe<Xe;oe++){let ve=j(.2,.5),Qe=Math.sqrt(P/Math.pow(ve,3));n.push({mass:j(.01,.05),radius:j(.01,.03),color:he(),orbitParent:te,orbitRadius:ve,omega:Qe,phase:Math.random()*Math.PI*2})}}}else if(m<.3){let c={mass:j(3,5),radius:j(.15,.25),color:he(),orbitCenter:e,orbitRadius:0,omega:0,phase:0,ring:!0};n.push(c);let f=1+Math.floor(Math.random()*4);for(let w=0;w<f;w++){let x=j(.4,.8)+w*.15,R=Math.sqrt(c.mass/Math.pow(x,3));n.push({mass:j(.02,.08),radius:j(.015,.04),color:he(),orbitParent:c,orbitRadius:x,omega:R,phase:Math.random()*Math.PI*2})}}else if(m<.55){let c={mass:j(1,3),radius:j(.08,.15),color:he(),orbitCenter:e,orbitRadius:0,omega:0,phase:0};n.push(c);let f=j(2.5,4),w=Math.sqrt(c.mass/Math.pow(f,3)),x=30+Math.floor(Math.random()*40);for(let R=0;R<x;R++)n.push({mass:j(.005,.02),radius:j(.01,.03),color:"#aaaaaa",orbitCenter:e,orbitRadius:f+(Math.random()-.5)*.4,omega:w,phase:Math.random()*Math.PI*2})}else if(m<.7){let c=j(.5,1.5),f=Math.random()*Math.PI*2;n.push({mass:j(.05,.1),radius:j(.02,.04),color:"#ffffff",kind:"drift",p0:[e[0],e[1]],v:[Math.cos(f)*c,Math.sin(f)*c]})}else if(m<.9)n.push({mass:j(1,3),radius:j(.1,.18),color:he(),orbitCenter:e,orbitRadius:0,omega:0,phase:0});else{let c=3+Math.floor(Math.random()*5);for(let f=0;f<c;f++)n.push({mass:j(.01,.03),radius:j(.02,.05),color:"#888888",orbitCenter:e,orbitRadius:j(.3,1.2),omega:j(.2,.5),phase:Math.random()*Math.PI*2})}return n}function wt(e){let n=[],m=3+Math.floor(Math.random()*4);for(let c=0;c<m;c++){let f=Math.random()*Math.PI*2,w=20+Math.random()*8,x=[e[0]+Math.cos(f)*w,e[1]+Math.sin(f)*w];n.push(...zn(x))}return n}function je(e,n){if(e.kind==="drift"&&e.p0&&e.v)return[e.p0[0]+e.v[0]*n,e.p0[1]+e.v[1]*n];let m=0,c=0;if(e.orbitParent?[m,c]=je(e.orbitParent,n):e.orbitCenter&&([m,c]=e.orbitCenter),!e.orbitRadius)return[m,c];let f=(e.phase||0)+(e.omega||0)*n;return[m+Math.cos(f)*e.orbitRadius,c+Math.sin(f)*e.orbitRadius]}var Y={zoom:1.35,speedMul:1,trail:90};function Hn(){let[e,n]=q(!1),[m,c]=q(!0),[f,w]=q(null),[x,R]=q(""),[P,U]=q(120),[te,Xe]=q(["#cccccc","#cccccc","#cccccc"]),[oe,ve]=q(null),[Qe,ye]=q([]),[Gt,Te]=q(""),[Yt,Ie]=q(""),[Jt,$e]=q(null),[xt,Re]=q(Y.zoom),ge=C(gt[0]),[Bn,Le]=q([0,0]),ce=C([0,0]),we=C(null),et=C([[0,0],[0,0],[0,0]]),tt=C(!1),nt=C([0,0]),rt=C([0,0]),Ee=C(!1),A=C(null),Ae=C(null),ot=C(""),[Zt,Mt]=q(!1),[st,De]=q(!1),[St,Xt]=q(""),at=C(null),le=C(wt([0,0])),ut=C([[0,0]]);ke(()=>{if(!st)return;let t=o=>{o.key==="Escape"&&De(!1)};return window.addEventListener("keydown",t),()=>window.removeEventListener("keydown",t)},[st]);let kt=C(null),se=C(null),Ne=1,Ce=1,Pe=.035,ae=1e-4,it=C(180),Q=C(180),ne=C(Y.zoom),$=C(null),y=C({p:[[0,0],[0,0],[0,0]],v:[[0,0],[0,0],[0,0]],tSim:0}),V=C({realStart:0,baseSpeed:1}),[re,Fe]=q(1),_e=C([[],[],[]]),[qe,ze]=q(90),[Rt,Qt]=q(!0),en=C(-1),me=C([]),K=C([!1,!1,!1]),He=C(!1);function ct(t,o,r){r=Math.max(0,Math.min(1,r)),o=Math.max(0,Math.min(1,o));let a=(1-Math.abs(2*r-1))*o,d=t/60,b=a*(1-Math.abs(d%2-1)),l=0,i=0,g=0;d>=0&&d<1?[l,i,g]=[a,b,0]:d<2?[l,i,g]=[b,a,0]:d<3?[l,i,g]=[0,a,b]:d<4?[l,i,g]=[0,b,a]:d<5?[l,i,g]=[b,0,a]:[l,i,g]=[a,0,b];let N=r-a/2,v=Math.round((l+N)*255),s=Math.round((i+N)*255),h=Math.round((g+N)*255);return`#${((1<<24)+(v<<16)+(s<<8)+h).toString(16).slice(1)}`}function tn(){let t=Math.random()*360,o=.72,r=.55,a=(t+120)%360,d=(t+240)%360;return{base:ct(t,o,r),tri:[ct(a,o,r),ct(d,o,r)]}}let _=(t,o)=>[t[0]+o[0],t[1]+o[1]],L=(t,o)=>[t[0]-o[0],t[1]-o[1]],T=(t,o)=>[t[0]*o,t[1]*o],fe=(t,o)=>t[0]*o[0]+t[1]*o[1],G=t=>Math.hypot(t[0],t[1]);function xe(t){ut.current.every(o=>G(L(t,o))>40)&&(ut.current.push([t[0],t[1]]),le.current.push(...wt([t[0],t[1]])))}function Be(t,o,r){let a=[[0,0],[0,0],[0,0]];for(let d=0;d<3;d++)if(!K.current[d]){for(let b=0;b<3;b++)if(b!==d&&!K.current[b]){let l=L(t[b],t[d]),i=l[0]*l[0]+l[1]*l[1]+ae*ae,g=Math.sqrt(i),N=Ne*Ce/(i*g);a[d]=_(a[d],T(l,N))}if(r)for(let b of le.current){let l=je(b,o),i=L(l,t[d]),g=i[0]*i[0]+i[1]*i[1]+ae*ae,N=Math.sqrt(g),v=Ne*b.mass/(g*N);a[d]=_(a[d],T(i,v))}}return a}function lt(t,o,r,a,d){let b=Be(t,a,d),l=t.map((I,E)=>_(I,T(o[E],r*.5))),i=o.map((I,E)=>_(I,T(b[E],r*.5))),g=Be(l,a+r*.5,d),N=t.map((I,E)=>_(I,T(i[E],r*.5))),v=o.map((I,E)=>_(I,T(g[E],r*.5))),s=Be(N,a+r*.5,d),h=t.map((I,E)=>_(I,T(v[E],r))),p=o.map((I,E)=>_(I,T(s[E],r))),M=Be(h,a+r,d),F=t.map((I,E)=>_(I,T(_(_(o[E],T(_(i[E],v[E]),2)),p[E]),r/6))),B=o.map((I,E)=>_(I,T(_(_(b[E],T(_(g[E],s[E]),2)),M[E]),r/6)));return{p:F,v:B}}function Et(t,o){for(let r=0;r<3;r++)for(let a=r+1;a<3;a++){if(K.current[r]||K.current[a])continue;let d=L(t[r],t[a]),b=G(d);if(b<=2*Pe){let l=T(d,1/(b||1e-9)),i=L(o[r],o[a]),g=fe(i,l);if(g<0){let N=2*Pe-b;if(N>0){let s=T(l,N*.5+1e-6);t[r]=_(t[r],s),t[a]=L(t[a],s)}let v=T(l,g);o[r]=L(o[r],v),o[a]=_(o[a],v)}}}}function Nt(t,o,r){if($.current&&!(r<$.current.tEvent)){for(let a=0;a<3;a++)if(!K.current[a])for(let d of le.current){let b=je(d,r),l=L(t[a],b),i=G(l);if(i<=Pe+d.radius){let g=T(l,1/(i||1e-9)),N=fe(o[a],g);N<0&&(o[a]=L(o[a],T(g,2*N)))}}}}function nn(t,o){let r=[0,0];for(let a=0;a<3;a++){if(K.current[a])continue;let d=L(y.current.p[a],t),b=d[0]*d[0]+d[1]*d[1]+ae*ae,l=Math.sqrt(b),i=Ne*Ce/(b*l);r=_(r,T(d,i))}for(let a of le.current){let d=je(a,o),b=L(d,t),l=b[0]*b[0]+b[1]*b[1]+ae*ae,i=Math.sqrt(l),g=Ne*a.mass/(l*i);r=_(r,T(b,g))}return r}function Ue(t,o,r){let a=fe(r[t],r[t]),d=0;for(let b=0;b<3;b++)if(b!==t){let l=G(L(o[t],o[b]));d-=Ne*Ce*Ce/Math.max(l,1e-6)}return .5*Ce*a+d}function mt(t){let o=[0,0];for(let r=0;r<3;r++)o=_(o,t[r]);return{pc:T(o,1/3)}}async function rn(t){let{base:o,tri:r}=tn(),a=[o,r[0],r[1]];Xe(a),ye(["Starting search for perturbations..."]),Te(""),Ie(""),me.current=[],K.current=[!1,!1,!1],He.current=!1;let d=t?.seed?t.seed.p.map(p=>[...p]):ge.current.p.map(p=>[...p]),b=t?.seed?t.seed.v.map(p=>[...p]):ge.current.v.map(p=>[...p]),l=[1e-5,5e-5,1e-4,3e-4,.001,.003,.007,.012],i=.004,g=t?.targetTEvent??t?.targetRealTime,N=g?Math.max(22e4,Math.ceil(g/i)+5e3):22e4,v=2*Pe,s=null;if(t?.seed){let p=d.map(z=>[...z]),M=b.map(z=>[...z]),F=[],B=!1,I="collision",E="",J=0,ee=null,de=25e3;for(let z=0;z<N;z++){if(F.push({p:[[...p[0]],[...p[1]],[...p[2]]],v:[[...M[0]],[...M[1]],[...M[2]]]}),z%5e3===0){let k=(z/N*100).toFixed(1);ye(H=>[...H.slice(-40),`    ${k}%`]),await new Promise(H=>setTimeout(H,0))}let Z=null;e:for(let k=0;k<3;k++)for(let H=k+1;H<3;H++)if(G(L(p[k],p[H]))<=v){Z=[k,H];break e}if(Z){B=!0,I="collision",E=`${Z[0]+1}\u2194${Z[1]+1}`,J=z*i;break}let{pc:ue}=mt(p),be=p.map(k=>L(k,ue)),D=M.map(k=>k),ie=be.map(k=>G(k));if(ee){let k=ee.k,H=Ue(k,be,D),pe=fe(be[k],D[k])>0;if(ie[k]<5||!pe||H<0)ee=null;else if(z-ee.step>de){B=!0,I="ejection",E=`body ${k+1}`,J=ee.step*i;break}}else for(let k=0;k<3;k++){let H=Ue(k,be,D),pe=fe(be[k],D[k])>0;if(ie[k]>7&&pe&&H>0){ee={k,step:z};break}}let We=lt(p,M,i,z*i,!1);p=We.p,M=We.v}B&&(s={buffer:F,tEvent:J,kind:I,info:E})}else for(let p=0;p<l.length;p++){Te(`\u2208 candidate ${p+1}/${l.length}`),await new Promise(M=>setTimeout(M,0));for(let M=0;M<6;M++){Ie(`attempt ${M+1}/6`),await new Promise(D=>setTimeout(D,0));let F=d.map(D=>[...D]),B=b.map(D=>[...D]),I=Math.random()*Math.PI*2,E=l[p];B[0]=_(B[0],[Math.cos(I)*E,Math.sin(I)*E]);let J=[],ee=!1,de="collision",z="",Z=0,ue=null,be=25e3;for(let D=0;D<N;D++){if(J.push({p:[[...F[0]],[...F[1]],[...F[2]]],v:[[...B[0]],[...B[1]],[...B[2]]]}),D%5e3===0){let O=(D/N*100).toFixed(1);ye(X=>[...X.slice(-40),`    ${O}%`]),await new Promise(X=>setTimeout(X,0))}let ie=null;e:for(let O=0;O<3;O++)for(let X=O+1;X<3;X++)if(G(L(F[O],F[X]))<=v){ie=[O,X];break e}if(ie){ee=!0,de="collision",z=`${ie[0]+1}\u2194${ie[1]+1}`,Z=D*i;break}let{pc:We}=mt(F),k=F.map(O=>L(O,We)),H=B.map(O=>O),pe=k.map(O=>G(O));if(ue){let O=ue.k,X=Ue(O,k,H),Ve=fe(k[O],H[O])>0;if(pe[O]<5||!Ve||X<0)ue=null;else if(D-ue.step>be){ee=!0,de="ejection",z=`body ${O+1}`,Z=ue.step*i;break}}else for(let O=0;O<3;O++){let X=Ue(O,k,H),Ve=fe(k[O],H[O])>0;if(pe[O]>7&&Ve&&X>0){ue={k:O,step:D};break}}let Pt=lt(F,B,i,D*i,!1);F=Pt.p,B=Pt.v}if(ee)if(!s)s={buffer:J,tEvent:Z,kind:de,info:z};else if(g!=null){let D=Math.abs(s.tEvent-g);Math.abs(Z-g)<D&&(s={buffer:J,tEvent:Z,kind:de,info:z})}else Z<s.tEvent&&(s={buffer:J,tEvent:Z,kind:de,info:z})}}if(s?($.current={dt:i,states:s.buffer,tEvent:s.tEvent,kind:s.kind,info:s.info},en.current=Math.floor(s.tEvent/i),w(s.kind),R(s.info)):($.current={dt:i,states:[],tEvent:90,kind:"ejection",info:"body 3"},w("ejection"),R("body 3")),$.current&&t?.targetRealTime&&(V.current.baseSpeed=$.current.tEvent/t.targetRealTime,V.current.realStart=performance.now()/1e3),$.current&&$.current.states.length>0){let p=$.current.states[0];y.current={p:p.p.map(M=>[...M]),v:p.v.map(M=>[...M]),tSim:0}}else y.current={p:[[0,0],[0,0],[0,0]],v:[[0,0],[0,0],[0,0]],tSim:0};V.current.realStart=performance.now()/1e3,_e.current=[[],[],[]];let h=$.current&&$.current.states.length?Math.max(G(L($.current.states[0].p[0],$.current.states[0].p[1])),G(L($.current.states[0].p[1],$.current.states[0].p[2])),G(L($.current.states[0].p[2],$.current.states[0].p[0]))):1.2;if(it.current=Math.min(300,Math.max(140,300/Math.max(h,.4))),Q.current=it.current*ne.current,$.current&&$.current.states.length>0){let p=$.current.states[0];ot.current=btoa(JSON.stringify({p:p.p,v:p.v,duration:t?.targetRealTime??0}))}ye(p=>[...p.slice(-40),"Finalizing setup..."]),await new Promise(p=>setTimeout(p,0)),n(!0),ye([]),Te(""),Ie("")}function on(t){let o=Math.max(1,window.devicePixelRatio||1),{clientWidth:r,clientHeight:a}=t.canvas;t.canvas.width=Math.floor(r*o),t.canvas.height=Math.floor(a*o),t.setTransform(o,0,0,o,0,0)}function Me(t,o,r,a){let d=Q.current,[b,l]=ce.current,i=r/2,g=a/2;return[i+(t-b)*d,g-(o-l)*d]}function sn(t,o){let r=t.canvas.clientWidth,a=t.canvas.clientHeight,{pc:d}=mt(o),b=Math.max(G(L(o[0],d)),G(L(o[1],d)),G(L(o[2],d))),i=(b>2.6?Math.max(70,280/(b+.6)):it.current)*ne.current;Q.current=Q.current*.88+i*.12;let g=t.createLinearGradient(0,0,r,a);g.addColorStop(0,"#0b1020"),g.addColorStop(1,"#060912"),t.fillStyle=g,t.fillRect(0,0,r,a),t.save(),t.globalAlpha=.08;let N=80;t.beginPath();for(let s=0;s<r;s+=N)t.moveTo(s+.5,0),t.lineTo(s+.5,a);for(let s=0;s<a;s+=N)t.moveTo(0,s+.5),t.lineTo(r,s+.5);t.strokeStyle="#ffffff",t.stroke(),t.restore();let v=(s,h=.9)=>{t.shadowBlur=22,t.shadowColor=s+Math.floor(h*255).toString(16).padStart(2,"0")};for(let s=0;s<3;s++){let h=_e.current[s],p=h.length;if(p>2)for(let M=1;M<p;M++){let[F,B]=Me(h[M-1][0],h[M-1][1],r,a),[I,E]=Me(h[M][0],h[M][1],r,a),J=M/p;t.save(),t.globalAlpha=.15+.55*J*J,t.lineWidth=1.8+.6*J,t.strokeStyle=te[s],t.beginPath(),t.moveTo(F,B),t.lineTo(I,E),t.stroke(),t.restore()}}for(let s=0;s<3;s++){if(K.current[s])continue;let[h,p]=Me(o[s][0],o[s][1],r,a);t.save(),v(te[s],.9),t.fillStyle=te[s],t.beginPath(),t.arc(h,p,Pe*Q.current,0,Math.PI*2),t.fill(),t.restore()}for(let s of me.current){let[h,p]=Me(s.p[0],s.p[1],r,a);t.save(),t.globalAlpha=Math.max(0,s.life/3),t.fillStyle=s.color,t.beginPath(),t.arc(h,p,1.5,0,Math.PI*2),t.fill(),t.restore()}if(Q.current<120)for(let s of le.current){let h=je(s,y.current.tSim),[p,M]=Me(h[0],h[1],r,a);t.save(),v(s.color,.8),t.fillStyle=s.color,t.beginPath(),t.arc(p,M,s.radius*Q.current,0,Math.PI*2),t.fill(),s.ring&&(t.globalAlpha=.6,t.lineWidth=s.radius*Q.current*.5,t.strokeStyle=s.color,t.beginPath(),t.arc(p,M,s.radius*Q.current*1.8,0,Math.PI*2),t.stroke()),t.restore()}if(A.current){let s=A.current,[h,p]=Me(s.p[0],s.p[1],r,a);t.save(),t.translate(h,p),t.rotate(-s.angle),t.fillStyle="#ffffff",t.beginPath(),t.moveTo(6,0),t.lineTo(-4,3),t.lineTo(-4,-3),t.closePath(),t.fill(),t.restore()}}let ft=C(()=>{});ft.current=()=>{let t=$.current;if(!t)return;let o=kt.current;if(!o)return;let r=o.getContext("2d");if(!r)return;on(r);let a=performance.now()/1e3,d=Math.max(0,a-V.current.realStart),b=V.current.baseSpeed*re;if(m){let l=Math.max(0,d*b),i=t.tEvent;if(l<=i){let g=Math.min(t.states.length-1,Math.floor(l/t.dt)),N=t.states[g]??t.states[t.states.length-1];N&&(y.current.p=N.p.map(v=>[...v]),y.current.v=N.v.map(v=>[...v]),y.current.tSim=g*t.dt)}else{if(Ee.current=!0,Math.abs(y.current.tSim-i)<t.dt){let v=t.states[Math.min(t.states.length-1,Math.floor(i/t.dt))];v&&(y.current.p=v.p.map(s=>[...s]),y.current.v=v.v.map(s=>[...s]),y.current.tSim=i,t.kind==="collision"&&Et(y.current.p,y.current.v),Nt(y.current.p,y.current.v,y.current.tSim))}if(!He.current&&t.kind==="collision"&&l>i){let v=t.info.split("\u2194").map(h=>parseInt(h)-1),s=T(_(y.current.p[v[0]],y.current.p[v[1]]),.5);for(let h=0;h<40;h++){let p=Math.random()*Math.PI*2,M=.6+Math.random()*.8,F=te[v[Math.floor(Math.random()*2)]];me.current.push({p:[s[0],s[1]],v:[Math.cos(p)*M,Math.sin(p)*M],life:3,color:F})}K.current[v[0]]=!0,K.current[v[1]]=!0,et.current[v[0]]=[s[0],s[1]],et.current[v[1]]=[s[0],s[1]],y.current.p[v[0]]=[9999,9999],y.current.p[v[1]]=[9999,9999],y.current.v[v[0]]=[0,0],y.current.v[v[1]]=[0,0],He.current=!0}let g=l-y.current.tSim,N=.005;for(;g>1e-6;){let v=Math.min(N,g),s=lt(y.current.p,y.current.v,v,y.current.tSim,!0);if(y.current.p=s.p,y.current.v=s.v,Et(y.current.p,y.current.v),Nt(y.current.p,y.current.v,y.current.tSim),A.current){let h=A.current,p=1.5;h.rotL&&(h.angle+=p*v),h.rotR&&(h.angle-=p*v);let M=nn(h.p,y.current.tSim);h.thrust&&(M=_(M,[Math.cos(h.angle)*.4,Math.sin(h.angle)*.4])),h.v=_(h.v,T(M,v)),h.p=_(h.p,T(h.v,v))}for(let h of me.current)h.p=_(h.p,T(h.v,v)),h.life-=v;me.current=me.current.filter(h=>h.life>0),y.current.tSim+=v,g-=v}}}if(m){let l=y.current.p;for(let i=0;i<3;i++)if(!K.current[i])for(_e.current[i].push([l[i][0],l[i][1]]);_e.current[i].length>qe;)_e.current[i].shift()}if(Ee.current){for(let l=0;l<3;l++)K.current[l]||xe(y.current.p[l]);if(A.current&&xe(A.current.p),we.current!==null){let l=we.current,i=null;l===3&&A.current?i=A.current.p:l<=2&&(i=K.current[l]?et.current[l]:y.current.p[l]),i&&(ce.current=[i[0],i[1]],Le([i[0],i[1]]),xe(ce.current))}}if(sn(r,y.current.p),t){let i=Math.max(0,t.tEvent-y.current.tSim)/(V.current.baseSpeed*re);U(i)}se.current=requestAnimationFrame(ft.current)},ke(()=>{if(oe!=null)return rn({targetTEvent:V.current.baseSpeed*oe,targetRealTime:oe,seed:at.current||void 0}),at.current=null,()=>{se.current&&cancelAnimationFrame(se.current)}},[oe]),ke(()=>{e&&(se.current&&cancelAnimationFrame(se.current),se.current=requestAnimationFrame(ft.current))},[e,m,re,qe]),ke(()=>{V.current.realStart=performance.now()/1e3-y.current.tSim/(V.current.baseSpeed*re)},[re]);function an(){se.current&&cancelAnimationFrame(se.current),me.current=[],K.current=[!1,!1,!1],He.current=!1,n(!1),w(null),R(""),c(!0),ve(null),ye([]),Te(""),Ie(""),$e(null),ge.current=gt[0],ne.current=Y.zoom,Re(Y.zoom),Fe(Y.speedMul),ze(Y.trail),ce.current=[0,0],Le([0,0]),we.current=null,Ee.current=!1,le.current=wt([0,0]),ut.current=[[0,0]],A.current=null}function un(t){t.preventDefault();let o=Math.pow(1.05,-t.deltaY/100);ne.current=Math.max(.5,Math.min(2.5,ne.current*o)),Re(ne.current)}function cn(t){Ee.current&&(tt.current=!0,nt.current=[t.clientX,t.clientY],rt.current=ce.current,we.current=null)}ke(()=>{let t=r=>{if(!tt.current)return;let a=r.clientX-nt.current[0],d=r.clientY-nt.current[1],b=Q.current,l=[rt.current[0]-a/b,rt.current[1]+d/b];ce.current=l,Le(l),xe(l)},o=()=>{tt.current=!1};return window.addEventListener("mousemove",t),window.addEventListener("mouseup",o),()=>{window.removeEventListener("mousemove",t),window.removeEventListener("mouseup",o)}},[]),ke(()=>{let t=r=>{if(Ee.current){if(r.shiftKey&&r.key==="9"){if(!Ae.current){let a=Math.random()*Math.PI*2,d=200+Math.random()*200,b=[Math.cos(a)*d,Math.sin(a)*d],l={mass:500,radius:.3,color:"#000000",orbitCenter:b,orbitRadius:0,omega:0,phase:0};Ae.current=l,le.current.push(l),xe(b)}return}if(r.key==="9"&&Ae.current){let a=Ae.current.orbitCenter||[0,0];ce.current=[a[0],a[1]],Le([a[0],a[1]]),xe(a);return}r.code==="Digit1"||r.code==="Digit2"||r.code==="Digit3"?we.current=parseInt(r.code.slice(-1))-1:r.code==="Digit0"&&(r.shiftKey&&!A.current&&(A.current={p:[0,0],v:[0,0],angle:0,thrust:!1,rotL:!1,rotR:!1}),A.current&&(we.current=3)),A.current&&(r.key==="w"&&(A.current.thrust=!0),r.key==="s"&&(A.current.thrust=!1),r.key==="a"&&(A.current.rotL=!0),r.key==="d"&&(A.current.rotR=!0))}},o=r=>{A.current&&(r.key==="a"&&(A.current.rotL=!1),r.key==="d"&&(A.current.rotR=!1),(r.key==="w"||r.key==="s")&&(A.current.thrust=!1))};return window.addEventListener("keydown",t),window.addEventListener("keyup",o),()=>{window.removeEventListener("keydown",t),window.removeEventListener("keyup",o)}},[]);function ln(){ne.current=Y.zoom,Re(Y.zoom),Fe(Y.speedMul),ze(Y.trail)}function mn(){m?c(!1):(V.current.realStart=performance.now()/1e3-y.current.tSim/(V.current.baseSpeed*re),c(!0))}let fn=[{label:"30s",seconds:30},{label:"2m",seconds:120},{label:"5m",seconds:300},{label:"10m",seconds:600},{label:"15m",seconds:900},{label:"30m",seconds:1800},{label:"45m",seconds:2700},{label:"1h",seconds:3600},{label:"1.5h",seconds:5400},{label:"2h",seconds:7200},{label:"2.5h",seconds:9e3},{label:"3h",seconds:10800},{label:"6h",seconds:21600},{label:"12h",seconds:43200},{label:"24h",seconds:86400}],Ct=f==="collision"?`collision (${x})`:f==="ejection"?`ejection of ${x}`:"an event";return Jt===null?(0,u.jsx)("div",{className:"relative w-full h-[88vh] md:h-[92vh] bg-black text-white font-sans overflow-hidden rounded-2xl shadow-2xl flex items-center justify-center",children:(0,u.jsxs)("div",{className:"px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center",children:[(0,u.jsx)("div",{className:"text-lg mb-3",children:"Choose starting orientation"}),(0,u.jsxs)("div",{className:"grid grid-cols-2 gap-2 text-sm mb-3",children:[gt.map(t=>(0,u.jsx)("button",{onClick:()=>{ge.current=t,$e(t)},className:"px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20",children:t.label},t.label)),(0,u.jsx)("button",{onClick:()=>{let t=qn();ge.current=t,$e(t)},className:"px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20",children:"Random"})]})]})}):oe===null?(0,u.jsx)("div",{className:"relative w-full h-[88vh] md:h-[92vh] bg-black text-white font-sans overflow-hidden rounded-2xl shadow-2xl flex items-center justify-center",children:(0,u.jsxs)("div",{className:"px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center",children:[(0,u.jsx)("div",{className:"text-lg mb-3",children:"Choose time until collision/ejection"}),(0,u.jsx)("div",{className:"grid grid-cols-3 gap-2 text-sm",children:fn.map(t=>(0,u.jsx)("button",{onClick:()=>{V.current.baseSpeed=1,Fe(Y.speedMul),ze(Y.trail),ne.current=Y.zoom,Re(Y.zoom),ve(t.seconds)},className:"px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20",children:t.label},t.label))})]})}):(0,u.jsxs)("div",{className:"relative w-full h-[88vh] md:h-[92vh] bg-black text-white font-sans overflow-hidden rounded-2xl shadow-2xl",onWheel:un,children:[(0,u.jsx)("canvas",{ref:kt,className:"absolute inset-0 w-full h-full",onMouseDown:cn}),(0,u.jsxs)("div",{className:"absolute top-4 left-4 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg",children:[(0,u.jsxs)("div",{className:"text-xs uppercase tracking-wider text-white/70",children:["Time to ",Ct]}),(0,u.jsxs)("div",{className:"text-3xl font-semibold tabular-nums",children:[Math.floor(P/60).toString().padStart(2,"0"),":",Math.floor(P%60).toString().padStart(2,"0")]})]}),(0,u.jsxs)("div",{className:"absolute top-4 right-4 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg",children:[(0,u.jsx)("div",{className:"text-xs uppercase tracking-wider text-white/70 mb-1",children:"Triadic palette"}),(0,u.jsx)("div",{className:"flex items-center gap-3",children:te.map((t,o)=>(0,u.jsxs)("div",{className:"flex items-center gap-2",children:[(0,u.jsx)("div",{className:"w-5 h-5 rounded-full",style:{background:t}}),(0,u.jsx)("span",{className:"text-sm font-mono text-white/80",children:t.toUpperCase()})]},o))}),(0,u.jsx)("div",{className:"text-right mt-2",children:(0,u.jsx)("button",{onClick:()=>{ot.current&&(navigator.clipboard.writeText(ot.current),Mt(!0),setTimeout(()=>Mt(!1),1e3))},className:"text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/20",children:Zt?"Copied!":"Copy seed"})})]}),(0,u.jsxs)("div",{className:"absolute left-1/2 -translate-x-1/2 bottom-4 flex items-center gap-3 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg",children:[(0,u.jsx)("button",{onClick:mn,className:"px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 transition",children:m?"Pause":"Play"}),(0,u.jsxs)("button",{onClick:an,className:"px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 transition leading-tight",children:[(0,u.jsx)("span",{className:"block",children:"Reset"}),(0,u.jsx)("span",{className:"block text-xs opacity-80",children:"(new colors)"})]}),e&&$.current&&(0,u.jsxs)("div",{className:"text-sm text-white/70 font-medium",children:["Event: ",(0,u.jsx)("span",{className:"text-white/90",children:Ct}),(0,u.jsx)("span",{className:"mx-2",children:"\u2022"}),"Sim @ event: ",(0,u.jsxs)("span",{className:"tabular-nums text-white/90",children:[$.current.tEvent.toFixed(2),"s"]}),(0,u.jsx)("span",{className:"mx-2",children:"\u2022"}),"Speed: ",(0,u.jsxs)("span",{className:"tabular-nums text-white/90",children:["\xD7",(V.current.baseSpeed*re).toFixed(2)]})]})]}),(0,u.jsxs)("div",{className:"absolute left-4 bottom-24 md:bottom-28 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg w-[min(88vw,420px)]",children:[(0,u.jsxs)("div",{className:"flex items-center justify-between mb-2",children:[(0,u.jsx)("div",{className:"text-xs uppercase tracking-widest text-white/70",children:"Controls"}),(0,u.jsx)("button",{onClick:()=>Qt(t=>!t),className:"text-white/80 text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/20",children:Rt?"Minimize":"Expand"})]}),Rt&&(0,u.jsxs)("div",{className:"space-y-3",children:[(0,u.jsxs)("div",{children:[(0,u.jsxs)("div",{className:"flex items-center justify-between text-xs text-white/70",children:[(0,u.jsx)("span",{children:"Zoom"}),(0,u.jsxs)("span",{className:"tabular-nums",children:[xt.toFixed(2),"\xD7"]})]}),(0,u.jsx)("input",{type:"range",min:.5,max:2.5,step:.01,value:xt,onChange:t=>{let o=parseFloat(t.target.value);Re(o),ne.current=o},className:"w-full accent-white/90"})]}),(0,u.jsxs)("div",{children:[(0,u.jsxs)("div",{className:"flex items-center justify-between text-xs text-white/70",children:[(0,u.jsx)("span",{children:"Speed"}),(0,u.jsxs)("span",{className:"tabular-nums",children:["\xD7",(V.current.baseSpeed*re).toFixed(2)]})]}),(0,u.jsx)("input",{type:"range",min:.25,max:10,step:.01,value:re,onChange:t=>Fe(parseFloat(t.target.value)),className:"w-full accent-white/90"})]}),(0,u.jsxs)("div",{children:[(0,u.jsxs)("div",{className:"flex items-center justify-between text-xs text-white/70",children:[(0,u.jsx)("span",{children:"Trail length"}),(0,u.jsx)("span",{className:"tabular-nums",children:qe})]}),(0,u.jsx)("input",{type:"range",min:20,max:600,step:1,value:qe,onChange:t=>ze(parseInt(t.target.value)),className:"w-full accent-white/90"})]}),(0,u.jsx)("div",{className:"pt-1 text-right",children:(0,u.jsx)("button",{onClick:ln,className:"px-3 py-1 text-xs rounded-lg bg-white/10 hover:bg-white/20 border border-white/20",children:"Reset"})})]})]}),!e&&(0,u.jsxs)("div",{className:"absolute inset-0 flex items-center justify-center",children:[(0,u.jsxs)("div",{className:"px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center relative",children:[(0,u.jsx)("div",{className:"text-xs uppercase tracking-widest text-white/70 mb-2",children:"Preparing a near-perfect 3\u2011body setup\u2026"}),(0,u.jsx)("div",{className:"text-lg font-medium",children:"Searching for a slight perturbation that yields an event"}),(0,u.jsxs)("div",{className:"mt-3 text-left text-xs font-mono text-white/80 w-64",children:[(0,u.jsxs)("div",{className:"flex justify-between mb-1",children:[(0,u.jsx)("div",{children:Gt}),(0,u.jsx)("div",{children:Yt})]}),(0,u.jsx)("div",{className:"max-h-40 overflow-y-auto",children:Qe.map((t,o)=>(0,u.jsx)("div",{children:t},o))})]}),(0,u.jsx)("div",{className:"mt-3 text-right",children:(0,u.jsx)("button",{onClick:()=>De(!0),className:"text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/20",children:"Skip Exploration"})})]}),st&&(0,u.jsx)("div",{className:"absolute inset-0 flex items-center justify-center",children:(0,u.jsxs)("div",{className:"px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center relative",children:[(0,u.jsx)("button",{onClick:()=>De(!1),className:"absolute top-2 right-2 text-white/80",children:"\xD7"}),(0,u.jsx)("div",{className:"mb-2",children:"Paste seed"}),(0,u.jsx)("textarea",{value:St,onChange:t=>Xt(t.target.value),className:"w-64 h-24 text-black p-1 rounded"}),(0,u.jsx)("div",{className:"mt-3 text-right",children:(0,u.jsx)("button",{onClick:()=>{try{let t=JSON.parse(atob(St.trim()));ge.current={label:"Seed",p:t.p,v:t.v},$e({label:"Seed",p:t.p,v:t.v}),at.current={p:t.p,v:t.v},ve(t.duration),De(!1)}catch{alert("Invalid seed")}},className:"px-3 py-1 text-xs rounded-lg bg-white/10 border border-white/20",children:"Import simulation"})})]})})]})]})}})();
-/*! Bundled license information:
-
-react/cjs/react.production.min.js:
-  (**
-   * @license React
-   * react.production.min.js
-   *
-   * Copyright (c) Facebook, Inc. and its affiliates.
-   *
-   * This source code is licensed under the MIT license found in the
-   * LICENSE file in the root directory of this source tree.
-   *)
-
-react/cjs/react-jsx-runtime.production.min.js:
-  (**
-   * @license React
-   * react-jsx-runtime.production.min.js
-   *
-   * Copyright (c) Facebook, Inc. and its affiliates.
-   *
-   * This source code is licensed under the MIT license found in the
-   * LICENSE file in the root directory of this source tree.
-   *)
-*/
+(() => {
+  // three_body_problem.tsx
+  var { useEffect, useRef, useState } = React;
+  var orientationPresets = [
+    {
+      label: "Figure\u20118",
+      p: [
+        [0.97000436, -0.24308753],
+        [-0.97000436, 0.24308753],
+        [0, 0]
+      ],
+      v: [
+        [0.466203685, 0.43236573],
+        [0.466203685, 0.43236573],
+        [-0.93240737, -0.86473146]
+      ]
+    },
+    {
+      label: "Circular",
+      p: [
+        [1, 0],
+        [-0.5, 0.8660254],
+        [-0.5, -0.8660254]
+      ],
+      v: [
+        [0, 0.658],
+        [-0.57, -0.329],
+        [0.57, -0.329]
+      ]
+    }
+  ];
+  function randomOrientation() {
+    const rand = () => Math.random() * 2 - 1;
+    return {
+      label: "Random",
+      p: [
+        [rand(), rand()],
+        [rand(), rand()],
+        [rand(), rand()]
+      ],
+      v: [
+        [rand() * 0.5, rand() * 0.5],
+        [rand() * 0.5, rand() * 0.5],
+        [rand() * 0.5, rand() * 0.5]
+      ]
+    };
+  }
+  function randRange(min, max) {
+    return min + Math.random() * (max - min);
+  }
+  function randomColor() {
+    const h = Math.random() * 360;
+    const s = 0.5 + Math.random() * 0.4;
+    const l = 0.4 + Math.random() * 0.4;
+    return hslToHex(h, s, l);
+  }
+  function createObjectSet(center) {
+    const objs = [];
+    const choice = Math.random();
+    if (choice < 0.15) {
+      const sunMass = randRange(8, 12);
+      const sun = {
+        mass: sunMass,
+        radius: randRange(0.2, 0.3),
+        color: randomColor(),
+        orbitCenter: center,
+        orbitRadius: 0,
+        omega: 0,
+        phase: 0
+      };
+      objs.push(sun);
+      const nPlanets = 2 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < nPlanets; i++) {
+        const r = 3 + i * randRange(1.5, 2.5);
+        const planetMass = randRange(0.5, 1.5);
+        const omega = Math.sqrt(sunMass / Math.pow(r, 3));
+        const planet = {
+          mass: planetMass,
+          radius: randRange(0.05, 0.12),
+          color: randomColor(),
+          orbitCenter: center,
+          orbitRadius: r,
+          omega,
+          phase: Math.random() * Math.PI * 2
+        };
+        if (Math.random() < 0.3) planet.ring = true;
+        objs.push(planet);
+        const moons = Math.random() < 0.5 ? Math.floor(Math.random() * 2) + 1 : 0;
+        for (let m = 0; m < moons; m++) {
+          const mr = randRange(0.2, 0.5);
+          const mOmega = Math.sqrt(planetMass / Math.pow(mr, 3));
+          objs.push({
+            mass: randRange(0.01, 0.05),
+            radius: randRange(0.01, 0.03),
+            color: randomColor(),
+            orbitParent: planet,
+            orbitRadius: mr,
+            omega: mOmega,
+            phase: Math.random() * Math.PI * 2
+          });
+        }
+      }
+    } else if (choice < 0.3) {
+      const giant = {
+        mass: randRange(3, 5),
+        radius: randRange(0.15, 0.25),
+        color: randomColor(),
+        orbitCenter: center,
+        orbitRadius: 0,
+        omega: 0,
+        phase: 0,
+        ring: true
+      };
+      objs.push(giant);
+      const moonCount = 1 + Math.floor(Math.random() * 4);
+      for (let i = 0; i < moonCount; i++) {
+        const r = randRange(0.4, 0.8) + i * 0.15;
+        const omega = Math.sqrt(giant.mass / Math.pow(r, 3));
+        objs.push({
+          mass: randRange(0.02, 0.08),
+          radius: randRange(0.015, 0.04),
+          color: randomColor(),
+          orbitParent: giant,
+          orbitRadius: r,
+          omega,
+          phase: Math.random() * Math.PI * 2
+        });
+      }
+    } else if (choice < 0.55) {
+      const host = {
+        mass: randRange(1, 3),
+        radius: randRange(0.08, 0.15),
+        color: randomColor(),
+        orbitCenter: center,
+        orbitRadius: 0,
+        omega: 0,
+        phase: 0
+      };
+      objs.push(host);
+      const beltR = randRange(2.5, 4);
+      const omega = Math.sqrt(host.mass / Math.pow(beltR, 3));
+      const count = 30 + Math.floor(Math.random() * 40);
+      for (let i = 0; i < count; i++) {
+        objs.push({
+          mass: randRange(5e-3, 0.02),
+          radius: randRange(0.01, 0.03),
+          color: "#aaaaaa",
+          orbitCenter: center,
+          orbitRadius: beltR + (Math.random() - 0.5) * 0.4,
+          omega,
+          phase: Math.random() * Math.PI * 2
+        });
+      }
+    } else if (choice < 0.7) {
+      const speed = randRange(0.5, 1.5);
+      const ang = Math.random() * Math.PI * 2;
+      objs.push({
+        mass: randRange(0.05, 0.1),
+        radius: randRange(0.02, 0.04),
+        color: "#ffffff",
+        kind: "drift",
+        p0: [center[0], center[1]],
+        v: [Math.cos(ang) * speed, Math.sin(ang) * speed]
+      });
+    } else if (choice < 0.9) {
+      objs.push({
+        mass: randRange(1, 3),
+        radius: randRange(0.1, 0.18),
+        color: randomColor(),
+        orbitCenter: center,
+        orbitRadius: 0,
+        omega: 0,
+        phase: 0
+      });
+    } else {
+      const count = 3 + Math.floor(Math.random() * 5);
+      for (let i = 0; i < count; i++) {
+        objs.push({
+          mass: randRange(0.01, 0.03),
+          radius: randRange(0.02, 0.05),
+          color: "#888888",
+          orbitCenter: center,
+          orbitRadius: randRange(0.3, 1.2),
+          omega: randRange(0.2, 0.5),
+          phase: Math.random() * Math.PI * 2
+        });
+      }
+    }
+    return objs;
+  }
+  function generateRegion(center) {
+    const objs = [];
+    const count = 3 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < count; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const dist = 20 + Math.random() * 8;
+      const c = [center[0] + Math.cos(ang) * dist, center[1] + Math.sin(ang) * dist];
+      objs.push(...createObjectSet(c));
+    }
+    return objs;
+  }
+  function outerObjectPosition(obj, t) {
+    if (obj.kind === "drift" && obj.p0 && obj.v) {
+      return [obj.p0[0] + obj.v[0] * t, obj.p0[1] + obj.v[1] * t];
+    }
+    let cx = 0, cy = 0;
+    if (obj.orbitParent) {
+      [cx, cy] = outerObjectPosition(obj.orbitParent, t);
+    } else if (obj.orbitCenter) {
+      [cx, cy] = obj.orbitCenter;
+    }
+    if (!obj.orbitRadius) return [cx, cy];
+    const ang = (obj.phase || 0) + (obj.omega || 0) * t;
+    return [cx + Math.cos(ang) * obj.orbitRadius, cy + Math.sin(ang) * obj.orbitRadius];
+  }
+  var defaultSettings = { zoom: 1.35, speedMul: 1, trail: 90 };
+  function ThreeBodyGlassSim() {
+    const [isReady, setIsReady] = useState(false);
+    const [isPlaying, setIsPlaying] = useState(true);
+    const [eventType, setEventType] = useState(null);
+    const [eventBodyInfo, setEventBodyInfo] = useState("");
+    const [countdown, setCountdown] = useState(120);
+    const [hexColors, setHexColors] = useState(["#cccccc", "#cccccc", "#cccccc"]);
+    const [chosenDuration, setChosenDuration] = useState(null);
+    const [progressLines, setProgressLines] = useState([]);
+    const [candidateInfo, setCandidateInfo] = useState("");
+    const [attemptInfo, setAttemptInfo] = useState("");
+    const [orientation, setOrientation] = useState(null);
+    const [zoom, setZoom] = useState(defaultSettings.zoom);
+    const orientationRef = useRef(orientationPresets[0]);
+    const [pan, setPan] = useState([0, 0]);
+    const panRef = useRef([0, 0]);
+    const followRef = useRef(null);
+    const shatterPosRef = useRef([[0, 0], [0, 0], [0, 0]]);
+    const draggingRef = useRef(false);
+    const dragStartRef = useRef([0, 0]);
+    const panStartRef = useRef([0, 0]);
+    const postEventRef = useRef(false);
+    const rocketRef = useRef(null);
+    const blackHoleRef = useRef(null);
+    const seedRef = useRef("");
+    const [copied, setCopied] = useState(false);
+    const [importOpen, setImportOpen] = useState(false);
+    const [seedInput, setSeedInput] = useState("");
+    const seedImportRef = useRef(null);
+    const outerObjectsRef = useRef(generateRegion([0, 0]));
+    const regionCentersRef = useRef([[0, 0]]);
+    useEffect(() => {
+      if (!importOpen) return;
+      const handler = (e) => {
+        if (e.key === "Escape") setImportOpen(false);
+      };
+      window.addEventListener("keydown", handler);
+      return () => window.removeEventListener("keydown", handler);
+    }, [importOpen]);
+    const canvasRef = useRef(null);
+    const rafRef = useRef(null);
+    const G = 1;
+    const mass = 1;
+    const radius = 0.035;
+    const softEps = 1e-4;
+    const targetScaleRef = useRef(180);
+    const scaleRef = useRef(180);
+    const userZoomRef = useRef(defaultSettings.zoom);
+    const preBufRef = useRef(null);
+    const liveRef = useRef({
+      p: [[0, 0], [0, 0], [0, 0]],
+      v: [[0, 0], [0, 0], [0, 0]],
+      tSim: 0
+    });
+    const mapRef = useRef({ realStart: 0, baseSpeed: 1 });
+    const [speedMul, setSpeedMul] = useState(1);
+    const trailsRef = useRef([[], [], []]);
+    const [trailMax, setTrailMax] = useState(90);
+    const [panelOpen, setPanelOpen] = useState(true);
+    const eventIndexRef = useRef(-1);
+    const shardsRef = useRef([]);
+    const destroyedRef = useRef([false, false, false]);
+    const collisionHandledRef = useRef(false);
+    function hslToHex2(h, s, l) {
+      l = Math.max(0, Math.min(1, l));
+      s = Math.max(0, Math.min(1, s));
+      const c = (1 - Math.abs(2 * l - 1)) * s;
+      const hp = h / 60;
+      const x = c * (1 - Math.abs(hp % 2 - 1));
+      let r = 0, g = 0, b = 0;
+      if (hp >= 0 && hp < 1) [r, g, b] = [c, x, 0];
+      else if (hp < 2) [r, g, b] = [x, c, 0];
+      else if (hp < 3) [r, g, b] = [0, c, x];
+      else if (hp < 4) [r, g, b] = [0, x, c];
+      else if (hp < 5) [r, g, b] = [x, 0, c];
+      else [r, g, b] = [c, 0, x];
+      const m = l - c / 2;
+      const R = Math.round((r + m) * 255);
+      const Gc = Math.round((g + m) * 255);
+      const B = Math.round((b + m) * 255);
+      return `#${((1 << 24) + (R << 16) + (Gc << 8) + B).toString(16).slice(1)}`;
+    }
+    function randomTriadicHex() {
+      const hue = Math.random() * 360;
+      const s = 0.72, l = 0.55;
+      const tri1 = (hue + 120) % 360;
+      const tri2 = (hue + 240) % 360;
+      const base = hslToHex2(hue, s, l);
+      return { base, tri: [hslToHex2(tri1, s, l), hslToHex2(tri2, s, l)] };
+    }
+    const add = (a, b) => [a[0] + b[0], a[1] + b[1]];
+    const sub = (a, b) => [a[0] - b[0], a[1] - b[1]];
+    const mul = (a, s) => [a[0] * s, a[1] * s];
+    const dot = (a, b) => a[0] * b[0] + a[1] * b[1];
+    const norm = (a) => Math.hypot(a[0], a[1]);
+    function ensureRegionAround(pt) {
+      if (regionCentersRef.current.every((c) => norm(sub(pt, c)) > 40)) {
+        regionCentersRef.current.push([pt[0], pt[1]]);
+        outerObjectsRef.current.push(...generateRegion([pt[0], pt[1]]));
+      }
+    }
+    function accelerations(p, t, includeOuter) {
+      const a = [[0, 0], [0, 0], [0, 0]];
+      for (let i = 0; i < 3; i++) {
+        if (destroyedRef.current[i]) continue;
+        for (let j = 0; j < 3; j++) if (j !== i && !destroyedRef.current[j]) {
+          const r = sub(p[j], p[i]);
+          const d2 = r[0] * r[0] + r[1] * r[1] + softEps * softEps;
+          const d = Math.sqrt(d2);
+          const fac = G * mass / (d2 * d);
+          a[i] = add(a[i], mul(r, fac));
+        }
+        if (includeOuter) {
+          for (const obj of outerObjectsRef.current) {
+            const pos = outerObjectPosition(obj, t);
+            const r = sub(pos, p[i]);
+            const d2 = r[0] * r[0] + r[1] * r[1] + softEps * softEps;
+            const d = Math.sqrt(d2);
+            const fac = G * obj.mass / (d2 * d);
+            a[i] = add(a[i], mul(r, fac));
+          }
+        }
+      }
+      return a;
+    }
+    function rk4Step(p, v, dt, t, includeOuter) {
+      const a1 = accelerations(p, t, includeOuter);
+      const pv1 = p.map((pi, i) => add(pi, mul(v[i], dt * 0.5)));
+      const vv1 = v.map((vi, i) => add(vi, mul(a1[i], dt * 0.5)));
+      const a2 = accelerations(pv1, t + dt * 0.5, includeOuter);
+      const pv2 = p.map((pi, i) => add(pi, mul(vv1[i], dt * 0.5)));
+      const vv2 = v.map((vi, i) => add(vi, mul(a2[i], dt * 0.5)));
+      const a3 = accelerations(pv2, t + dt * 0.5, includeOuter);
+      const pv3 = p.map((pi, i) => add(pi, mul(vv2[i], dt)));
+      const vv3 = v.map((vi, i) => add(vi, mul(a3[i], dt)));
+      const a4 = accelerations(pv3, t + dt, includeOuter);
+      const pNext = p.map((pi, i) => add(pi, mul(add(add(v[i], mul(add(vv1[i], vv2[i]), 2)), vv3[i]), dt / 6)));
+      const vNext = v.map((vi, i) => add(vi, mul(add(add(a1[i], mul(add(a2[i], a3[i]), 2)), a4[i]), dt / 6)));
+      return { p: pNext, v: vNext };
+    }
+    function handleCollision(p, v) {
+      for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) {
+        if (destroyedRef.current[i] || destroyedRef.current[j]) continue;
+        const rij = sub(p[i], p[j]);
+        const d = norm(rij);
+        if (d <= 2 * radius) {
+          const n = mul(rij, 1 / (d || 1e-9));
+          const relv = sub(v[i], v[j]);
+          const vrn = dot(relv, n);
+          if (vrn < 0) {
+            const overlap = 2 * radius - d;
+            if (overlap > 0) {
+              const corr = mul(n, overlap * 0.5 + 1e-6);
+              p[i] = add(p[i], corr);
+              p[j] = sub(p[j], corr);
+            }
+            const impulse = mul(n, vrn);
+            v[i] = sub(v[i], impulse);
+            v[j] = add(v[j], impulse);
+          }
+        }
+      }
+    }
+    function handleOuterCollisions(p, v, t) {
+      if (!preBufRef.current) return;
+      if (t < preBufRef.current.tEvent) return;
+      for (let i = 0; i < 3; i++) {
+        if (destroyedRef.current[i]) continue;
+        for (const obj of outerObjectsRef.current) {
+          const pos = outerObjectPosition(obj, t);
+          const rij = sub(p[i], pos);
+          const d = norm(rij);
+          if (d <= radius + obj.radius) {
+            const n = mul(rij, 1 / (d || 1e-9));
+            const vrn = dot(v[i], n);
+            if (vrn < 0) {
+              v[i] = sub(v[i], mul(n, 2 * vrn));
+            }
+          }
+        }
+      }
+    }
+    function rocketAcceleration(pos, t) {
+      let a = [0, 0];
+      for (let i = 0; i < 3; i++) {
+        if (destroyedRef.current[i]) continue;
+        const r = sub(liveRef.current.p[i], pos);
+        const d2 = r[0] * r[0] + r[1] * r[1] + softEps * softEps;
+        const d = Math.sqrt(d2);
+        const fac = G * mass / (d2 * d);
+        a = add(a, mul(r, fac));
+      }
+      for (const obj of outerObjectsRef.current) {
+        const op = outerObjectPosition(obj, t);
+        const r = sub(op, pos);
+        const d2 = r[0] * r[0] + r[1] * r[1] + softEps * softEps;
+        const d = Math.sqrt(d2);
+        const fac = G * obj.mass / (d2 * d);
+        a = add(a, mul(r, fac));
+      }
+      return a;
+    }
+    function energyOfBody(k, p, v) {
+      const v2 = dot(v[k], v[k]);
+      let U = 0;
+      for (let j = 0; j < 3; j++) if (j !== k) {
+        const r = norm(sub(p[k], p[j]));
+        U -= G * mass * mass / Math.max(r, 1e-6);
+      }
+      return 0.5 * mass * v2 + U;
+    }
+    function centerOfMass(p) {
+      let pc = [0, 0];
+      for (let i = 0; i < 3; i++) pc = add(pc, p[i]);
+      return { pc: mul(pc, 1 / 3) };
+    }
+    async function preSimulateAndSetup(opts) {
+      const { base, tri } = randomTriadicHex();
+      const codes = [base, tri[0], tri[1]];
+      setHexColors(codes);
+      setProgressLines(["Starting search for perturbations..."]);
+      setCandidateInfo("");
+      setAttemptInfo("");
+      shardsRef.current = [];
+      destroyedRef.current = [false, false, false];
+      collisionHandledRef.current = false;
+      let pBase = opts?.seed ? opts.seed.p.map((x) => [...x]) : orientationRef.current.p.map((x) => [...x]);
+      let vBase = opts?.seed ? opts.seed.v.map((x) => [...x]) : orientationRef.current.v.map((x) => [...x]);
+      const epsCandidates = [1e-5, 5e-5, 1e-4, 3e-4, 1e-3, 3e-3, 7e-3, 0.012];
+      const dt = 4e-3;
+      const target = opts?.targetTEvent ?? opts?.targetRealTime;
+      const maxSteps = target ? Math.max(22e4, Math.ceil(target / dt) + 5e3) : 22e4;
+      const collR = 2 * radius;
+      let best = null;
+      if (opts?.seed) {
+        let p = pBase.map((x) => [...x]);
+        let v = vBase.map((x) => [...x]);
+        const buffer = [];
+        let found = false;
+        let kind = "collision";
+        let info = "";
+        let tEvent = 0;
+        let ejectCand = null;
+        const confirmSteps = 25e3;
+        for (let step = 0; step < maxSteps; step++) {
+          buffer.push({ p: [[...p[0]], [...p[1]], [...p[2]]], v: [[...v[0]], [...v[1]], [...v[2]]] });
+          if (step % 5e3 === 0) {
+            const pct = (step / maxSteps * 100).toFixed(1);
+            setProgressLines((l) => [...l.slice(-40), `    ${pct}%`]);
+            await new Promise((r) => setTimeout(r, 0));
+          }
+          let collidedPair = null;
+          outer: for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) {
+            const d = norm(sub(p[i], p[j]));
+            if (d <= collR) {
+              collidedPair = [i, j];
+              break outer;
+            }
+          }
+          if (collidedPair) {
+            found = true;
+            kind = "collision";
+            info = `${collidedPair[0] + 1}\u2194${collidedPair[1] + 1}`;
+            tEvent = step * dt;
+            break;
+          }
+          const { pc } = centerOfMass(p);
+          const pRel = p.map((pi) => sub(pi, pc));
+          const vRel = v.map((vi) => vi);
+          const R = pRel.map((ri) => norm(ri));
+          if (!ejectCand) {
+            for (let k = 0; k < 3; k++) {
+              const eSpec = energyOfBody(k, pRel, vRel);
+              const outward = dot(pRel[k], vRel[k]) > 0;
+              if (R[k] > 7 && outward && eSpec > 0) {
+                ejectCand = { k, step };
+                break;
+              }
+            }
+          } else {
+            const k = ejectCand.k;
+            const eSpec = energyOfBody(k, pRel, vRel);
+            const outward = dot(pRel[k], vRel[k]) > 0;
+            if (R[k] < 5 || !outward || eSpec < 0) {
+              ejectCand = null;
+            } else if (step - ejectCand.step > confirmSteps) {
+              found = true;
+              kind = "ejection";
+              info = `body ${k + 1}`;
+              tEvent = ejectCand.step * dt;
+              break;
+            }
+          }
+          const next = rk4Step(p, v, dt, step * dt, false);
+          p = next.p;
+          v = next.v;
+        }
+        if (found) best = { buffer, tEvent, kind, info };
+      } else {
+        for (let e = 0; e < epsCandidates.length; e++) {
+          setCandidateInfo(`\u2208 candidate ${e + 1}/${epsCandidates.length}`);
+          await new Promise((r) => setTimeout(r, 0));
+          for (let attempt = 0; attempt < 6; attempt++) {
+            setAttemptInfo(`attempt ${attempt + 1}/6`);
+            await new Promise((r) => setTimeout(r, 0));
+            let p = pBase.map((x) => [...x]);
+            let v = vBase.map((x) => [...x]);
+            const ang = Math.random() * Math.PI * 2;
+            const eps = epsCandidates[e];
+            v[0] = add(v[0], [Math.cos(ang) * eps, Math.sin(ang) * eps]);
+            const buffer = [];
+            let found = false;
+            let kind = "collision";
+            let info = "";
+            let tEvent = 0;
+            let ejectCand = null;
+            const confirmSteps = 25e3;
+            for (let step = 0; step < maxSteps; step++) {
+              buffer.push({ p: [[...p[0]], [...p[1]], [...p[2]]], v: [[...v[0]], [...v[1]], [...v[2]]] });
+              if (step % 5e3 === 0) {
+                const pct = (step / maxSteps * 100).toFixed(1);
+                setProgressLines((l) => [...l.slice(-40), `    ${pct}%`]);
+                await new Promise((r) => setTimeout(r, 0));
+              }
+              let collidedPair = null;
+              outer: for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) {
+                const d = norm(sub(p[i], p[j]));
+                if (d <= collR) {
+                  collidedPair = [i, j];
+                  break outer;
+                }
+              }
+              if (collidedPair) {
+                found = true;
+                kind = "collision";
+                info = `${collidedPair[0] + 1}\u2194${collidedPair[1] + 1}`;
+                tEvent = step * dt;
+                break;
+              }
+              const { pc } = centerOfMass(p);
+              const pRel = p.map((pi) => sub(pi, pc));
+              const vRel = v.map((vi) => vi);
+              const R = pRel.map((ri) => norm(ri));
+              if (!ejectCand) {
+                for (let k = 0; k < 3; k++) {
+                  const eSpec = energyOfBody(k, pRel, vRel);
+                  const outward = dot(pRel[k], vRel[k]) > 0;
+                  if (R[k] > 7 && outward && eSpec > 0) {
+                    ejectCand = { k, step };
+                    break;
+                  }
+                }
+              } else {
+                const k = ejectCand.k;
+                const eSpec = energyOfBody(k, pRel, vRel);
+                const outward = dot(pRel[k], vRel[k]) > 0;
+                if (R[k] < 5 || !outward || eSpec < 0) {
+                  ejectCand = null;
+                } else if (step - ejectCand.step > confirmSteps) {
+                  found = true;
+                  kind = "ejection";
+                  info = `body ${k + 1}`;
+                  tEvent = ejectCand.step * dt;
+                  break;
+                }
+              }
+              const next = rk4Step(p, v, dt, step * dt, false);
+              p = next.p;
+              v = next.v;
+            }
+            if (found) {
+              if (!best) {
+                best = { buffer, tEvent, kind, info };
+              } else if (target != null) {
+                const prevErr = Math.abs(best.tEvent - target);
+                const newErr = Math.abs(tEvent - target);
+                if (newErr < prevErr) best = { buffer, tEvent, kind, info };
+              } else {
+                if (tEvent < best.tEvent) best = { buffer, tEvent, kind, info };
+              }
+            }
+          }
+        }
+      }
+      if (!best) {
+        const tEvent = 90;
+        preBufRef.current = { dt, states: [], tEvent, kind: "ejection", info: "body 3" };
+        setEventType("ejection");
+        setEventBodyInfo("body 3");
+      } else {
+        preBufRef.current = { dt, states: best.buffer, tEvent: best.tEvent, kind: best.kind, info: best.info };
+        eventIndexRef.current = Math.floor(best.tEvent / dt);
+        setEventType(best.kind);
+        setEventBodyInfo(best.info);
+      }
+      if (preBufRef.current && opts?.targetRealTime) {
+        mapRef.current.baseSpeed = preBufRef.current.tEvent / opts.targetRealTime;
+        mapRef.current.realStart = performance.now() / 1e3;
+      }
+      if (preBufRef.current && preBufRef.current.states.length > 0) {
+        const startState = preBufRef.current.states[0];
+        liveRef.current = { p: startState.p.map((x) => [...x]), v: startState.v.map((x) => [...x]), tSim: 0 };
+      } else {
+        liveRef.current = { p: [[0, 0], [0, 0], [0, 0]], v: [[0, 0], [0, 0], [0, 0]], tSim: 0 };
+      }
+      mapRef.current.realStart = performance.now() / 1e3;
+      trailsRef.current = [[], [], []];
+      const span = preBufRef.current && preBufRef.current.states.length ? Math.max(
+        norm(sub(preBufRef.current.states[0].p[0], preBufRef.current.states[0].p[1])),
+        norm(sub(preBufRef.current.states[0].p[1], preBufRef.current.states[0].p[2])),
+        norm(sub(preBufRef.current.states[0].p[2], preBufRef.current.states[0].p[0]))
+      ) : 1.2;
+      targetScaleRef.current = Math.min(300, Math.max(140, 300 / Math.max(span, 0.4)));
+      scaleRef.current = targetScaleRef.current * userZoomRef.current;
+      if (preBufRef.current && preBufRef.current.states.length > 0) {
+        const init = preBufRef.current.states[0];
+        seedRef.current = btoa(JSON.stringify({ p: init.p, v: init.v, duration: opts?.targetRealTime ?? 0 }));
+      }
+      setProgressLines((l) => [...l.slice(-40), "Finalizing setup..."]);
+      await new Promise((r) => setTimeout(r, 0));
+      setIsReady(true);
+      setProgressLines([]);
+      setCandidateInfo("");
+      setAttemptInfo("");
+    }
+    function setupCanvas(ctx) {
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const { clientWidth, clientHeight } = ctx.canvas;
+      ctx.canvas.width = Math.floor(clientWidth * dpr);
+      ctx.canvas.height = Math.floor(clientHeight * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    function worldToScreen(x, y, W, H) {
+      const s = scaleRef.current;
+      const [px, py] = panRef.current;
+      const cx = W / 2, cy = H / 2;
+      return [cx + (x - px) * s, cy - (y - py) * s];
+    }
+    function drawScene(ctx, p) {
+      const W = ctx.canvas.clientWidth;
+      const H = ctx.canvas.clientHeight;
+      const { pc } = centerOfMass(p);
+      const maxR = Math.max(
+        norm(sub(p[0], pc)),
+        norm(sub(p[1], pc)),
+        norm(sub(p[2], pc))
+      );
+      const baseTarget = maxR > 2.6 ? Math.max(70, 280 / (maxR + 0.6)) : targetScaleRef.current;
+      const targetWithUser = baseTarget * userZoomRef.current;
+      scaleRef.current = scaleRef.current * 0.88 + targetWithUser * 0.12;
+      const grad = ctx.createLinearGradient(0, 0, W, H);
+      grad.addColorStop(0, "#0b1020");
+      grad.addColorStop(1, "#060912");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+      ctx.save();
+      ctx.globalAlpha = 0.08;
+      const step = 80;
+      ctx.beginPath();
+      for (let x = 0; x < W; x += step) {
+        ctx.moveTo(x + 0.5, 0);
+        ctx.lineTo(x + 0.5, H);
+      }
+      for (let y = 0; y < H; y += step) {
+        ctx.moveTo(0, y + 0.5);
+        ctx.lineTo(W, y + 0.5);
+      }
+      ctx.strokeStyle = "#ffffff";
+      ctx.stroke();
+      ctx.restore();
+      const glow = (hex, alpha = 0.9) => {
+        ctx.shadowBlur = 22;
+        ctx.shadowColor = hex + Math.floor(alpha * 255).toString(16).padStart(2, "0");
+      };
+      for (let i = 0; i < 3; i++) {
+        const trail = trailsRef.current[i];
+        const n = trail.length;
+        if (n > 2) {
+          for (let k = 1; k < n; k++) {
+            const [x0, y0] = worldToScreen(trail[k - 1][0], trail[k - 1][1], W, H);
+            const [x1, y1] = worldToScreen(trail[k][0], trail[k][1], W, H);
+            const t = k / n;
+            ctx.save();
+            ctx.globalAlpha = 0.15 + 0.55 * t * t;
+            ctx.lineWidth = 1.8 + 0.6 * t;
+            ctx.strokeStyle = hexColors[i];
+            ctx.beginPath();
+            ctx.moveTo(x0, y0);
+            ctx.lineTo(x1, y1);
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
+      }
+      for (let i = 0; i < 3; i++) {
+        if (destroyedRef.current[i]) continue;
+        const [x, y] = worldToScreen(p[i][0], p[i][1], W, H);
+        ctx.save();
+        glow(hexColors[i], 0.9);
+        ctx.fillStyle = hexColors[i];
+        ctx.beginPath();
+        ctx.arc(x, y, radius * scaleRef.current, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      for (const sh of shardsRef.current) {
+        const [x, y] = worldToScreen(sh.p[0], sh.p[1], W, H);
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, sh.life / 3);
+        ctx.fillStyle = sh.color;
+        ctx.beginPath();
+        ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      if (scaleRef.current < 120) {
+        for (const obj of outerObjectsRef.current) {
+          const pos = outerObjectPosition(obj, liveRef.current.tSim);
+          const [x, y] = worldToScreen(pos[0], pos[1], W, H);
+          ctx.save();
+          glow(obj.color, 0.8);
+          ctx.fillStyle = obj.color;
+          ctx.beginPath();
+          ctx.arc(x, y, obj.radius * scaleRef.current, 0, Math.PI * 2);
+          ctx.fill();
+          if (obj.ring) {
+            ctx.globalAlpha = 0.6;
+            ctx.lineWidth = obj.radius * scaleRef.current * 0.5;
+            ctx.strokeStyle = obj.color;
+            ctx.beginPath();
+            ctx.arc(x, y, obj.radius * scaleRef.current * 1.8, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+      }
+      if (rocketRef.current) {
+        const r = rocketRef.current;
+        const [x, y] = worldToScreen(r.p[0], r.p[1], W, H);
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(-r.angle);
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.moveTo(6, 0);
+        ctx.lineTo(-4, 3);
+        ctx.lineTo(-4, -3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+    const loopRef = useRef(() => {
+    });
+    loopRef.current = () => {
+      const buf = preBufRef.current;
+      if (!buf) return;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      setupCanvas(ctx);
+      const now = performance.now() / 1e3;
+      const realElapsed = Math.max(0, now - mapRef.current.realStart);
+      const simRate = mapRef.current.baseSpeed * speedMul;
+      if (isPlaying) {
+        const simTimeTarget = Math.max(0, realElapsed * simRate);
+        const tEvent = buf.tEvent;
+        if (simTimeTarget <= tEvent) {
+          const idx = Math.min(buf.states.length - 1, Math.floor(simTimeTarget / buf.dt));
+          const state = buf.states[idx] ?? buf.states[buf.states.length - 1];
+          if (state) {
+            liveRef.current.p = state.p.map((x) => [...x]);
+            liveRef.current.v = state.v.map((x) => [...x]);
+            liveRef.current.tSim = idx * buf.dt;
+          }
+        } else {
+          postEventRef.current = true;
+          if (Math.abs(liveRef.current.tSim - tEvent) < buf.dt) {
+            const exact = buf.states[Math.min(buf.states.length - 1, Math.floor(tEvent / buf.dt))];
+            if (exact) {
+              liveRef.current.p = exact.p.map((x) => [...x]);
+              liveRef.current.v = exact.v.map((x) => [...x]);
+              liveRef.current.tSim = tEvent;
+              if (buf.kind === "collision") handleCollision(liveRef.current.p, liveRef.current.v);
+              handleOuterCollisions(liveRef.current.p, liveRef.current.v, liveRef.current.tSim);
+            }
+          }
+          if (!collisionHandledRef.current && buf.kind === "collision" && simTimeTarget > tEvent) {
+            const pair = buf.info.split("\u2194").map((n) => parseInt(n) - 1);
+            const c = mul(add(liveRef.current.p[pair[0]], liveRef.current.p[pair[1]]), 0.5);
+            for (let s = 0; s < 40; s++) {
+              const ang = Math.random() * Math.PI * 2;
+              const spd = 0.6 + Math.random() * 0.8;
+              const color = hexColors[pair[Math.floor(Math.random() * 2)]];
+              shardsRef.current.push({ p: [c[0], c[1]], v: [Math.cos(ang) * spd, Math.sin(ang) * spd], life: 3, color });
+            }
+            destroyedRef.current[pair[0]] = true;
+            destroyedRef.current[pair[1]] = true;
+            shatterPosRef.current[pair[0]] = [c[0], c[1]];
+            shatterPosRef.current[pair[1]] = [c[0], c[1]];
+            liveRef.current.p[pair[0]] = [9999, 9999];
+            liveRef.current.p[pair[1]] = [9999, 9999];
+            liveRef.current.v[pair[0]] = [0, 0];
+            liveRef.current.v[pair[1]] = [0, 0];
+            collisionHandledRef.current = true;
+          }
+          let dtLeft = simTimeTarget - liveRef.current.tSim;
+          const h = 5e-3;
+          while (dtLeft > 1e-6) {
+            const step = Math.min(h, dtLeft);
+            const next = rk4Step(liveRef.current.p, liveRef.current.v, step, liveRef.current.tSim, true);
+            liveRef.current.p = next.p;
+            liveRef.current.v = next.v;
+            handleCollision(liveRef.current.p, liveRef.current.v);
+            handleOuterCollisions(liveRef.current.p, liveRef.current.v, liveRef.current.tSim);
+            if (rocketRef.current) {
+              const r = rocketRef.current;
+              const rot = 1.5;
+              if (r.rotL) r.angle += rot * step;
+              if (r.rotR) r.angle -= rot * step;
+              let acc = rocketAcceleration(r.p, liveRef.current.tSim);
+              if (r.thrust) {
+                const thrust = 0.4;
+                acc = add(acc, [Math.cos(r.angle) * thrust, Math.sin(r.angle) * thrust]);
+              }
+              r.v = add(r.v, mul(acc, step));
+              r.p = add(r.p, mul(r.v, step));
+            }
+            for (const sh of shardsRef.current) {
+              sh.p = add(sh.p, mul(sh.v, step));
+              sh.life -= step;
+            }
+            shardsRef.current = shardsRef.current.filter((s) => s.life > 0);
+            liveRef.current.tSim += step;
+            dtLeft -= step;
+          }
+        }
+      }
+      if (isPlaying) {
+        const p = liveRef.current.p;
+        for (let i = 0; i < 3; i++) {
+          if (destroyedRef.current[i]) continue;
+          trailsRef.current[i].push([p[i][0], p[i][1]]);
+          while (trailsRef.current[i].length > trailMax) trailsRef.current[i].shift();
+        }
+      }
+      if (postEventRef.current) {
+        for (let i = 0; i < 3; i++) {
+          if (!destroyedRef.current[i]) ensureRegionAround(liveRef.current.p[i]);
+        }
+        if (rocketRef.current) ensureRegionAround(rocketRef.current.p);
+        if (followRef.current !== null) {
+          const idx = followRef.current;
+          let target = null;
+          if (idx === 3 && rocketRef.current) target = rocketRef.current.p;
+          else if (idx <= 2) target = destroyedRef.current[idx] ? shatterPosRef.current[idx] : liveRef.current.p[idx];
+          if (target) {
+            panRef.current = [target[0], target[1]];
+            setPan([target[0], target[1]]);
+            ensureRegionAround(panRef.current);
+          }
+        }
+      }
+      drawScene(ctx, liveRef.current.p);
+      if (buf) {
+        const tRemainingSim = Math.max(0, buf.tEvent - liveRef.current.tSim);
+        const tRemainingReal = tRemainingSim / (mapRef.current.baseSpeed * speedMul);
+        setCountdown(tRemainingReal);
+      }
+      rafRef.current = requestAnimationFrame(loopRef.current);
+    };
+    useEffect(() => {
+      if (chosenDuration == null) return;
+      preSimulateAndSetup({
+        targetTEvent: mapRef.current.baseSpeed * chosenDuration,
+        targetRealTime: chosenDuration,
+        seed: seedImportRef.current || void 0
+      });
+      seedImportRef.current = null;
+      return () => {
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      };
+    }, [chosenDuration]);
+    useEffect(() => {
+      if (!isReady) return;
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(loopRef.current);
+    }, [isReady, isPlaying, speedMul, trailMax]);
+    useEffect(() => {
+      mapRef.current.realStart = performance.now() / 1e3 - liveRef.current.tSim / (mapRef.current.baseSpeed * speedMul);
+    }, [speedMul]);
+    function resetAll() {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      shardsRef.current = [];
+      destroyedRef.current = [false, false, false];
+      collisionHandledRef.current = false;
+      setIsReady(false);
+      setEventType(null);
+      setEventBodyInfo("");
+      setIsPlaying(true);
+      setChosenDuration(null);
+      setProgressLines([]);
+      setCandidateInfo("");
+      setAttemptInfo("");
+      setOrientation(null);
+      orientationRef.current = orientationPresets[0];
+      userZoomRef.current = defaultSettings.zoom;
+      setZoom(defaultSettings.zoom);
+      setSpeedMul(defaultSettings.speedMul);
+      setTrailMax(defaultSettings.trail);
+      panRef.current = [0, 0];
+      setPan([0, 0]);
+      followRef.current = null;
+      postEventRef.current = false;
+      outerObjectsRef.current = generateRegion([0, 0]);
+      regionCentersRef.current = [[0, 0]];
+      rocketRef.current = null;
+    }
+    function handleWheel(e) {
+      e.preventDefault();
+      const factor = Math.pow(1.05, -e.deltaY / 100);
+      userZoomRef.current = Math.max(0.5, Math.min(2.5, userZoomRef.current * factor));
+      setZoom(userZoomRef.current);
+    }
+    function handleMouseDown(e) {
+      if (!postEventRef.current) return;
+      draggingRef.current = true;
+      dragStartRef.current = [e.clientX, e.clientY];
+      panStartRef.current = panRef.current;
+      followRef.current = null;
+    }
+    useEffect(() => {
+      const move = (e) => {
+        if (!draggingRef.current) return;
+        const dx = e.clientX - dragStartRef.current[0];
+        const dy = e.clientY - dragStartRef.current[1];
+        const s = scaleRef.current;
+        const newPan = [panStartRef.current[0] - dx / s, panStartRef.current[1] + dy / s];
+        panRef.current = newPan;
+        setPan(newPan);
+        ensureRegionAround(newPan);
+      };
+      const up = () => {
+        draggingRef.current = false;
+      };
+      window.addEventListener("mousemove", move);
+      window.addEventListener("mouseup", up);
+      return () => {
+        window.removeEventListener("mousemove", move);
+        window.removeEventListener("mouseup", up);
+      };
+    }, []);
+    useEffect(() => {
+      const down = (e) => {
+        if (!postEventRef.current) return;
+        if (e.shiftKey && e.key === "9") {
+          if (!blackHoleRef.current) {
+            const ang = Math.random() * Math.PI * 2;
+            const dist = 200 + Math.random() * 200;
+            const pos = [Math.cos(ang) * dist, Math.sin(ang) * dist];
+            const bh = {
+              mass: 500,
+              radius: 0.3,
+              color: "#000000",
+              orbitCenter: pos,
+              orbitRadius: 0,
+              omega: 0,
+              phase: 0
+            };
+            blackHoleRef.current = bh;
+            outerObjectsRef.current.push(bh);
+            ensureRegionAround(pos);
+          }
+          return;
+        }
+        if (e.key === "9" && blackHoleRef.current) {
+          const pos = blackHoleRef.current.orbitCenter || [0, 0];
+          panRef.current = [pos[0], pos[1]];
+          setPan([pos[0], pos[1]]);
+          ensureRegionAround(pos);
+          return;
+        }
+        if (e.code === "Digit1" || e.code === "Digit2" || e.code === "Digit3") {
+          followRef.current = parseInt(e.code.slice(-1)) - 1;
+        } else if (e.code === "Digit0") {
+          if (e.shiftKey && !rocketRef.current) {
+            rocketRef.current = { p: [0, 0], v: [0, 0], angle: 0, thrust: false, rotL: false, rotR: false };
+          }
+          if (rocketRef.current) followRef.current = 3;
+        }
+        if (rocketRef.current) {
+          if (e.key === "w") rocketRef.current.thrust = true;
+          if (e.key === "s") rocketRef.current.thrust = false;
+          if (e.key === "a") rocketRef.current.rotL = true;
+          if (e.key === "d") rocketRef.current.rotR = true;
+        }
+      };
+      const up = (e) => {
+        if (!rocketRef.current) return;
+        if (e.key === "a") rocketRef.current.rotL = false;
+        if (e.key === "d") rocketRef.current.rotR = false;
+        if (e.key === "w" || e.key === "s") rocketRef.current.thrust = false;
+      };
+      window.addEventListener("keydown", down);
+      window.addEventListener("keyup", up);
+      return () => {
+        window.removeEventListener("keydown", down);
+        window.removeEventListener("keyup", up);
+      };
+    }, []);
+    function resetControls() {
+      userZoomRef.current = defaultSettings.zoom;
+      setZoom(defaultSettings.zoom);
+      setSpeedMul(defaultSettings.speedMul);
+      setTrailMax(defaultSettings.trail);
+    }
+    function togglePlay() {
+      if (isPlaying) {
+        setIsPlaying(false);
+      } else {
+        mapRef.current.realStart = performance.now() / 1e3 - liveRef.current.tSim / (mapRef.current.baseSpeed * speedMul);
+        setIsPlaying(true);
+      }
+    }
+    const durationOptions = [
+      { label: "30s", seconds: 30 },
+      { label: "2m", seconds: 120 },
+      { label: "5m", seconds: 300 },
+      { label: "10m", seconds: 600 },
+      { label: "15m", seconds: 900 },
+      { label: "30m", seconds: 1800 },
+      { label: "45m", seconds: 2700 },
+      { label: "1h", seconds: 3600 },
+      { label: "1.5h", seconds: 5400 },
+      { label: "2h", seconds: 7200 },
+      { label: "2.5h", seconds: 9e3 },
+      { label: "3h", seconds: 10800 },
+      { label: "6h", seconds: 21600 },
+      { label: "12h", seconds: 43200 },
+      { label: "24h", seconds: 86400 }
+    ];
+    const eventLabel = eventType === "collision" ? `collision (${eventBodyInfo})` : eventType === "ejection" ? `ejection of ${eventBodyInfo}` : "an event";
+    if (orientation === null) {
+      return /* @__PURE__ */ React.createElement("div", { className: "relative w-full h-[88vh] md:h-[92vh] bg-black text-white font-sans overflow-hidden rounded-2xl shadow-2xl flex items-center justify-center" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center" }, /* @__PURE__ */ React.createElement("div", { className: "text-lg mb-3" }, "Choose starting orientation"), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-2 text-sm mb-3" }, orientationPresets.map((opt) => /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          key: opt.label,
+          onClick: () => {
+            orientationRef.current = opt;
+            setOrientation(opt);
+          },
+          className: "px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20"
+        },
+        opt.label
+      )), /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          onClick: () => {
+            const rand = randomOrientation();
+            orientationRef.current = rand;
+            setOrientation(rand);
+          },
+          className: "px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20"
+        },
+        "Random"
+      ))));
+    }
+    if (chosenDuration === null) {
+      return /* @__PURE__ */ React.createElement("div", { className: "relative w-full h-[88vh] md:h-[92vh] bg-black text-white font-sans overflow-hidden rounded-2xl shadow-2xl flex items-center justify-center" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center" }, /* @__PURE__ */ React.createElement("div", { className: "text-lg mb-3" }, "Choose time until collision/ejection"), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-3 gap-2 text-sm" }, durationOptions.map((opt) => /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          key: opt.label,
+          onClick: () => {
+            mapRef.current.baseSpeed = 1;
+            setSpeedMul(defaultSettings.speedMul);
+            setTrailMax(defaultSettings.trail);
+            userZoomRef.current = defaultSettings.zoom;
+            setZoom(defaultSettings.zoom);
+            setChosenDuration(opt.seconds);
+          },
+          className: "px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20"
+        },
+        opt.label
+      )))));
+    }
+    return /* @__PURE__ */ React.createElement("div", { className: "relative w-full h-[88vh] md:h-[92vh] bg-black text-white font-sans overflow-hidden rounded-2xl shadow-2xl", onWheel: handleWheel }, /* @__PURE__ */ React.createElement("canvas", { ref: canvasRef, className: "absolute inset-0 w-full h-full", onMouseDown: handleMouseDown }), /* @__PURE__ */ React.createElement("div", { className: "absolute top-4 left-4 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-wider text-white/70" }, "Time to ", eventLabel), /* @__PURE__ */ React.createElement("div", { className: "text-3xl font-semibold tabular-nums" }, Math.floor(countdown / 60).toString().padStart(2, "0"), ":", Math.floor(countdown % 60).toString().padStart(2, "0"))), /* @__PURE__ */ React.createElement("div", { className: "absolute top-4 right-4 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-wider text-white/70 mb-1" }, "Triadic palette"), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3" }, hexColors.map((hex, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("div", { className: "w-5 h-5 rounded-full", style: { background: hex } }), /* @__PURE__ */ React.createElement("span", { className: "text-sm font-mono text-white/80" }, hex.toUpperCase())))), /* @__PURE__ */ React.createElement("div", { className: "text-right mt-2" }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        onClick: () => {
+          if (seedRef.current) {
+            navigator.clipboard.writeText(seedRef.current);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1e3);
+          }
+        },
+        className: "text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/20"
+      },
+      copied ? "Copied!" : "Copy seed"
+    ))), /* @__PURE__ */ React.createElement("div", { className: "absolute left-1/2 -translate-x-1/2 bottom-4 flex items-center gap-3 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg" }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        onClick: togglePlay,
+        className: "px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 transition"
+      },
+      isPlaying ? "Pause" : "Play"
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        onClick: resetAll,
+        className: "px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 transition leading-tight"
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "block" }, "Reset"),
+      /* @__PURE__ */ React.createElement("span", { className: "block text-xs opacity-80" }, "(new colors)")
+    ), isReady && preBufRef.current && /* @__PURE__ */ React.createElement("div", { className: "text-sm text-white/70 font-medium" }, "Event: ", /* @__PURE__ */ React.createElement("span", { className: "text-white/90" }, eventLabel), /* @__PURE__ */ React.createElement("span", { className: "mx-2" }, "\u2022"), "Sim @ event: ", /* @__PURE__ */ React.createElement("span", { className: "tabular-nums text-white/90" }, preBufRef.current.tEvent.toFixed(2), "s"), /* @__PURE__ */ React.createElement("span", { className: "mx-2" }, "\u2022"), "Speed: ", /* @__PURE__ */ React.createElement("span", { className: "tabular-nums text-white/90" }, "\xD7", (mapRef.current.baseSpeed * speedMul).toFixed(2)))), /* @__PURE__ */ React.createElement("div", { className: "absolute left-4 bottom-24 md:bottom-28 px-4 py-3 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-lg w-[min(88vw,420px)]" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-2" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-widest text-white/70" }, "Controls"), /* @__PURE__ */ React.createElement("button", { onClick: () => setPanelOpen((v) => !v), className: "text-white/80 text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/20" }, panelOpen ? "Minimize" : "Expand")), panelOpen && /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between text-xs text-white/70" }, /* @__PURE__ */ React.createElement("span", null, "Zoom"), /* @__PURE__ */ React.createElement("span", { className: "tabular-nums" }, zoom.toFixed(2), "\xD7")), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "range",
+        min: 0.5,
+        max: 2.5,
+        step: 0.01,
+        value: zoom,
+        onChange: (e) => {
+          const z = parseFloat(e.target.value);
+          setZoom(z);
+          userZoomRef.current = z;
+        },
+        className: "w-full accent-white/90"
+      }
+    )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between text-xs text-white/70" }, /* @__PURE__ */ React.createElement("span", null, "Speed"), /* @__PURE__ */ React.createElement("span", { className: "tabular-nums" }, "\xD7", (mapRef.current.baseSpeed * speedMul).toFixed(2))), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "range",
+        min: 0.25,
+        max: 10,
+        step: 0.01,
+        value: speedMul,
+        onChange: (e) => setSpeedMul(parseFloat(e.target.value)),
+        className: "w-full accent-white/90"
+      }
+    )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between text-xs text-white/70" }, /* @__PURE__ */ React.createElement("span", null, "Trail length"), /* @__PURE__ */ React.createElement("span", { className: "tabular-nums" }, trailMax)), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "range",
+        min: 20,
+        max: 600,
+        step: 1,
+        value: trailMax,
+        onChange: (e) => setTrailMax(parseInt(e.target.value)),
+        className: "w-full accent-white/90"
+      }
+    )), /* @__PURE__ */ React.createElement("div", { className: "pt-1 text-right" }, /* @__PURE__ */ React.createElement("button", { onClick: resetControls, className: "px-3 py-1 text-xs rounded-lg bg-white/10 hover:bg-white/20 border border-white/20" }, "Reset")))), !isReady && /* @__PURE__ */ React.createElement("div", { className: "absolute inset-0 flex items-center justify-center" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center relative" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-widest text-white/70 mb-2" }, "Preparing a near-perfect 3\u2011body setup\u2026"), /* @__PURE__ */ React.createElement("div", { className: "text-lg font-medium" }, "Searching for a slight perturbation that yields an event"), /* @__PURE__ */ React.createElement("div", { className: "mt-3 text-left text-xs font-mono text-white/80 w-64" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between mb-1" }, /* @__PURE__ */ React.createElement("div", null, candidateInfo), /* @__PURE__ */ React.createElement("div", null, attemptInfo)), /* @__PURE__ */ React.createElement("div", { className: "max-h-40 overflow-y-auto" }, progressLines.map((line, i) => /* @__PURE__ */ React.createElement("div", { key: i }, line)))), /* @__PURE__ */ React.createElement("div", { className: "mt-3 text-right" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setImportOpen(true), className: "text-xs px-2 py-1 rounded-lg bg-white/10 border border-white/20" }, "Skip Exploration"))), importOpen && /* @__PURE__ */ React.createElement("div", { className: "absolute inset-0 flex items-center justify-center" }, /* @__PURE__ */ React.createElement("div", { className: "px-6 py-4 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl text-center relative" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setImportOpen(false), className: "absolute top-2 right-2 text-white/80" }, "\xD7"), /* @__PURE__ */ React.createElement("div", { className: "mb-2" }, "Paste seed"), /* @__PURE__ */ React.createElement("textarea", { value: seedInput, onChange: (e) => setSeedInput(e.target.value), className: "w-64 h-24 text-black p-1 rounded" }), /* @__PURE__ */ React.createElement("div", { className: "mt-3 text-right" }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        onClick: () => {
+          try {
+            const data = JSON.parse(atob(seedInput.trim()));
+            orientationRef.current = { label: "Seed", p: data.p, v: data.v };
+            setOrientation({ label: "Seed", p: data.p, v: data.v });
+            seedImportRef.current = { p: data.p, v: data.v };
+            setChosenDuration(data.duration);
+            setImportOpen(false);
+          } catch (err) {
+            alert("Invalid seed");
+          }
+        },
+        className: "px-3 py-1 text-xs rounded-lg bg-white/10 border border-white/20"
+      },
+      "Import simulation"
+    ))))));
+  }
+})();
