@@ -70,30 +70,73 @@ var ThreeBodyGlassSim = (() => {
   function createObjectSet(center) {
     const objs = [];
     const choice = Math.random();
-    if (choice < 0.25) {
-      const star = { mass: 5, radius: 0.15, orbitCenter: center, orbitRadius: 0, omega: 0, phase: 0, color: "#ffdd88" };
+    if (choice < 0.2) {
+      const starMass = 8 + Math.random() * 4;
+      const star = { mass: starMass, radius: 0.2 + Math.random() * 0.1, orbitCenter: center, orbitRadius: 0, omega: 0, phase: 0, color: "#ffdd88" };
       objs.push(star);
-      const n = 1 + Math.floor(Math.random() * 3);
-      for (let i = 0; i < n; i++) {
-        const r = 2 + Math.random() * 4;
+      const nPlanets = 2 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < nPlanets; i++) {
+        const r = 3 + i * (1.5 + Math.random());
+        const pMass = 0.5 + Math.random() * 1.5;
+        const pRad = 0.06 + Math.random() * 0.08;
         const omega = Math.sqrt(star.mass / Math.pow(r, 3));
-        objs.push({ mass: 0.4, radius: 0.04, orbitCenter: center, orbitRadius: r, omega, phase: Math.random() * Math.PI * 2, color: "#88aaff" });
+        const colors = randomTriadicHex();
+        const planet = { mass: pMass, radius: pRad, orbitCenter: center, orbitRadius: r, omega, phase: Math.random() * Math.PI * 2, color: colors.base };
+        if (Math.random() < 0.25) planet.ring = { inner: pRad * 1.4, outer: pRad * 2, color: colors.base };
+        objs.push(planet);
+        if (Math.random() < 0.3) {
+          const moons = 1 + Math.floor(Math.random() * 2);
+          for (let m = 0; m < moons; m++) {
+            const mR = pRad * 0.3 + Math.random() * pRad * 0.2;
+            const mOrbit = pRad * 4 + Math.random() * 1.5;
+            const mOmega = Math.sqrt(planet.mass / Math.pow(mOrbit, 3));
+            objs.push({ mass: planet.mass * (0.05 + Math.random() * 0.1), radius: mR, orbitCenter: center, orbitRadius: mOrbit, omega: mOmega, phase: Math.random() * Math.PI * 2, color: colors.tri[0], parent: planet });
+          }
+        }
       }
-    } else if (choice < 0.5) {
-      const r = 0.6;
-      const omega = Math.sqrt(2 / Math.pow(r, 3));
-      objs.push({ mass: 0.8, radius: 0.06, orbitCenter: center, orbitRadius: r, omega, phase: 0, color: "#66ff66" });
-      objs.push({ mass: 0.8, radius: 0.06, orbitCenter: center, orbitRadius: r, omega, phase: Math.PI, color: "#ff6666" });
-    } else if (choice < 0.75) {
-      const host = { mass: 2, radius: 0.1, orbitCenter: center, orbitRadius: 0, omega: 0, phase: 0, color: "#ffaa33" };
+    } else if (choice < 0.35) {
+      const sep = 0.8 + Math.random();
+      const m1 = 3 + Math.random() * 2;
+      const m2 = 3 + Math.random() * 2;
+      const omega = Math.sqrt((m1 + m2) / Math.pow(sep * 2, 3));
+      const star1 = { mass: m1, radius: 0.15, orbitCenter: center, orbitRadius: sep, omega, phase: 0, color: "#ffaa88" };
+      const star2 = { mass: m2, radius: 0.15, orbitCenter: center, orbitRadius: sep, omega, phase: Math.PI, color: "#ff8888" };
+      objs.push(star1, star2);
+      const n = Math.floor(Math.random() * 2);
+      for (let i = 0; i < n; i++) {
+        const r = 3 + Math.random() * 3;
+        const pOmega = Math.sqrt((m1 + m2) / Math.pow(r, 3));
+        objs.push({ mass: 0.6, radius: 0.05, orbitCenter: center, orbitRadius: r, omega: pOmega, phase: Math.random() * Math.PI * 2, color: "#88aaff" });
+      }
+    } else if (choice < 0.55) {
+      const pMass = 4 + Math.random() * 3;
+      const pRad = 0.2 + Math.random() * 0.1;
+      const color = "#55aaff";
+      const planet = { mass: pMass, radius: pRad, orbitCenter: center, orbitRadius: 0, omega: 0, phase: 0, color };
+      if (Math.random() < 0.5) planet.ring = { inner: pRad * 1.2, outer: pRad * 1.8, color: "#cccccc" };
+      objs.push(planet);
+      const moons = 2 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < moons; i++) {
+        const r = pRad * 4 + Math.random() * 2;
+        const omega = Math.sqrt(planet.mass / Math.pow(r, 3));
+        objs.push({ mass: 0.1 + Math.random() * 0.3, radius: 0.03 + Math.random() * 0.05, orbitCenter: center, orbitRadius: r, omega, phase: Math.random() * Math.PI * 2, color: "#dddddd", parent: planet });
+      }
+    } else if (choice < 0.7) {
+      const host = { mass: 2 + Math.random() * 2, radius: 0.1 + Math.random() * 0.05, orbitCenter: center, orbitRadius: 0, omega: 0, phase: 0, color: "#ffaa33" };
       objs.push(host);
-      const beltR = 2.5 + Math.random();
+      const beltR = 3 + Math.random() * 2;
       const omega = Math.sqrt(host.mass / Math.pow(beltR, 3));
-      for (let i = 0; i < 12; i++) {
-        objs.push({ mass: 0.01, radius: 0.02, orbitCenter: center, orbitRadius: beltR + (Math.random() - 0.5) * 0.3, omega, phase: Math.random() * Math.PI * 2, color: "#aaaaaa" });
+      const count = 40 + Math.floor(Math.random() * 40);
+      for (let i = 0; i < count; i++) {
+        objs.push({ mass: 5e-3 + Math.random() * 0.01, radius: 0.01 + Math.random() * 0.02, orbitCenter: center, orbitRadius: beltR + (Math.random() - 0.5) * 0.5, omega, phase: Math.random() * Math.PI * 2, color: "#aaaaaa" });
       }
+    } else if (choice < 0.85) {
+      const speed = 2 + Math.random() * 2;
+      const ang = Math.random() * Math.PI * 2;
+      const vel = [Math.cos(ang) * speed, Math.sin(ang) * speed];
+      objs.push({ mass: 0.05, radius: 0.03, orbitCenter: center, orbitRadius: 0, omega: 0, phase: 0, color: "#ffffff", vel });
     } else {
-      objs.push({ mass: 1.5, radius: 0.12, orbitCenter: center, orbitRadius: 0, omega: 0, phase: 0, color: "#55aaff" });
+      objs.push({ mass: 1 + Math.random(), radius: 0.08 + Math.random() * 0.04, orbitCenter: center, orbitRadius: 0, omega: 0, phase: 0, color: "#55aaff" });
     }
     return objs;
   }
@@ -109,10 +152,28 @@ var ThreeBodyGlassSim = (() => {
     return objs;
   }
   function outerObjectPosition(obj, t) {
-    const [cx, cy] = obj.orbitCenter;
+    let [cx, cy] = obj.orbitCenter;
+    if (obj.parent) [cx, cy] = outerObjectPosition(obj.parent, t);
+    if (obj.vel) return [cx + obj.vel[0] * t, cy + obj.vel[1] * t];
     if (obj.orbitRadius === 0) return [cx, cy];
     const ang = obj.phase + obj.omega * t;
     return [cx + Math.cos(ang) * obj.orbitRadius, cy + Math.sin(ang) * obj.orbitRadius];
+  }
+  function spawnBlackHole() {
+    if (blackHoleRef.current) return;
+    const dist = 400 + Math.random() * 200;
+    const ang = Math.random() * Math.PI * 2;
+    const pos = [Math.cos(ang) * dist, Math.sin(ang) * dist];
+    const hole = { mass: 1e3, radius: 0.3, orbitCenter: pos, orbitRadius: 0, omega: 0, phase: 0, color: "#000000", ring: { inner: 0.32, outer: 0.45, color: "#5500aa" } };
+    outerObjectsRef.current.push(hole);
+    blackHoleRef.current = hole;
+  }
+  function panToBlackHole() {
+    if (!blackHoleRef.current) return;
+    const pos = outerObjectPosition(blackHoleRef.current, liveRef.current.tSim);
+    panRef.current = [pos[0], pos[1]];
+    setPan([pos[0], pos[1]]);
+    ensureRegionAround(panRef.current);
   }
   var defaultSettings = { zoom: 1.35, speedMul: 1, trail: 90 };
   function ThreeBodyGlassSim() {
@@ -129,8 +190,8 @@ var ThreeBodyGlassSim = (() => {
     const [orientation, setOrientation] = useState(null);
     const [zoom, setZoom] = useState(defaultSettings.zoom);
     const orientationRef = useRef(orientationPresets[0]);
-    const [pan, setPan] = useState([0, 0]);
-    const panRef = useRef([0, 0]);
+    const [pan, setPan2] = useState([0, 0]);
+    const panRef2 = useRef([0, 0]);
     const followRef = useRef(null);
     const shatterPosRef = useRef([[0, 0], [0, 0], [0, 0]]);
     const draggingRef = useRef(false);
@@ -143,8 +204,9 @@ var ThreeBodyGlassSim = (() => {
     const [importOpen, setImportOpen] = useState(false);
     const [seedInput, setSeedInput] = useState("");
     const seedImportRef = useRef(null);
-    const outerObjectsRef = useRef(generateRegion([0, 0]));
+    const outerObjectsRef2 = useRef(generateRegion([0, 0]));
     const regionCentersRef = useRef([[0, 0]]);
+    const blackHoleRef2 = useRef(null);
     useEffect(() => {
       if (!importOpen) return;
       const handler = (e) => {
@@ -163,7 +225,7 @@ var ThreeBodyGlassSim = (() => {
     const scaleRef = useRef(180);
     const userZoomRef = useRef(defaultSettings.zoom);
     const preBufRef = useRef(null);
-    const liveRef = useRef({
+    const liveRef2 = useRef({
       p: [[0, 0], [0, 0], [0, 0]],
       v: [[0, 0], [0, 0], [0, 0]],
       tSim: 0
@@ -196,7 +258,7 @@ var ThreeBodyGlassSim = (() => {
       const B = Math.round((b + m) * 255);
       return `#${((1 << 24) + (R << 16) + (Gc << 8) + B).toString(16).slice(1)}`;
     }
-    function randomTriadicHex() {
+    function randomTriadicHex2() {
       const hue = Math.random() * 360;
       const s = 0.72, l = 0.55;
       const tri1 = (hue + 120) % 360;
@@ -209,10 +271,10 @@ var ThreeBodyGlassSim = (() => {
     const mul = (a, s) => [a[0] * s, a[1] * s];
     const dot = (a, b) => a[0] * b[0] + a[1] * b[1];
     const norm = (a) => Math.hypot(a[0], a[1]);
-    function ensureRegionAround(pt) {
+    function ensureRegionAround2(pt) {
       if (regionCentersRef.current.every((c) => norm(sub(pt, c)) > 40)) {
         regionCentersRef.current.push([pt[0], pt[1]]);
-        outerObjectsRef.current.push(...generateRegion([pt[0], pt[1]]));
+        outerObjectsRef2.current.push(...generateRegion([pt[0], pt[1]]));
       }
     }
     function accelerations(p, t, includeOuter) {
@@ -227,7 +289,7 @@ var ThreeBodyGlassSim = (() => {
           a[i] = add(a[i], mul(r, fac));
         }
         if (includeOuter) {
-          for (const obj of outerObjectsRef.current) {
+          for (const obj of outerObjectsRef2.current) {
             const pos = outerObjectPosition(obj, t);
             const r = sub(pos, p[i]);
             const d2 = r[0] * r[0] + r[1] * r[1] + softEps * softEps;
@@ -282,7 +344,7 @@ var ThreeBodyGlassSim = (() => {
       if (t < preBufRef.current.tEvent) return;
       for (let i = 0; i < 3; i++) {
         if (destroyedRef.current[i]) continue;
-        for (const obj of outerObjectsRef.current) {
+        for (const obj of outerObjectsRef2.current) {
           const pos = outerObjectPosition(obj, t);
           const rij = sub(p[i], pos);
           const d = norm(rij);
@@ -300,13 +362,13 @@ var ThreeBodyGlassSim = (() => {
       let a = [0, 0];
       for (let i = 0; i < 3; i++) {
         if (destroyedRef.current[i]) continue;
-        const r = sub(liveRef.current.p[i], pos);
+        const r = sub(liveRef2.current.p[i], pos);
         const d2 = r[0] * r[0] + r[1] * r[1] + softEps * softEps;
         const d = Math.sqrt(d2);
         const fac = G * mass / (d2 * d);
         a = add(a, mul(r, fac));
       }
-      for (const obj of outerObjectsRef.current) {
+      for (const obj of outerObjectsRef2.current) {
         const op = outerObjectPosition(obj, t);
         const r = sub(op, pos);
         const d2 = r[0] * r[0] + r[1] * r[1] + softEps * softEps;
@@ -331,7 +393,7 @@ var ThreeBodyGlassSim = (() => {
       return { pc: mul(pc, 1 / 3) };
     }
     async function preSimulateAndSetup(opts) {
-      const { base, tri } = randomTriadicHex();
+      const { base, tri } = randomTriadicHex2();
       const codes = [base, tri[0], tri[1]];
       setHexColors(codes);
       setProgressLines(["Starting search for perturbations..."]);
@@ -510,14 +572,14 @@ var ThreeBodyGlassSim = (() => {
         setEventBodyInfo(best.info);
       }
       if (preBufRef.current && opts?.targetRealTime) {
-        mapRef.current.baseSpeed = preBufRef.current.tEvent / opts.targetRealTime;
+        mapRef.current.baseSpeed = 1;
         mapRef.current.realStart = performance.now() / 1e3;
       }
       if (preBufRef.current && preBufRef.current.states.length > 0) {
         const startState = preBufRef.current.states[0];
-        liveRef.current = { p: startState.p.map((x) => [...x]), v: startState.v.map((x) => [...x]), tSim: 0 };
+        liveRef2.current = { p: startState.p.map((x) => [...x]), v: startState.v.map((x) => [...x]), tSim: 0 };
       } else {
-        liveRef.current = { p: [[0, 0], [0, 0], [0, 0]], v: [[0, 0], [0, 0], [0, 0]], tSim: 0 };
+        liveRef2.current = { p: [[0, 0], [0, 0], [0, 0]], v: [[0, 0], [0, 0], [0, 0]], tSim: 0 };
       }
       mapRef.current.realStart = performance.now() / 1e3;
       trailsRef.current = [[], [], []];
@@ -548,7 +610,7 @@ var ThreeBodyGlassSim = (() => {
     }
     function worldToScreen(x, y, W, H) {
       const s = scaleRef.current;
-      const [px, py] = panRef.current;
+      const [px, py] = panRef2.current;
       const cx = W / 2, cy = H / 2;
       return [cx + (x - px) * s, cy - (y - py) * s];
     }
@@ -630,8 +692,8 @@ var ThreeBodyGlassSim = (() => {
         ctx.restore();
       }
       if (scaleRef.current < 120) {
-        for (const obj of outerObjectsRef.current) {
-          const pos = outerObjectPosition(obj, liveRef.current.tSim);
+        for (const obj of outerObjectsRef2.current) {
+          const pos = outerObjectPosition(obj, liveRef2.current.tSim);
           const [x, y] = worldToScreen(pos[0], pos[1], W, H);
           ctx.save();
           glow(obj.color, 0.8);
@@ -639,6 +701,13 @@ var ThreeBodyGlassSim = (() => {
           ctx.beginPath();
           ctx.arc(x, y, obj.radius * scaleRef.current, 0, Math.PI * 2);
           ctx.fill();
+          if (obj.ring) {
+            ctx.strokeStyle = obj.ring.color;
+            ctx.lineWidth = (obj.ring.outer - obj.ring.inner) * scaleRef.current;
+            ctx.beginPath();
+            ctx.arc(x, y, (obj.ring.inner + obj.ring.outer) / 2 * scaleRef.current, 0, Math.PI * 2);
+            ctx.stroke();
+          }
           ctx.restore();
         }
       }
@@ -678,25 +747,25 @@ var ThreeBodyGlassSim = (() => {
           const idx = Math.min(buf.states.length - 1, Math.floor(simTimeTarget / buf.dt));
           const state = buf.states[idx] ?? buf.states[buf.states.length - 1];
           if (state) {
-            liveRef.current.p = state.p.map((x) => [...x]);
-            liveRef.current.v = state.v.map((x) => [...x]);
-            liveRef.current.tSim = idx * buf.dt;
+            liveRef2.current.p = state.p.map((x) => [...x]);
+            liveRef2.current.v = state.v.map((x) => [...x]);
+            liveRef2.current.tSim = idx * buf.dt;
           }
         } else {
           postEventRef.current = true;
-          if (Math.abs(liveRef.current.tSim - tEvent) < buf.dt) {
+          if (Math.abs(liveRef2.current.tSim - tEvent) < buf.dt) {
             const exact = buf.states[Math.min(buf.states.length - 1, Math.floor(tEvent / buf.dt))];
             if (exact) {
-              liveRef.current.p = exact.p.map((x) => [...x]);
-              liveRef.current.v = exact.v.map((x) => [...x]);
-              liveRef.current.tSim = tEvent;
-              if (buf.kind === "collision") handleCollision(liveRef.current.p, liveRef.current.v);
-              handleOuterCollisions(liveRef.current.p, liveRef.current.v, liveRef.current.tSim);
+              liveRef2.current.p = exact.p.map((x) => [...x]);
+              liveRef2.current.v = exact.v.map((x) => [...x]);
+              liveRef2.current.tSim = tEvent;
+              if (buf.kind === "collision") handleCollision(liveRef2.current.p, liveRef2.current.v);
+              handleOuterCollisions(liveRef2.current.p, liveRef2.current.v, liveRef2.current.tSim);
             }
           }
           if (!collisionHandledRef.current && buf.kind === "collision" && simTimeTarget > tEvent) {
             const pair = buf.info.split("\u2194").map((n) => parseInt(n) - 1);
-            const c = mul(add(liveRef.current.p[pair[0]], liveRef.current.p[pair[1]]), 0.5);
+            const c = mul(add(liveRef2.current.p[pair[0]], liveRef2.current.p[pair[1]]), 0.5);
             for (let s = 0; s < 40; s++) {
               const ang = Math.random() * Math.PI * 2;
               const spd = 0.6 + Math.random() * 0.8;
@@ -707,27 +776,27 @@ var ThreeBodyGlassSim = (() => {
             destroyedRef.current[pair[1]] = true;
             shatterPosRef.current[pair[0]] = [c[0], c[1]];
             shatterPosRef.current[pair[1]] = [c[0], c[1]];
-            liveRef.current.p[pair[0]] = [9999, 9999];
-            liveRef.current.p[pair[1]] = [9999, 9999];
-            liveRef.current.v[pair[0]] = [0, 0];
-            liveRef.current.v[pair[1]] = [0, 0];
+            liveRef2.current.p[pair[0]] = [9999, 9999];
+            liveRef2.current.p[pair[1]] = [9999, 9999];
+            liveRef2.current.v[pair[0]] = [0, 0];
+            liveRef2.current.v[pair[1]] = [0, 0];
             collisionHandledRef.current = true;
           }
-          let dtLeft = simTimeTarget - liveRef.current.tSim;
+          let dtLeft = simTimeTarget - liveRef2.current.tSim;
           const h = 5e-3;
           while (dtLeft > 1e-6) {
             const step = Math.min(h, dtLeft);
-            const next = rk4Step(liveRef.current.p, liveRef.current.v, step, liveRef.current.tSim, true);
-            liveRef.current.p = next.p;
-            liveRef.current.v = next.v;
-            handleCollision(liveRef.current.p, liveRef.current.v);
-            handleOuterCollisions(liveRef.current.p, liveRef.current.v, liveRef.current.tSim);
+            const next = rk4Step(liveRef2.current.p, liveRef2.current.v, step, liveRef2.current.tSim, true);
+            liveRef2.current.p = next.p;
+            liveRef2.current.v = next.v;
+            handleCollision(liveRef2.current.p, liveRef2.current.v);
+            handleOuterCollisions(liveRef2.current.p, liveRef2.current.v, liveRef2.current.tSim);
             if (rocketRef.current) {
               const r = rocketRef.current;
               const rot = 1.5;
               if (r.rotL) r.angle += rot * step;
               if (r.rotR) r.angle -= rot * step;
-              let acc = rocketAcceleration(r.p, liveRef.current.tSim);
+              let acc = rocketAcceleration(r.p, liveRef2.current.tSim);
               if (r.thrust) {
                 const thrust = 0.4;
                 acc = add(acc, [Math.cos(r.angle) * thrust, Math.sin(r.angle) * thrust]);
@@ -740,13 +809,13 @@ var ThreeBodyGlassSim = (() => {
               sh.life -= step;
             }
             shardsRef.current = shardsRef.current.filter((s) => s.life > 0);
-            liveRef.current.tSim += step;
+            liveRef2.current.tSim += step;
             dtLeft -= step;
           }
         }
       }
       if (isPlaying) {
-        const p = liveRef.current.p;
+        const p = liveRef2.current.p;
         for (let i = 0; i < 3; i++) {
           if (destroyedRef.current[i]) continue;
           trailsRef.current[i].push([p[i][0], p[i][1]]);
@@ -755,24 +824,24 @@ var ThreeBodyGlassSim = (() => {
       }
       if (postEventRef.current) {
         for (let i = 0; i < 3; i++) {
-          if (!destroyedRef.current[i]) ensureRegionAround(liveRef.current.p[i]);
+          if (!destroyedRef.current[i]) ensureRegionAround2(liveRef2.current.p[i]);
         }
-        if (rocketRef.current) ensureRegionAround(rocketRef.current.p);
+        if (rocketRef.current) ensureRegionAround2(rocketRef.current.p);
         if (followRef.current !== null) {
           const idx = followRef.current;
           let target = null;
           if (idx === 3 && rocketRef.current) target = rocketRef.current.p;
-          else if (idx <= 2) target = destroyedRef.current[idx] ? shatterPosRef.current[idx] : liveRef.current.p[idx];
+          else if (idx <= 2) target = destroyedRef.current[idx] ? shatterPosRef.current[idx] : liveRef2.current.p[idx];
           if (target) {
-            panRef.current = [target[0], target[1]];
-            setPan([target[0], target[1]]);
-            ensureRegionAround(panRef.current);
+            panRef2.current = [target[0], target[1]];
+            setPan2([target[0], target[1]]);
+            ensureRegionAround2(panRef2.current);
           }
         }
       }
-      drawScene(ctx, liveRef.current.p);
+      drawScene(ctx, liveRef2.current.p);
       if (buf) {
-        const tRemainingSim = Math.max(0, buf.tEvent - liveRef.current.tSim);
+        const tRemainingSim = Math.max(0, buf.tEvent - liveRef2.current.tSim);
         const tRemainingReal = tRemainingSim / (mapRef.current.baseSpeed * speedMul);
         setCountdown(tRemainingReal);
       }
@@ -796,7 +865,7 @@ var ThreeBodyGlassSim = (() => {
       rafRef.current = requestAnimationFrame(loopRef.current);
     }, [isReady, isPlaying, speedMul, trailMax]);
     useEffect(() => {
-      mapRef.current.realStart = performance.now() / 1e3 - liveRef.current.tSim / (mapRef.current.baseSpeed * speedMul);
+      mapRef.current.realStart = performance.now() / 1e3 - liveRef2.current.tSim / (mapRef.current.baseSpeed * speedMul);
     }, [speedMul]);
     function resetAll() {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -817,12 +886,13 @@ var ThreeBodyGlassSim = (() => {
       setZoom(defaultSettings.zoom);
       setSpeedMul(defaultSettings.speedMul);
       setTrailMax(defaultSettings.trail);
-      panRef.current = [0, 0];
-      setPan([0, 0]);
+      panRef2.current = [0, 0];
+      setPan2([0, 0]);
       followRef.current = null;
       postEventRef.current = false;
-      outerObjectsRef.current = generateRegion([0, 0]);
+      outerObjectsRef2.current = generateRegion([0, 0]);
       regionCentersRef.current = [[0, 0]];
+      blackHoleRef2.current = null;
       rocketRef.current = null;
     }
     function handleWheel(e) {
@@ -835,7 +905,7 @@ var ThreeBodyGlassSim = (() => {
       if (!postEventRef.current) return;
       draggingRef.current = true;
       dragStartRef.current = [e.clientX, e.clientY];
-      panStartRef.current = panRef.current;
+      panStartRef.current = panRef2.current;
       followRef.current = null;
     }
     useEffect(() => {
@@ -845,9 +915,9 @@ var ThreeBodyGlassSim = (() => {
         const dy = e.clientY - dragStartRef.current[1];
         const s = scaleRef.current;
         const newPan = [panStartRef.current[0] - dx / s, panStartRef.current[1] + dy / s];
-        panRef.current = newPan;
-        setPan(newPan);
-        ensureRegionAround(newPan);
+        panRef2.current = newPan;
+        setPan2(newPan);
+        ensureRegionAround2(newPan);
       };
       const up = () => {
         draggingRef.current = false;
@@ -861,6 +931,14 @@ var ThreeBodyGlassSim = (() => {
     }, []);
     useEffect(() => {
       const down = (e) => {
+        if (e.key === "9" && e.shiftKey || e.key === "(") {
+          spawnBlackHole();
+          return;
+        }
+        if (e.key === "9") {
+          panToBlackHole();
+          return;
+        }
         if (!postEventRef.current) return;
         if (e.code === "Digit1" || e.code === "Digit2" || e.code === "Digit3") {
           followRef.current = parseInt(e.code.slice(-1)) - 1;
@@ -900,7 +978,7 @@ var ThreeBodyGlassSim = (() => {
       if (isPlaying) {
         setIsPlaying(false);
       } else {
-        mapRef.current.realStart = performance.now() / 1e3 - liveRef.current.tSim / (mapRef.current.baseSpeed * speedMul);
+        mapRef.current.realStart = performance.now() / 1e3 - liveRef2.current.tSim / (mapRef.current.baseSpeed * speedMul);
         setIsPlaying(true);
       }
     }
@@ -1013,7 +1091,7 @@ var ThreeBodyGlassSim = (() => {
       {
         type: "range",
         min: 0.25,
-        max: 3,
+        max: 10,
         step: 0.01,
         value: speedMul,
         onChange: (e) => setSpeedMul(parseFloat(e.target.value)),
