@@ -21,6 +21,11 @@ type OuterObject = {
   omega: number;
   phase: number;
   color: string;
+  ring?: { inner: number; outer: number; color: string };
+  kind?: "comet" | "blackhole";
+  pos?: [number, number];
+  vel?: [number, number];
+  parent?: OuterObject;
 };
 
 const orientationPresets: OrientationPreset[] = [
@@ -72,28 +77,57 @@ function randomOrientation(): OrientationPreset {
 function createObjectSet(center: [number, number]): OuterObject[] {
   const objs: OuterObject[] = [];
   const choice = Math.random();
-  if (choice < 0.25) {
-    const star = { mass: 5, radius: 0.15, orbitCenter: center, orbitRadius: 0, omega: 0, phase: 0, color: "#ffdd88" };
+  if (choice < 0.2) {
+    const starMass = 6 + Math.random() * 4;
+    const star = { mass: starMass, radius: 0.18 + Math.random() * 0.08, orbitCenter: center, orbitRadius: 0, omega: 0, phase: 0, color: "#ffdd88" } as OuterObject;
     objs.push(star);
-    const n = 1 + Math.floor(Math.random() * 3);
+    const n = 1 + Math.floor(Math.random() * 4);
     for (let i = 0; i < n; i++) {
-      const r = 2 + Math.random() * 4;
+      const r = 2 + i * 1.5 + Math.random() * 2;
       const omega = Math.sqrt(star.mass / Math.pow(r, 3));
-      objs.push({ mass: 0.4, radius: 0.04, orbitCenter: center, orbitRadius: r, omega, phase: Math.random() * Math.PI * 2, color: "#88aaff" });
+      const planet: OuterObject = { mass: 0.3 + Math.random(), radius: 0.04 + Math.random() * 0.06, orbitCenter: center, orbitRadius: r, omega, phase: Math.random() * Math.PI * 2, color: "#88aaff" };
+      if (Math.random() < 0.2) planet.ring = { inner: planet.radius * 1.8, outer: planet.radius * 2.6, color: "#cccccc" };
+      objs.push(planet);
+      if (Math.random() < 0.5) {
+        const moonR = planet.radius * 4 + Math.random();
+        const mOmega = Math.sqrt(planet.mass / Math.pow(moonR, 3));
+        objs.push({ mass: planet.mass * 0.1, radius: planet.radius * 0.4, orbitCenter: center, orbitRadius: moonR, omega: mOmega, phase: Math.random() * Math.PI * 2, color: "#dddddd", parent: planet });
+      }
     }
-  } else if (choice < 0.5) {
+  } else if (choice < 0.35) {
+    const host = { mass: 2 + Math.random() * 3, radius: 0.1 + Math.random() * 0.05, orbitCenter: center, orbitRadius: 0, omega: 0, phase: 0, color: "#ffaa33" } as OuterObject;
+    objs.push(host);
+    const beltR = 2.5 + Math.random() * 1.5;
+    const omega = Math.sqrt(host.mass / Math.pow(beltR, 3));
+    const count = 40 + Math.floor(Math.random() * 40);
+    for (let i = 0; i < count; i++) {
+      objs.push({ mass: 0.001 + Math.random() * 0.005, radius: 0.01 + Math.random() * 0.01, orbitCenter: center, orbitRadius: beltR + (Math.random() - 0.5) * 0.5, omega, phase: Math.random() * Math.PI * 2, color: "#aaaaaa" });
+    }
+  } else if (choice < 0.45) {
+    const giant = { mass: 2 + Math.random() * 3, radius: 0.12 + Math.random() * 0.08, orbitCenter: center, orbitRadius: 0, omega: 0, phase: 0, color: "#55aaff" } as OuterObject;
+    objs.push(giant);
+    const moons = 1 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < moons; i++) {
+      const r = giant.radius * 3 + Math.random() * 2;
+      const omega = Math.sqrt(giant.mass / Math.pow(r, 3));
+      objs.push({ mass: giant.mass * 0.05, radius: giant.radius * 0.3, orbitCenter: center, orbitRadius: r, omega, phase: Math.random() * Math.PI * 2, color: "#bbbbbb", parent: giant });
+    }
+  } else if (choice < 0.55) {
+    const planet = { mass: 1 + Math.random() * 2, radius: 0.08 + Math.random() * 0.04, orbitCenter: center, orbitRadius: 0, omega: 0, phase: 0, color: "#99ccff", ring: { inner: 0.12, outer: 0.2, color: "#eeeeee" } } as OuterObject;
+    planet.ring = { inner: planet.radius * 1.5, outer: planet.radius * 2.5, color: "#eeeeee" };
+    objs.push(planet);
+  } else if (choice < 0.65) {
+    const ang = Math.random() * Math.PI * 2;
+    const dist = 3 + Math.random() * 3;
+    const speed = 0.5 + Math.random();
+    const pos: [number, number] = [center[0] + Math.cos(ang) * dist, center[1] + Math.sin(ang) * dist];
+    const vel: [number, number] = [Math.cos(ang) * speed, Math.sin(ang) * speed];
+    objs.push({ mass: 0.05, radius: 0.03, orbitCenter: center, orbitRadius: 0, omega: 0, phase: 0, color: "#ffffff", kind: "comet", pos, vel });
+  } else if (choice < 0.75) {
     const r = 0.6;
     const omega = Math.sqrt(2 / Math.pow(r, 3));
     objs.push({ mass: 0.8, radius: 0.06, orbitCenter: center, orbitRadius: r, omega, phase: 0, color: "#66ff66" });
     objs.push({ mass: 0.8, radius: 0.06, orbitCenter: center, orbitRadius: r, omega, phase: Math.PI, color: "#ff6666" });
-  } else if (choice < 0.75) {
-    const host = { mass: 2, radius: 0.1, orbitCenter: center, orbitRadius: 0, omega: 0, phase: 0, color: "#ffaa33" };
-    objs.push(host);
-    const beltR = 2.5 + Math.random();
-    const omega = Math.sqrt(host.mass / Math.pow(beltR, 3));
-    for (let i = 0; i < 12; i++) {
-      objs.push({ mass: 0.01, radius: 0.02, orbitCenter: center, orbitRadius: beltR + (Math.random() - 0.5) * 0.3, omega, phase: Math.random() * Math.PI * 2, color: "#aaaaaa" });
-    }
   } else {
     objs.push({ mass: 1.5, radius: 0.12, orbitCenter: center, orbitRadius: 0, omega: 0, phase: 0, color: "#55aaff" });
   }
@@ -113,6 +147,16 @@ function generateRegion(center: [number, number]): OuterObject[] {
 }
 
 function outerObjectPosition(obj: OuterObject, t: number): [number, number] {
+  if (obj.kind === "blackhole" && obj.pos) return obj.pos;
+  if (obj.kind === "comet" && obj.pos && obj.vel) {
+    return [obj.pos[0] + obj.vel[0] * t, obj.pos[1] + obj.vel[1] * t];
+  }
+  if (obj.parent) {
+    const [px, py] = outerObjectPosition(obj.parent, t);
+    if (obj.orbitRadius === 0) return [px, py];
+    const ang = obj.phase + obj.omega * t;
+    return [px + Math.cos(ang) * obj.orbitRadius, py + Math.sin(ang) * obj.orbitRadius];
+  }
   const [cx, cy] = obj.orbitCenter;
   if (obj.orbitRadius === 0) return [cx, cy];
   const ang = obj.phase + obj.omega * t;
@@ -172,6 +216,7 @@ export default function ThreeBodyGlassSim() {
   const seedImportRef = useRef<{ p: [number, number][], v: [number, number][] } | null>(null);
 
   const outerObjectsRef = useRef<OuterObject[]>(generateRegion([0, 0]));
+  const blackHoleRef = useRef<OuterObject | null>(null);
   const regionCentersRef = useRef<[number, number][]>([[0, 0]]);
 
   useEffect(() => {
@@ -217,7 +262,7 @@ export default function ThreeBodyGlassSim() {
   // Time mapping: real time → sim time
   // simRate = baseSpeed * speedMul (sim seconds / real second)
   const mapRef = useRef({ realStart: 0, baseSpeed: 1 });
-  const [speedMul, setSpeedMul] = useState(1); // UI speed multiplier (0.25× .. 3×)
+  const [speedMul, setSpeedMul] = useState(1); // UI speed multiplier (0.25× .. 10×)
 
   // Trails
   const trailsRef = useRef<[number, number][][]>([[], [], []]);
@@ -560,7 +605,7 @@ export default function ThreeBodyGlassSim() {
     }
 
     if (preBufRef.current && opts?.targetRealTime) {
-      mapRef.current.baseSpeed = preBufRef.current.tEvent / opts.targetRealTime;
+      mapRef.current.baseSpeed = 1;
       mapRef.current.realStart = performance.now() / 1000;
     }
 
@@ -709,11 +754,37 @@ export default function ThreeBodyGlassSim() {
         const pos = outerObjectPosition(obj, liveRef.current.tSim);
         const [x, y] = worldToScreen(pos[0], pos[1], W, H);
         ctx.save();
-        glow(obj.color, 0.8);
-        ctx.fillStyle = obj.color;
-        ctx.beginPath();
-        ctx.arc(x, y, obj.radius * scaleRef.current, 0, Math.PI * 2);
-        ctx.fill();
+        if (obj.kind === "blackhole") {
+          glow("#8844ff", 1.2);
+          ctx.fillStyle = "#000000";
+          ctx.beginPath();
+          ctx.arc(x, y, obj.radius * scaleRef.current, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          glow(obj.color, 0.8);
+          ctx.fillStyle = obj.color;
+          ctx.beginPath();
+          ctx.arc(x, y, obj.radius * scaleRef.current, 0, Math.PI * 2);
+          ctx.fill();
+          if (obj.ring) {
+            ctx.strokeStyle = obj.ring.color;
+            ctx.lineWidth = (obj.ring.outer - obj.ring.inner) * scaleRef.current;
+            ctx.beginPath();
+            ctx.arc(x, y, ((obj.ring.inner + obj.ring.outer) / 2) * scaleRef.current, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+          if (obj.kind === "comet" && obj.vel) {
+            const d = Math.hypot(obj.vel[0], obj.vel[1]) || 1;
+            const tx = x - (obj.vel[0] / d) * obj.radius * scaleRef.current * 6;
+            const ty = y - (obj.vel[1] / d) * obj.radius * scaleRef.current * 6;
+            ctx.strokeStyle = obj.color;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(tx, ty);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+          }
+        }
         ctx.restore();
       }
     }
@@ -844,6 +915,7 @@ export default function ThreeBodyGlassSim() {
         const idx = followRef.current;
         let target: [number, number] | null = null;
         if (idx === 3 && rocketRef.current) target = rocketRef.current.p;
+        else if (idx === 4 && blackHoleRef.current) target = outerObjectPosition(blackHoleRef.current, liveRef.current.tSim);
         else if (idx <= 2) target = destroyedRef.current[idx] ? shatterPosRef.current[idx] : liveRef.current.p[idx];
         if (target) {
           panRef.current = [target[0], target[1]];
@@ -956,6 +1028,17 @@ export default function ThreeBodyGlassSim() {
           rocketRef.current = { p: [0, 0], v: [0, 0], angle: 0, thrust: false, rotL: false, rotR: false };
         }
         if (rocketRef.current) followRef.current = 3;
+      } else if (e.code === "Digit9") {
+        if (e.shiftKey && !blackHoleRef.current) {
+          const ang = Math.random() * Math.PI * 2;
+          const dist = 200 + Math.random() * 200;
+          const pos: [number, number] = [Math.cos(ang) * dist, Math.sin(ang) * dist];
+          const bh: OuterObject = { mass: 5000, radius: 0.3, orbitCenter: [0, 0], orbitRadius: 0, omega: 0, phase: 0, color: "#000000", kind: "blackhole", pos };
+          outerObjectsRef.current.push(bh);
+          blackHoleRef.current = bh;
+        } else if (blackHoleRef.current) {
+          followRef.current = 4;
+        }
       }
       if (rocketRef.current) {
         if (e.key === "w") rocketRef.current.thrust = true;
@@ -1157,7 +1240,7 @@ export default function ThreeBodyGlassSim() {
             {/* Speed */}
             <div>
               <div className="flex items-center justify-between text-xs text-white/70"><span>Speed</span><span className="tabular-nums">×{(mapRef.current.baseSpeed * speedMul).toFixed(2)}</span></div>
-              <input type="range" min={0.25} max={3} step={0.01}
+              <input type="range" min={0.25} max={10} step={0.01}
                 value={speedMul}
                 onChange={(e) => setSpeedMul(parseFloat(e.target.value))}
                 className="w-full accent-white/90" />
