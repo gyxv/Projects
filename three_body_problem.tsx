@@ -147,10 +147,7 @@ function generateRegion(center: [number, number]): OuterObject[] {
 }
 
 function outerObjectPosition(obj: OuterObject, t: number): [number, number] {
-  if (obj.kind === "blackhole" && obj.pos) return obj.pos;
-  if (obj.kind === "comet" && obj.pos && obj.vel) {
-    return [obj.pos[0] + obj.vel[0] * t, obj.pos[1] + obj.vel[1] * t];
-  }
+  if (obj.pos) return obj.pos;
   if (obj.parent) {
     const [px, py] = outerObjectPosition(obj.parent, t);
     if (obj.orbitRadius === 0) return [px, py];
@@ -197,7 +194,6 @@ export default function ThreeBodyGlassSim() {
   const draggingRef = useRef(false);
   const dragStartRef = useRef<[number, number]>([0, 0]);
   const panStartRef = useRef<[number, number]>([0, 0]);
-  const postEventRef = useRef(false);
 
   type Rocket = {
     p: [number, number];
@@ -384,7 +380,6 @@ export default function ThreeBodyGlassSim() {
   }
   function handleOuterCollisions(p: [number, number][], v: [number, number][], t: number) {
     if (!preBufRef.current) return;
-    if (t < preBufRef.current.tEvent) return;
     for (let i = 0; i < 3; i++) {
       if (destroyedRef.current[i]) continue;
       for (const obj of outerObjectsRef.current) {
@@ -613,6 +608,7 @@ export default function ThreeBodyGlassSim() {
     if (preBufRef.current && preBufRef.current.states.length > 0) {
       const startState = preBufRef.current.states[0];
       liveRef.current = { p: startState.p.map((x) => [...x]) as any, v: startState.v.map((x) => [...x]) as any, tSim: 0 };
+      preBufRef.current.states = [];
     } else {
       liveRef.current = { p: [[0,0],[0,0],[0,0]] as any, v: [[0,0],[0,0],[0,0]] as any, tSim: 0 };
     }
@@ -823,7 +819,7 @@ export default function ThreeBodyGlassSim() {
       const simTimeTarget = Math.max(0, realElapsed * simRate);
       const tEvent = buf.tEvent;
 
-      if (simTimeTarget <= tEvent) {
+      if (buf.states.length > 0 && simTimeTarget <= tEvent) {
         const idx = Math.min(buf.states.length - 1, Math.floor(simTimeTarget / buf.dt));
         const state = buf.states[idx] ?? buf.states[buf.states.length - 1];
         if (state) {
@@ -832,7 +828,6 @@ export default function ThreeBodyGlassSim() {
           liveRef.current.tSim = idx * buf.dt;
         }
       } else {
-        postEventRef.current = true;
         if (Math.abs(liveRef.current.tSim - tEvent) < buf.dt) {
           const exact = buf.states[Math.min(buf.states.length - 1, Math.floor(tEvent / buf.dt))];
           if (exact) {
@@ -890,6 +885,30 @@ export default function ThreeBodyGlassSim() {
             sh.life -= step;
           }
           shardsRef.current = shardsRef.current.filter((s) => s.life > 0);
+
+          const bh = blackHoleRef.current;
+          const bhPos = bh ? outerObjectPosition(bh, liveRef.current.tSim) : null;
+          for (const obj of outerObjectsRef.current) {
+            if (obj === bh) continue;
+            if (obj.pos && obj.vel) {
+              if (bhPos) {
+                const r = sub(bhPos, obj.pos);
+                const d2 = r[0] * r[0] + r[1] * r[1] + softEps * softEps;
+                const d = Math.sqrt(d2);
+                const fac = (G * bh!.mass) / (d2 * d);
+                obj.vel = add(obj.vel, mul(r, fac * step));
+              }
+              obj.pos = add(obj.pos, mul(obj.vel, step));
+            } else if (bhPos) {
+              const pos = outerObjectPosition(obj, liveRef.current.tSim);
+              const r = sub(bhPos, pos);
+              const d = Math.sqrt(r[0] * r[0] + r[1] * r[1]);
+              if (d < 80) {
+                obj.pos = pos;
+                obj.vel = [0, 0];
+              }
+            }
+          }
           liveRef.current.tSim += step;
           dtLeft -= step;
         }
@@ -906,22 +925,20 @@ export default function ThreeBodyGlassSim() {
       }
     }
 
-    if (postEventRef.current) {
-      for (let i = 0; i < 3; i++) {
-        if (!destroyedRef.current[i]) ensureRegionAround(liveRef.current.p[i]);
-      }
-      if (rocketRef.current) ensureRegionAround(rocketRef.current.p);
-      if (followRef.current !== null) {
-        const idx = followRef.current;
-        let target: [number, number] | null = null;
-        if (idx === 3 && rocketRef.current) target = rocketRef.current.p;
-        else if (idx === 4 && blackHoleRef.current) target = outerObjectPosition(blackHoleRef.current, liveRef.current.tSim);
-        else if (idx <= 2) target = destroyedRef.current[idx] ? shatterPosRef.current[idx] : liveRef.current.p[idx];
-        if (target) {
-          panRef.current = [target[0], target[1]];
-          setPan([target[0], target[1]]);
-          ensureRegionAround(panRef.current);
-        }
+    for (let i = 0; i < 3; i++) {
+      if (!destroyedRef.current[i]) ensureRegionAround(liveRef.current.p[i]);
+    }
+    if (rocketRef.current) ensureRegionAround(rocketRef.current.p);
+    if (followRef.current !== null) {
+      const idx = followRef.current;
+      let target: [number, number] | null = null;
+      if (idx === 3 && rocketRef.current) target = rocketRef.current.p;
+      else if (idx === 4 && blackHoleRef.current) target = outerObjectPosition(blackHoleRef.current, liveRef.current.tSim);
+      else if (idx <= 2) target = destroyedRef.current[idx] ? shatterPosRef.current[idx] : liveRef.current.p[idx];
+      if (target) {
+        panRef.current = [target[0], target[1]];
+        setPan([target[0], target[1]]);
+        ensureRegionAround(panRef.current);
       }
     }
 
@@ -981,7 +998,6 @@ export default function ThreeBodyGlassSim() {
     panRef.current = [0, 0];
     setPan([0, 0]);
     followRef.current = null;
-    postEventRef.current = false;
     outerObjectsRef.current = generateRegion([0, 0]);
     regionCentersRef.current = [[0, 0]];
     rocketRef.current = null;
@@ -994,7 +1010,6 @@ export default function ThreeBodyGlassSim() {
   }
 
   function handleMouseDown(e: React.MouseEvent) {
-    if (!postEventRef.current) return;
     draggingRef.current = true;
     dragStartRef.current = [e.clientX, e.clientY];
     panStartRef.current = panRef.current;
@@ -1020,7 +1035,6 @@ export default function ThreeBodyGlassSim() {
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (!postEventRef.current) return;
       if (e.code === "Digit1" || e.code === "Digit2" || e.code === "Digit3") {
         followRef.current = parseInt(e.code.slice(-1)) - 1;
       } else if (e.code === "Digit0") {
