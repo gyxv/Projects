@@ -7,14 +7,23 @@
     "test": "test"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:morse:js": "node scripts/build-morse.mjs",
+    "build:morse:css": "tailwindcss -c tailwind.morse.config.cjs -i ./src/morse-code/tailwind.css -o ./dist/morse-code/tailwind.css --minify",
+    "build:morse": "npm run build:morse:js && npm run build:morse:css"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "framer-motion": "^10.18.0",
+    "lucide-react": "^0.344.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.20.2",
+    "tailwindcss": "^3.4.3"
   }
 }
