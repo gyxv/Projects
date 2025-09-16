@@ -39,6 +39,14 @@ const MORSE_TO_CHAR: Record<string, string> = Object.fromEntries(
   Object.entries(CHAR_TO_MORSE).map(([k, v]) => [v, k])
 );
 
+type LibraryEntry = { char: string; code: string; synthetic?: boolean };
+type PlaybackPreviewState = {
+  prev: string | null;
+  current: string | null;
+  next: string | null;
+  activeSymbolIndex: number | null;
+};
+
 // ---------- Utilities ----------
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 const dotDashLex = (a: string, b: string) => { const n = Math.min(a.length, b.length); for (let i=0;i<n;i++) if (a[i]!==b[i]) return a[i]==='.'?-1:1; return a.length-b.length; };
@@ -100,6 +108,7 @@ export default function MorseTelegraph_V5() {
   const [filter, setFilter] = useState("");
   const [speed, setSpeed] = useLocalStorage<SpeedKey>("morse.speed", "slow"); // default slow
   const [dark, setDark] = useLocalStorage<boolean>("morse.dark", false);
+  const [branching, setBranching] = useLocalStorage<boolean>("morse.branching", false);
 
   // Decoding state
   const [isPressed, setIsPressed] = useState(false);
@@ -153,6 +162,7 @@ export default function MorseTelegraph_V5() {
   const [playGlow, setPlayGlow] = useState(false);
   const [playIdx, setPlayIdx] = useState<number | null>(null); // highlight index during playback
   const playAbortRef = useRef({ abort: false });
+  const [playbackPreview, setPlaybackPreview] = useState<PlaybackPreviewState>(() => ({ prev: null, current: null, next: null, activeSymbolIndex: null }));
 
   const [soundOn] = useState(true);
   const toneRef = useRef(new Sidetone());
@@ -185,11 +195,40 @@ export default function MorseTelegraph_V5() {
     return [...orderAlpha(letters, dir), ...orderAlpha(digits, dir), ...orderAlpha(symbols, dir)];
   }, [sortMode]);
 
-  const filteredEntries = useMemo(() => {
+  const { libraryEntries, highlightCode } = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    if (!q) return entries;
-    return entries.filter(e => e.char.toLowerCase().includes(q) || e.code.includes(q.replace(/dot|\./g, ".").replace(/dash|-/g, "-")));
-  }, [entries, filter]);
+    const normalizeQuery = (input: string) => input.replace(/dot|\./g, ".").replace(/dash|-/g, "-");
+    let baseList: LibraryEntry[] = entries;
+    if (q) {
+      const normalized = normalizeQuery(q);
+      baseList = entries.filter(e => e.char.toLowerCase().includes(q) || e.code.includes(normalized));
+    }
+    if (!branching || symbolBuffer.length === 0) {
+      return { libraryEntries: baseList, highlightCode: null as string | null };
+    }
+    const prefix = symbolBuffer.join("");
+    const matches = baseList.filter(e => e.code.startsWith(prefix));
+    let list: LibraryEntry[] = [...matches];
+    const exactChar = MORSE_TO_CHAR[prefix];
+    if (exactChar) {
+      const existingIdx = list.findIndex(e => e.char === exactChar);
+      if (existingIdx > -1) {
+        const [found] = list.splice(existingIdx, 1);
+        list = [found, ...list];
+      } else {
+        const entryFromAll = entries.find(e => e.char === exactChar);
+        if (entryFromAll) list = [entryFromAll, ...list];
+        else list = [{ char: exactChar, code: prefix, synthetic: true }, ...list];
+      }
+    } else {
+      list = [{ char: "�", code: prefix, synthetic: true }, ...list];
+    }
+    if (list.length === 0) {
+      if (exactChar) list = [{ char: exactChar, code: prefix, synthetic: true }];
+      else list = [{ char: "�", code: prefix, synthetic: true }];
+    }
+    return { libraryEntries: list, highlightCode: prefix };
+  }, [entries, filter, branching, symbolBuffer]);
 
   // ---------- Timing & Classification ----------
   function addUnitSample(dur: number) {
@@ -231,6 +270,7 @@ export default function MorseTelegraph_V5() {
     setSymbolBuffer(curr => { if (curr.length > 0) return curr; setTranscript(t => (t.endsWith(" ") || t.length===0 ? t : t+" ")); return curr; });
   }
   function addCharFromPanel(ch: string) {
+    if (ch === "�") return;
     const buf = symbolBufferRef.current;
     if (buf.length > 0) { const code = buf.join(""); const decoded = MORSE_TO_CHAR[code] ?? "�"; setTranscript(t => t + decoded + ch); setSymbolBuffer([]); clearManualTimers(); setBlueActive(false); setBlueCycle(c=>c+1); setRedActive(false); setRedCycle(c=>c+1); }
     else setTranscript(t => t + ch);
@@ -365,44 +405,72 @@ export default function MorseTelegraph_V5() {
 
   // ---------- Playback (aligned to rings, with highlight) ----------
   async function playTranscriptNow() {
-    if (!transcript.trim() || isPlaying) return; setIsPlaying(true); playAbortRef.current.abort = false; setPlayGlow(false); setPlayIdx(null);
+    if (!transcript.trim() || isPlaying) return; setIsPlaying(true); playAbortRef.current.abort = false; setPlayGlow(false); setPlayIdx(null); setPlaybackPreview({ prev: null, current: null, next: null, activeSymbolIndex: null });
     try {
       const unit = playbackUnit();
-      for (let i = 0; i < transcript.length; i++) {
+      const chars = transcript.split("");
+      const nextCodeFor = (idx: number) => {
+        for (let j = idx + 1; j < chars.length; j++) {
+          const nextChar = chars[j];
+          if (nextChar === " ") continue;
+          const candidate = CHAR_TO_MORSE[nextChar.toUpperCase() as keyof typeof CHAR_TO_MORSE];
+          if (candidate) return candidate;
+        }
+        return null;
+      };
+      let lastCode: string | null = null;
+      for (let i = 0; i < chars.length; i++) {
         if (playAbortRef.current.abort) break;
-        const ch = transcript[i]; setPlayIdx(i);
+        const ch = chars[i]; setPlayIdx(i);
         if (ch === " ") {
+          const nextCode = nextCodeFor(i);
+          setPlaybackPreview({ prev: lastCode, current: null, next: nextCode, activeSymbolIndex: null });
           const { wGap } = pbStartWordGapOnly(unit);
           await sleep(wGap);
           continue;
         }
-        const code = CHAR_TO_MORSE[ch.toUpperCase() as keyof typeof CHAR_TO_MORSE]; if (!code) { await sleep(1 * unit); continue; }
+        const upper = ch.toUpperCase();
+        const code = CHAR_TO_MORSE[upper as keyof typeof CHAR_TO_MORSE];
+        const nextCode = nextCodeFor(i);
+        if (!code) {
+          setPlaybackPreview({ prev: lastCode, current: null, next: nextCode, activeSymbolIndex: null });
+          await sleep(1 * unit);
+          continue;
+        }
+        setPlaybackPreview({ prev: lastCode, current: code, next: nextCode, activeSymbolIndex: null });
         const parts = code.split("");
         for (let s = 0; s < parts.length; s++) {
           if (playAbortRef.current.abort) break;
           const symUnit = parts[s] === "." ? 1 : 3;
           const symbolMs = symUnit * unit;
-          // Press tone + yellow ring
+          setPlaybackPreview(prev => ({ ...prev, activeSymbolIndex: s }));
           pbStartPress(unit, symbolMs);
           await sleep(symbolMs);
-          // Release tone + stop yellow
           pbEndPress();
-          // Intra-symbol gap
+          setPlaybackPreview(prev => ({ ...prev, activeSymbolIndex: null }));
+          if (playAbortRef.current.abort) break;
           if (s < parts.length - 1) {
             pbStartReleaseRings(unit);
             await sleep(1 * unit);
           }
         }
-        // LETTER GAP: wait for BLUE ring to finish
+        if (playAbortRef.current.abort) break;
+        setPlaybackPreview(prev => ({ ...prev, prev: code, current: null, activeSymbolIndex: null }));
+        lastCode = code;
         const { lGap } = pbStartReleaseRings(unit);
         await sleep(lGap);
       }
     } finally {
       setYellowActive(false); setBlueActive(false); setRedActive(false);
       setIsPressed(false); setPlayGlow(false); if (soundOn) toneRef.current.stop(); setIsPlaying(false); clearPlaybackRingTimers(); setPlayIdx(null);
+      setPlaybackPreview({ prev: null, current: null, next: null, activeSymbolIndex: null });
     }
   }
-  function stopPlayback() { if (!isPlaying) return; playAbortRef.current.abort = true; }
+  function stopPlayback() {
+    if (!isPlaying) return;
+    playAbortRef.current.abort = true;
+    setPlaybackPreview({ prev: null, current: null, next: null, activeSymbolIndex: null });
+  }
 
   // ---------- UI ----------
   const bgStyle: CSSProperties = dark ? {
@@ -425,9 +493,30 @@ export default function MorseTelegraph_V5() {
   const chipOff = dark ? "text-slate-200 hover:bg-white/10" : "text-slate-700 hover:bg-white";
   const chipOn  = dark ? "bg-slate-100 text-slate-900" : "bg-slate-900 text-white";
   const buttonBase = dark ? "bg-white/10 border border-white/15 text-slate-100 hover:bg-white/15" : "bg-white/80 border border-slate-200 text-slate-800 hover:bg-white";
+  const libraryButtonBase = dark ? "bg-white/5 border border-white/10 hover:bg-white/10" : "bg-white/70 border border-slate-200 hover:bg-white";
+  const libraryHighlight = dark ? "bg-emerald-500/20 border border-emerald-400/40 hover:bg-emerald-500/25" : "bg-emerald-100 border border-emerald-300 hover:bg-emerald-100/80";
+  const branchingToggleClass = branching
+    ? (dark ? "bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 hover:bg-emerald-500/25" : "bg-emerald-100 border border-emerald-300 text-emerald-700 hover:bg-emerald-100/80")
+    : (dark ? "bg-white/10 border border-white/15 text-slate-200 hover:bg-white/15" : "bg-white/80 border border-slate-300 text-slate-600 hover:bg-white");
 
   function clearTranscript() { setTranscript(""); setSymbolBuffer([]); }
   const livePreview = bufferToPretty(symbolBuffer);
+  const highlightFirstEntry = branching && symbolBuffer.length > 0 && libraryEntries.length > 0 && highlightCode === libraryEntries[0]?.code;
+  const renderCodeLine = (code: string | null, colorClass: string, highlightIndex: number | null) => {
+    if (!code || code.length === 0) {
+      return <span className={`block font-mono text-sm tracking-wide ${colorClass} opacity-60`}>&nbsp;</span>;
+    }
+    return (
+      <span className={`block font-mono text-sm tracking-wide ${colorClass}`}>
+        {code.split("").map((sym, idx, arr) => (
+          <span key={idx} className={highlightIndex === idx ? "text-red-500 font-bold" : undefined}>
+            {sym === "." ? "·" : "–"}
+            {idx < arr.length - 1 ? " " : ""}
+          </span>
+        ))}
+      </span>
+    );
+  };
 
   // Ring geometry (SVG keeps 240 viewBox; element is scaled up via CSS so rings enlarge in lockstep)
   const R_RED = 118, R_BLUE = 112, R_YELLOW = 100;
@@ -493,7 +582,7 @@ export default function MorseTelegraph_V5() {
           {/* Center column left empty intentionally to maintain layout height */}
           <section className="min-h-[260px]" />
 
-          {/* Right Info Panel (arrow direction fixed) */}
+          {/* Right Library Panel */}
           <aside className="relative">
             <motion.div className={`${panelChrome} rounded-2xl shadow-sm overflow-hidden`}
               initial={false}
@@ -503,11 +592,11 @@ export default function MorseTelegraph_V5() {
             >
               <div className={`flex items-center justify-between gap-2 px-3 py-2 ${dark?"border-b border-white/10":"border-b border-slate-200/70"}`}>
                 <button className={`inline-flex items-center justify-center text-sm p-1.5 rounded-md ${dark?"bg-white text-slate-900":"bg-slate-900 text-white"}`}
-                        onClick={() => setPanelOpen(o => !o)} aria-expanded={panelOpen} aria-label={panelOpen?"Collapse reference":"Expand reference"}>
-                  {/* Collapsed shows ◀ to expand; open shows ▶ to collapse */}
-                  {panelOpen ? <ChevronRight size={16}/> : <ChevronLeft size={16}/>}{panelOpen && <span className="ml-2">Reference</span>}
+                        onClick={() => setPanelOpen(o => !o)} aria-expanded={panelOpen} aria-label={panelOpen?"Collapse library":"Expand library"}>
+                  {/* Collapsed shows ▶ to expand; open shows ◀ to collapse */}
+                  {panelOpen ? <ChevronLeft size={16}/> : <ChevronRight size={16}/>} {panelOpen && <span className="ml-2">Library</span>}
                 </button>
-                {panelOpen && (<div className={`text-[11px] ${subText}`}>Morse Reference</div>)}
+                {panelOpen && (<div className={`text-[11px] ${subText}`}>Morse Library</div>)}
               </div>
               {panelOpen && (
                 <div className="p-3">
@@ -520,7 +609,7 @@ export default function MorseTelegraph_V5() {
                         <option value="shape">Code shape (short→long, dots→dashes)</option>
                       </select>
                     </div>
-                    <div className="flex gap-2 items-center">
+                    <div className="flex gap-2 items-center flex-wrap">
                       <label className={`text-xs ${subText}`}>Speed</label>
                       <select value={speed} onChange={e => setSpeed(e.target.value as SpeedKey)} className={`text-sm px-2 py-1 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-400 ${dark?"bg-white/10 border border-white/15 text-slate-100":"bg-white/80 border border-slate-300"}`}>
                         <option value="verySlow">Very slow</option>
@@ -528,14 +617,21 @@ export default function MorseTelegraph_V5() {
                         <option value="normal">Normal</option>
                         <option value="fast">Fast</option>
                       </select>
+                      <button onClick={() => setBranching(b => !b)} aria-pressed={branching} className={`px-3 py-1 rounded-md text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-sky-400 ${branchingToggleClass}`}>
+                        Branching {branching ? "On" : "Off"}
+                      </button>
                     </div>
                   </div>
                   <div className="mt-2">
                     <input value={filter} onChange={e => setFilter(e.target.value)} placeholder="Filter… (A, .-, etc.)" className={`w-full text-sm px-2 py-1.5 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-400 ${dark?"bg-white/10 border border-white/15 text-slate-100 placeholder:text-slate-400":"bg-white/80 border border-slate-300"}`} />
                   </div>
                   <div className="mt-3 grid grid-cols-3 gap-2 pr-1 overflow-auto" style={{ maxHeight: 440 }}>
-                    {filteredEntries.map(({ char, code }) => (
-                      <button key={char} onClick={() => addCharFromPanel(char)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); addCharFromPanel(char); } }} className={`rounded-lg px-2 py-2 transition shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400 ${dark?"bg-white/5 border border-white/10 hover:bg-white/10":"bg-white/70 border border-slate-200 hover:bg-white"}`}>
+                    {libraryEntries.map(({ char, code, synthetic }, idx) => (
+                      <button key={`${char}-${code}`}
+                              onClick={() => !synthetic && addCharFromPanel(char)}
+                              onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !synthetic) { e.preventDefault(); addCharFromPanel(char); } }}
+                              disabled={synthetic}
+                              className={`rounded-lg px-2 py-2 transition shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400 disabled:opacity-60 disabled:cursor-not-allowed ${highlightFirstEntry && idx === 0 ? libraryHighlight : libraryButtonBase}`}>
                         <div className={`text-center text-[11px] ${subText}`}>{char}</div>
                         <div className="text-center font-mono tracking-wide">{prettyRef(code)}</div>
                       </button>
@@ -647,9 +743,19 @@ export default function MorseTelegraph_V5() {
                       ))}
                     </div>
                   )}
-                  {symbolBuffer.length > 0 && !isPlaying && (
-                    <span className="shrink-0 mt-2 text-sky-500 font-mono text-sm align-middle">{livePreview}</span>
-                  )}
+                  <div className="shrink-0 mt-2 min-w-[96px] text-right">
+                    {!isPlaying ? (
+                      symbolBuffer.length > 0 ? (
+                        <span className="block text-sky-500 font-mono text-sm tracking-wide">{livePreview}</span>
+                      ) : null
+                    ) : (
+                      <div className="flex flex-col items-end gap-1">
+                        {renderCodeLine(playbackPreview.prev, "text-sky-500", null)}
+                        {renderCodeLine(playbackPreview.current, "text-emerald-500", playbackPreview.activeSymbolIndex)}
+                        {renderCodeLine(playbackPreview.next, "text-sky-500", null)}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
