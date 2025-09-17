@@ -35,6 +35,17 @@ const toHMS = (totalSeconds: number) => {
   return `${pad(h)}:${pad(m)}:${pad(s)}`;
 };
 
+const formatTabTime = (totalSeconds: number) => {
+  const safeSeconds = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const seconds = safeSeconds % 60;
+  if (hours > 0) {
+    return `${hours}:${pad(minutes)}:${pad(seconds)}`;
+  }
+  return `${minutes}:${pad(seconds)}`;
+};
+
 const easeByPace = (p: number, pace: Pace, curve: number) => {
   p = clamp(p);
   const exponent = clamp(curve, 1, 4);
@@ -528,6 +539,9 @@ export default function FuturisticTimerApp() {
     originY: number;
   } | null>(null);
   const [draggingDigits, setDraggingDigits] = useState(false);
+  const lastTickRef = useRef<number | null>(null);
+  const defaultTitleRef = useRef<string | null>(null);
+  const lastTitleSeconds = useRef<number | null>(null);
 
   const updateDigitalOffset = useCallback((next: { x: number; y: number }) => {
     digitalOffsetRef.current = next;
@@ -607,10 +621,50 @@ export default function FuturisticTimerApp() {
 
   // Tick loop (single interval guarded)
   useEffect(() => {
-    if (!running || paused) return;
-    const id = setInterval(() => setRemaining((r) => Math.max(0, r - 0.1)), 100);
-    return () => clearInterval(id);
+    if (!running || paused) {
+      lastTickRef.current = null;
+      return;
+    }
+    lastTickRef.current = Date.now();
+    const id = window.setInterval(() => {
+      const now = Date.now();
+      const last = lastTickRef.current ?? now;
+      const delta = Math.max(0, (now - last) / 1000);
+      lastTickRef.current = now;
+      if (delta > 0) {
+        setRemaining((prev) => Math.max(0, prev - delta));
+      }
+    }, 100);
+    return () => {
+      lastTickRef.current = null;
+      window.clearInterval(id);
+    };
   }, [running, paused]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (defaultTitleRef.current == null) {
+      defaultTitleRef.current = document.title;
+    }
+    if (running) {
+      const seconds = Math.max(0, Math.floor(remaining));
+      if (lastTitleSeconds.current !== seconds || paused) {
+        document.title = formatTabTime(remaining);
+        lastTitleSeconds.current = seconds;
+      }
+    } else if (defaultTitleRef.current) {
+      lastTitleSeconds.current = null;
+      document.title = defaultTitleRef.current;
+    }
+  }, [remaining, running, paused]);
+
+  useEffect(() => {
+    return () => {
+      if (typeof document !== "undefined" && defaultTitleRef.current) {
+        document.title = defaultTitleRef.current;
+      }
+    };
+  }, []);
 
   // Progress
   const linProgress = useMemo(() => (durationSec > 0 ? clamp(1 - remaining / durationSec) : 0), [remaining, durationSec]);
@@ -773,7 +827,7 @@ export default function FuturisticTimerApp() {
       {/* Top-right glass control panel (force interactivity) */}
       <div
         ref={panelRef}
-        className="fixed top-5 right-5 z-[60] w-[360px] max-h-[calc(100vh-40px)] max-w-[92vw] space-y-3 overflow-y-auto pr-1 pointer-events-auto"
+        className="fixed top-5 right-5 z-[200] w-[360px] max-h-[calc(100vh-40px)] max-w-[92vw] space-y-3 overflow-y-auto pr-1 pointer-events-auto"
       >
         <div className="rounded-2xl border border-slate-900/10 bg-white/60 backdrop-blur-2xl shadow-2xl p-3">
           {/* Basic settings (no title) */}
