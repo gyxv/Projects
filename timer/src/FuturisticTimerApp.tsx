@@ -1,9 +1,33 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type KeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+  type RefObject,
+  type SyntheticEvent,
+} from "react";
 
 // === Types ===
 type TimerType = "Countdown" | "Hourglass" | "Candle" | "Bioluminescence" | "Progress Bar";
 type Pace = "normal" | "accelerating" | "decelerating";
 type ProgressBarShape = "linear" | "circular";
+
+const TIMER_TYPES: readonly TimerType[] = [
+  "Countdown",
+  "Hourglass",
+  "Candle",
+  "Bioluminescence",
+  "Progress Bar",
+];
+
+const PACES: readonly Pace[] = ["normal", "accelerating", "decelerating"];
+
+const PROGRESS_BAR_SHAPES: readonly ProgressBarShape[] = ["linear", "circular"];
 
 // === Utilities ===
 const clamp = (n: number, min = 0, max = 1) => Math.max(min, Math.min(max, n));
@@ -115,7 +139,13 @@ const ALERTS = [
 ];
 
 // =============== Fancy Controls =============== //
-const Toggle = ({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label?: string }) => (
+type ToggleProps = {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label?: ReactNode;
+};
+
+const Toggle = ({ checked, onChange, label }: ToggleProps) => (
   <button
     type="button"
     onClick={() => onChange(!checked)}
@@ -137,17 +167,14 @@ const Toggle = ({ checked, onChange, label }: { checked: boolean; onChange: (v: 
   </button>
 );
 
-function Segmented<T extends string>({
-  value,
-  onChange,
-  options,
-  className = "",
-}: {
+type SegmentedProps<T extends string> = {
   value: T;
   onChange: (v: T) => void;
-  options: T[];
+  options: readonly T[];
   className?: string;
-}) {
+};
+
+function Segmented<T extends string>({ value, onChange, options, className = "" }: SegmentedProps<T>) {
   return (
     <div
       className={`inline-flex flex-wrap items-center gap-1 rounded-xl border border-slate-900/10 bg-white/70 px-1 py-1 shadow-sm ${className}`}
@@ -167,31 +194,15 @@ function Segmented<T extends string>({
   );
 }
 
-function IntensitySlider({
-  value,
-  onChange,
-  min = 1,
-  max = 4,
-  step = 0.1,
-}: {
+type IntensitySliderProps = {
   value: number;
   onChange: (v: number) => void;
   min?: number;
   max?: number;
   step?: number;
-}) {
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const pointerRef = useRef<number | null>(null);
-  const teardownRef = useRef<(() => void) | null>(null);
+};
 
-  const stopTracking = useCallback(() => {
-    pointerRef.current = null;
-    if (teardownRef.current) {
-      teardownRef.current();
-      teardownRef.current = null;
-    }
-  }, []);
-
+function IntensitySlider({ value, onChange, min = 1, max = 4, step = 0.1 }: IntensitySliderProps) {
   const commitValue = useCallback(
     (next: number) => {
       const clamped = clamp(next, min, max);
@@ -201,70 +212,9 @@ function IntensitySlider({
     [max, min, onChange, step]
   );
 
-  const updateFromPointer = useCallback(
-    (clientX: number) => {
-      const input = inputRef.current;
-      if (!input) return;
-      const rect = input.getBoundingClientRect();
-      if (rect.width <= 0) return;
-      const ratio = clamp((clientX - rect.left) / rect.width, 0, 1);
-      const raw = min + ratio * (max - min);
-      commitValue(raw);
-    },
-    [commitValue, max, min]
-  );
-
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent<HTMLInputElement>) => {
-      if (e.button !== undefined && e.button !== 0) return;
-      const pointerId = e.pointerId;
-      stopTracking();
-      pointerRef.current = pointerId;
-      const handleMove = (event: PointerEvent) => {
-        if (event.pointerId !== pointerId) return;
-        updateFromPointer(event.clientX);
-      };
-      const handleUp = (event: PointerEvent) => {
-        if (event.pointerId !== pointerId) return;
-        stopTracking();
-      };
-      teardownRef.current = () => {
-        window.removeEventListener("pointermove", handleMove);
-        window.removeEventListener("pointerup", handleUp);
-        window.removeEventListener("pointercancel", handleUp);
-      };
-      window.addEventListener("pointermove", handleMove);
-      window.addEventListener("pointerup", handleUp);
-      window.addEventListener("pointercancel", handleUp);
-      updateFromPointer(e.clientX);
-      e.preventDefault();
-    },
-    [stopTracking, updateFromPointer]
-  );
-
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent<HTMLInputElement>) => {
-      if (pointerRef.current !== e.pointerId) return;
-      updateFromPointer(e.clientX);
-    },
-    [updateFromPointer]
-  );
-
-  const handlePointerUp = useCallback(
-    (e: React.PointerEvent<HTMLInputElement>) => {
-      if (pointerRef.current !== e.pointerId) return;
-      stopTracking();
-    },
-    [stopTracking]
-  );
-
-  const handleLostCapture = useCallback(() => {
-    stopTracking();
-  }, [stopTracking]);
-
   const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const next = e.target.valueAsNumber;
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const next = event.currentTarget.valueAsNumber;
       if (!Number.isNaN(next)) {
         commitValue(next);
       }
@@ -272,17 +222,11 @@ function IntensitySlider({
     [commitValue]
   );
 
-  useEffect(() => {
-    return () => {
-      stopTracking();
-    };
-  }, [stopTracking]);
-
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-        e.preventDefault();
-        const delta = e.key === "ArrowRight" ? step : -step;
+    (event: KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        event.preventDefault();
+        const delta = event.key === "ArrowRight" ? step : -step;
         commitValue(value + delta);
       }
     },
@@ -291,18 +235,13 @@ function IntensitySlider({
 
   return (
     <input
-      ref={inputRef}
       type="range"
       min={min}
       max={max}
       step={step}
       value={value}
       onChange={handleChange}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-      onLostPointerCapture={handleLostCapture}
+      onInput={handleChange}
       onKeyDown={handleKeyDown}
       className="w-full accent-sky-500 cursor-pointer touch-none"
     />
@@ -610,7 +549,7 @@ export default function FuturisticTimerApp() {
   }, [timeInput]);
 
   const handleTimeChange = useCallback(
-    (key: "h" | "m" | "s") => (e: React.ChangeEvent<HTMLInputElement>) => {
+    (key: "h" | "m" | "s") => (e: ChangeEvent<HTMLInputElement>) => {
       const value = e.target.value;
       if (/^\d*$/.test(value)) {
         caretPositionsRef.current[key] = e.target.selectionStart ?? value.length;
@@ -636,14 +575,14 @@ export default function FuturisticTimerApp() {
     caretPositionsRef.current[key] = null;
   }, []);
 
-  const handleTimeSelect = useCallback((key: "h" | "m" | "s") => (e: React.SyntheticEvent<HTMLInputElement>) => {
+  const handleTimeSelect = useCallback((key: "h" | "m" | "s") => (e: SyntheticEvent<HTMLInputElement>) => {
     const target = e.currentTarget;
     caretPositionsRef.current[key] = target.selectionStart ?? target.value.length;
   }, []);
 
   const blurActiveTimeField = useCallback(() => {
     if (!activeField) return;
-    const refs: Record<"h" | "m" | "s", React.RefObject<HTMLInputElement>> = {
+    const refs: Record<"h" | "m" | "s", RefObject<HTMLInputElement>> = {
       h: hourInputRef,
       m: minuteInputRef,
       s: secondInputRef,
@@ -656,7 +595,7 @@ export default function FuturisticTimerApp() {
 
   useEffect(() => {
     if (typeof document === "undefined" || !activeField) return;
-    const refs: Record<"h" | "m" | "s", React.RefObject<HTMLInputElement>> = {
+    const refs: Record<"h" | "m" | "s", RefObject<HTMLInputElement>> = {
       h: hourInputRef,
       m: minuteInputRef,
       s: secondInputRef,
@@ -695,7 +634,6 @@ export default function FuturisticTimerApp() {
     originX: number;
     originY: number;
   } | null>(null);
-  const digitDragTeardown = useRef<(() => void) | null>(null);
   const [draggingDigits, setDraggingDigits] = useState(false);
   const lastTickRef = useRef<number | null>(null);
   const defaultTitleRef = useRef<string | null>(null);
@@ -873,10 +811,6 @@ export default function FuturisticTimerApp() {
   }, [panelLeft]);
 
   const stopDigitDrag = useCallback(() => {
-    if (digitDragTeardown.current) {
-      digitDragTeardown.current();
-      digitDragTeardown.current = null;
-    }
     if (typeof document !== "undefined") {
       document.body.style.userSelect = "";
     }
@@ -897,47 +831,29 @@ export default function FuturisticTimerApp() {
     [updateDigitalOffset]
   );
 
-  const handleDigitsPointerDown = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      e.preventDefault();
-      const { pointerId, clientX, clientY } = e;
-      if (digitDragTeardown.current) {
-        digitDragTeardown.current();
-        digitDragTeardown.current = null;
-      }
-      digitDragMeta.current = {
-        pointerId,
-        startX: clientX,
-        startY: clientY,
-        originX: digitalOffsetRef.current.x,
-        originY: digitalOffsetRef.current.y,
-      };
-      if (typeof document !== "undefined") {
-        document.body.style.userSelect = "none";
-      }
-      const handleMove = (event: PointerEvent) => {
-        if (!digitDragMeta.current || digitDragMeta.current.pointerId !== event.pointerId) return;
-        moveDigits(event.clientX, event.clientY);
-      };
-      const handleUp = (event: PointerEvent) => {
-        if (!digitDragMeta.current || digitDragMeta.current.pointerId !== event.pointerId) return;
-        stopDigitDrag();
-      };
-      digitDragTeardown.current = () => {
-        window.removeEventListener("pointermove", handleMove);
-        window.removeEventListener("pointerup", handleUp);
-        window.removeEventListener("pointercancel", handleUp);
-      };
-      window.addEventListener("pointermove", handleMove);
-      window.addEventListener("pointerup", handleUp);
-      window.addEventListener("pointercancel", handleUp);
-      setDraggingDigits(true);
-    },
-    [moveDigits, stopDigitDrag]
-  );
+  const handleDigitsPointerDown = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const { pointerId, clientX, clientY } = e;
+    digitDragMeta.current = {
+      pointerId,
+      startX: clientX,
+      startY: clientY,
+      originX: digitalOffsetRef.current.x,
+      originY: digitalOffsetRef.current.y,
+    };
+    if (typeof document !== "undefined") {
+      document.body.style.userSelect = "none";
+    }
+    try {
+      e.currentTarget.setPointerCapture(pointerId);
+    } catch {
+      // Some older browsers may not support pointer capture; ignore.
+    }
+    setDraggingDigits(true);
+  }, []);
 
   const handleDigitsPointerMove = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
+    (e: ReactPointerEvent<HTMLDivElement>) => {
       if (!digitDragMeta.current || digitDragMeta.current.pointerId !== e.pointerId) return;
       moveDigits(e.clientX, e.clientY);
     },
@@ -945,8 +861,11 @@ export default function FuturisticTimerApp() {
   );
 
   const finishDigitDrag = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
+    (e: ReactPointerEvent<HTMLDivElement>) => {
       if (!digitDragMeta.current || digitDragMeta.current.pointerId !== e.pointerId) return;
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
       stopDigitDrag();
     },
     [stopDigitDrag]
@@ -994,7 +913,13 @@ export default function FuturisticTimerApp() {
     stopDigitDrag();
   }, [blurActiveTimeField, commitTimeInput, stopDigitDrag, updateDigitalOffset]);
 
-  const ControlButton = ({ label, onClick, variant = "default" as const }) => (
+  type ControlButtonProps = {
+    label: string;
+    onClick: () => void;
+    variant?: "default" | "ghost" | "danger";
+  };
+
+  const ControlButton = ({ label, onClick, variant = "default" }: ControlButtonProps) => (
     <button
       type="button"
       onClick={() => {
@@ -1014,7 +939,14 @@ export default function FuturisticTimerApp() {
     </button>
   );
 
-  const PanelSection = ({ title, open, setOpen, children }: { title?: string; open: boolean; setOpen: (v: boolean) => void; children: React.ReactNode }) => (
+  type PanelSectionProps = {
+    title?: string;
+    open: boolean;
+    setOpen: (v: boolean) => void;
+    children: ReactNode;
+  };
+
+  const PanelSection = ({ title, open, setOpen, children }: PanelSectionProps) => (
     <div className="rounded-2xl border border-slate-900/10 bg-white/70 backdrop-blur-2xl shadow-2xl overflow-hidden">
       <div
         className="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/80"
@@ -1159,13 +1091,13 @@ export default function FuturisticTimerApp() {
               <label className="grid gap-1 text-sm">
                 <span className="text-slate-700">Timer type</span>
                 <div>
-                  <Segmented<TimerType>
+                  <Segmented
                     value={timerType}
-                    onChange={(v) => {
+                    onChange={(v: TimerType) => {
                       blurActiveTimeField();
                       setTimerType(v);
                     }}
-                    options={["Countdown", "Hourglass", "Candle", "Bioluminescence", "Progress Bar"]}
+                    options={TIMER_TYPES}
                     className="max-h-24 overflow-y-auto pr-1"
                   />
                 </div>
@@ -1173,13 +1105,13 @@ export default function FuturisticTimerApp() {
 
               <fieldset className="grid gap-2 text-sm">
                 <legend className="text-slate-700">Pace</legend>
-                <Segmented<Pace>
+                <Segmented
                   value={pace}
-                  onChange={(v) => {
+                  onChange={(v: Pace) => {
                     blurActiveTimeField();
                     setPace(v);
                   }}
-                  options={["normal", "accelerating", "decelerating"]}
+                  options={PACES}
                   className="w-fit"
                 />
                 {(pace === "accelerating" || pace === "decelerating") && (
@@ -1205,13 +1137,13 @@ export default function FuturisticTimerApp() {
               {timerType === "Progress Bar" && (
                 <fieldset className="grid gap-2 text-sm">
                   <legend className="text-slate-700">Progress bar style</legend>
-                  <Segmented<ProgressBarShape>
+                  <Segmented
                     value={barShape}
-                    onChange={(v) => {
+                    onChange={(v: ProgressBarShape) => {
                       blurActiveTimeField();
                       setBarShape(v);
                     }}
-                    options={["linear", "circular"]}
+                    options={PROGRESS_BAR_SHAPES}
                     className="w-fit"
                   />
                 </fieldset>
