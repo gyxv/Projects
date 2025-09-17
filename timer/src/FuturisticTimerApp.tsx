@@ -209,91 +209,71 @@ function IntensitySlider({
   onChange,
   min = 1,
   max = 4,
-  step = 0.1,
+  step = 0.25,
   onInteractStart,
   onInteractEnd,
 }: IntensitySliderProps) {
-  const pointerIdRef = useRef<number | null>(null);
+  const baseStep = Math.max(step, 0.01);
+
   const commitValue = useCallback(
     (next: number) => {
       const clamped = clamp(next, min, max);
-      const rounded = Number(roundToStep(clamped, step).toFixed(2));
+      const rounded = Number(roundToStep(clamped, baseStep).toFixed(2));
       onChange(rounded);
     },
-    [max, min, onChange, step]
+    [baseStep, max, min, onChange]
   );
 
-  const handleChange = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const next = event.currentTarget.valueAsNumber;
-      if (!Number.isNaN(next)) {
-        commitValue(next);
-      }
-    },
-    [commitValue]
-  );
-
-  const handlePointerDown = useCallback(
-    (event: ReactPointerEvent<HTMLInputElement>) => {
-      pointerIdRef.current = event.pointerId;
+  const adjust = useCallback(
+    (delta: number) => {
       onInteractStart?.();
-      try {
-        event.currentTarget.setPointerCapture(event.pointerId);
-      } catch {}
-    },
-    [onInteractStart]
-  );
-
-  const handlePointerMove = useCallback(
-    (event: ReactPointerEvent<HTMLInputElement>) => {
-      if (pointerIdRef.current !== event.pointerId) return;
-      const next = event.currentTarget.valueAsNumber;
-      if (!Number.isNaN(next)) {
-        commitValue(next);
-      }
-    },
-    [commitValue]
-  );
-
-  const finishPointer = useCallback(
-    (event: ReactPointerEvent<HTMLInputElement>) => {
-      if (pointerIdRef.current !== event.pointerId) return;
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-        event.currentTarget.releasePointerCapture(event.pointerId);
-      }
-      pointerIdRef.current = null;
+      commitValue(value + delta);
       onInteractEnd?.();
     },
-    [onInteractEnd]
+    [commitValue, onInteractEnd, onInteractStart, value]
   );
 
   const handleKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLInputElement>) => {
+    (event: KeyboardEvent<HTMLDivElement>) => {
       if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
         event.preventDefault();
-        const delta = event.key === "ArrowRight" ? step : -step;
-        commitValue(value + delta);
+        const delta = event.key === "ArrowRight" ? baseStep : -baseStep;
+        adjust(delta);
       }
     },
-    [commitValue, step, value]
+    [adjust, baseStep]
+  );
+
+  const renderButton = useCallback(
+    (label: string, delta: number, ariaLabel: string) => (
+      <button
+        type="button"
+        onClick={() => adjust(delta)}
+        className="h-8 w-8 shrink-0 rounded-md border border-slate-900/10 bg-white/80 text-slate-700 shadow-sm transition hover:bg-slate-200"
+        aria-label={ariaLabel}
+      >
+        {label}
+      </button>
+    ),
+    [adjust]
   );
 
   return (
-    <input
-      type="range"
-      min={min}
-      max={max}
-      step={step}
-      value={value}
-      onChange={handleChange}
-      onInput={handleChange}
+    <div
+      className="flex items-center justify-center gap-2"
+      role="group"
       onKeyDown={handleKeyDown}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={finishPointer}
-      onPointerCancel={finishPointer}
-      className="w-full accent-sky-500 cursor-pointer touch-none"
-    />
+      tabIndex={0}
+      aria-label="Adjust intensity"
+    >
+      {renderButton("≪", -baseStep * 2, "Decrease intensity by 0.5")}
+      {renderButton("‹", -baseStep, "Decrease intensity by 0.25")}
+      <div className="min-w-[3.5rem] rounded-md border border-slate-900/10 bg-slate-900/5 px-3 py-1 text-center font-semibold text-slate-800">
+        {value.toFixed(2)}
+      </div>
+      {renderButton("›", baseStep, "Increase intensity by 0.25")}
+      {renderButton("≫", baseStep * 2, "Increase intensity by 0.5")}
+    </div>
   );
 }
 
@@ -660,6 +640,49 @@ export default function FuturisticTimerApp() {
       input.setSelectionRange(pos, pos);
     }
   }, [activeField, timeInput.h, timeInput.m, timeInput.s]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const handleShiftClick = (event: MouseEvent) => {
+      if (!event.shiftKey || event.defaultPrevented) {
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      const init: MouseEventInit = {
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        clientX: event.clientX,
+        clientY: event.clientY,
+        screenX: event.screenX,
+        screenY: event.screenY,
+        ctrlKey: event.ctrlKey,
+        altKey: event.altKey,
+        metaKey: event.metaKey,
+        button: event.button,
+        buttons: event.buttons,
+      };
+      window.setTimeout(() => {
+        const secondClick = new MouseEvent("click", {
+          ...init,
+          detail: Math.max(event.detail + 1, 2),
+          shiftKey: false,
+        });
+        target.dispatchEvent(secondClick);
+        const dblClick = new MouseEvent("dblclick", {
+          ...init,
+          detail: 2,
+          shiftKey: false,
+        });
+        target.dispatchEvent(dblClick);
+      }, 0);
+    };
+    document.addEventListener("click", handleShiftClick, true);
+    return () => {
+      document.removeEventListener("click", handleShiftClick, true);
+    };
+  }, []);
 
   // UI state
   const [basicOpen, setBasicOpen] = useState(true); // default expanded
@@ -1192,10 +1215,9 @@ export default function FuturisticTimerApp() {
                       }}
                       min={1}
                       max={4}
-                      step={0.1}
                       onInteractStart={stopDigitDrag}
                     />
-                    <span className="text-[11px] tracking-wide">{paceCurve.toFixed(1)}× intensity</span>
+                    <span className="text-[11px] tracking-wide">{paceCurve.toFixed(2)}× intensity</span>
                   </label>
                 )}
               </fieldset>
