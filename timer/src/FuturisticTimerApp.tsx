@@ -182,7 +182,6 @@ function IntensitySlider({
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const pointerRef = useRef<number | null>(null);
-  const teardownRef = useRef<(() => void) | null>(null);
 
   const commitValue = useCallback(
     (next: number) => {
@@ -211,31 +210,12 @@ function IntensitySlider({
       if (e.button !== undefined && e.button !== 0) return;
       const pointerId = e.pointerId;
       pointerRef.current = pointerId;
-      if (teardownRef.current) {
-        teardownRef.current();
-        teardownRef.current = null;
+      const input = inputRef.current;
+      if (input && input.setPointerCapture) {
+        try {
+          input.setPointerCapture(pointerId);
+        } catch {}
       }
-      const move = (event: PointerEvent) => {
-        if (pointerRef.current !== event.pointerId) return;
-        updateFromPointer(event.clientX);
-      };
-      const end = (event: PointerEvent) => {
-        if (pointerRef.current !== event.pointerId) return;
-        pointerRef.current = null;
-        window.removeEventListener("pointermove", move);
-        window.removeEventListener("pointerup", end);
-        window.removeEventListener("pointercancel", end);
-        teardownRef.current = null;
-      };
-      window.addEventListener("pointermove", move);
-      window.addEventListener("pointerup", end);
-      window.addEventListener("pointercancel", end);
-      teardownRef.current = () => {
-        window.removeEventListener("pointermove", move);
-        window.removeEventListener("pointerup", end);
-        window.removeEventListener("pointercancel", end);
-        pointerRef.current = null;
-      };
       updateFromPointer(e.clientX);
       e.preventDefault();
     },
@@ -253,21 +233,19 @@ function IntensitySlider({
   const handlePointerUp = useCallback(
     (e: React.PointerEvent<HTMLInputElement>) => {
       if (pointerRef.current !== e.pointerId) return;
-      if (teardownRef.current) {
-        teardownRef.current();
-      } else {
-        pointerRef.current = null;
+      const input = inputRef.current;
+      if (input && input.hasPointerCapture?.(e.pointerId)) {
+        try {
+          input.releasePointerCapture(e.pointerId);
+        } catch {}
       }
+      pointerRef.current = null;
     },
     []
   );
 
   const handleLostCapture = useCallback(() => {
-    if (teardownRef.current) {
-      teardownRef.current();
-    } else {
-      pointerRef.current = null;
-    }
+    pointerRef.current = null;
   }, []);
 
   const handleChange = useCallback(
@@ -290,14 +268,6 @@ function IntensitySlider({
     },
     [commitValue, step, value]
   );
-
-  useEffect(() => {
-    return () => {
-      if (teardownRef.current) {
-        teardownRef.current();
-      }
-    };
-  }, []);
 
   return (
     <input
@@ -757,7 +727,7 @@ export default function FuturisticTimerApp() {
   const pushToast = useCallback((text: string) => {
     const id = toastIdRef.current++;
     setToasts((t) => [...t, { id, text }]);
-    window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 1500);
+    window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3500);
   }, []);
 
   useEffect(() => {
@@ -902,6 +872,9 @@ export default function FuturisticTimerApp() {
   const handleDigitsPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
     const { pointerId, clientX, clientY } = e;
+    try {
+      e.currentTarget.setPointerCapture(pointerId);
+    } catch {}
     digitDragMeta.current = {
       pointerId,
       startX: clientX,
@@ -923,30 +896,19 @@ export default function FuturisticTimerApp() {
   const finishDigitDrag = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (!digitDragMeta.current || digitDragMeta.current.pointerId !== e.pointerId) return;
+      if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+        try {
+          e.currentTarget.releasePointerCapture(e.pointerId);
+        } catch {}
+      }
       endDigitDrag();
     },
     [endDigitDrag]
   );
 
-  useEffect(() => {
-    if (!draggingDigits) return;
-    const handleMove = (event: PointerEvent) => {
-      if (!digitDragMeta.current || digitDragMeta.current.pointerId !== event.pointerId) return;
-      moveDigits(event.clientX, event.clientY);
-    };
-    const handleEnd = (event: PointerEvent) => {
-      if (!digitDragMeta.current || digitDragMeta.current.pointerId !== event.pointerId) return;
-      endDigitDrag();
-    };
-    window.addEventListener("pointermove", handleMove);
-    window.addEventListener("pointerup", handleEnd);
-    window.addEventListener("pointercancel", handleEnd);
-    return () => {
-      window.removeEventListener("pointermove", handleMove);
-      window.removeEventListener("pointerup", handleEnd);
-      window.removeEventListener("pointercancel", handleEnd);
-    };
-  }, [draggingDigits, endDigitDrag, moveDigits]);
+  const handleDigitsLostCapture = useCallback(() => {
+    endDigitDrag();
+  }, [endDigitDrag]);
 
   const start = useCallback(() => {
     blurActiveTimeField();
@@ -1045,6 +1007,8 @@ export default function FuturisticTimerApp() {
               <label className="grid gap-1 text-xs">
                 <span className="text-slate-700">Hours</span>
                 <input
+                  id="timer-hours"
+                  name="timer-hours"
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"
@@ -1062,6 +1026,8 @@ export default function FuturisticTimerApp() {
               <label className="grid gap-1 text-xs">
                 <span className="text-slate-700">Minutes</span>
                 <input
+                  id="timer-minutes"
+                  name="timer-minutes"
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"
@@ -1079,6 +1045,8 @@ export default function FuturisticTimerApp() {
               <label className="grid gap-1 text-xs">
                 <span className="text-slate-700">Seconds</span>
                 <input
+                  id="timer-seconds"
+                  name="timer-seconds"
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"
@@ -1233,6 +1201,7 @@ export default function FuturisticTimerApp() {
           onPointerMove={handleDigitsPointerMove}
           onPointerUp={finishDigitDrag}
           onPointerCancel={finishDigitDrag}
+          onLostPointerCapture={handleDigitsLostCapture}
           title="Drag to reposition the timer"
         >
           <div className="pointer-events-none font-mono text-[clamp(3rem,6vw,8rem)] leading-none tracking-[0.4em] text-slate-900/90 drop-shadow-[0_6px_18px_rgba(2,6,23,0.08)]">
