@@ -19,15 +19,15 @@ const toHMS = (totalSeconds: number) => {
 
 const easeByPace = (p: number, pace: Pace, curve: number) => {
   p = clamp(p);
-  const exponent = clamp(curve, 1, 5);
-  switch (pace) {
-    case "accelerating":
-      return Math.pow(p, exponent);
-    case "decelerating":
-      return 1 - Math.pow(1 - p, exponent);
-    default:
-      return p;
-  }
+  const exponent = clamp(curve, 1, 4);
+  if (pace === "normal" || exponent === 1) return p;
+
+  const eased =
+    pace === "accelerating" ? Math.pow(p, exponent) : 1 - Math.pow(1 - p, exponent);
+
+  // Blend with linear progress to avoid the visual completing before the real timer.
+  const mix = clamp((exponent - 1) / 3, 0, 1);
+  return clamp(p + (eased - p) * mix);
 };
 
 // Color helpers for Bioluminescence
@@ -92,9 +92,15 @@ const Toggle = ({ checked, onChange, label }: { checked: boolean; onChange: (v: 
     className="group inline-flex items-center gap-3 select-none"
     aria-pressed={checked}
   >
-    <span className={`relative h-7 w-12 rounded-full transition shadow-inner ${checked ? "bg-sky-500/90" : "bg-slate-300"}`}>
+    <span
+      className={`relative inline-flex h-6 w-11 items-center rounded-full border transition-all shadow-inner ${
+        checked ? "border-sky-500/50 bg-sky-400/60" : "border-slate-400/40 bg-slate-200"
+      }`}
+    >
       <span
-        className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-[26px]" : "translate-x-0"}`}
+        className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full shadow transition-transform ${
+          checked ? "translate-x-[20px] bg-slate-900" : "translate-x-0 bg-slate-600"
+        }`}
       />
     </span>
     {label && <span className="text-sm text-slate-700">{label}</span>}
@@ -377,37 +383,35 @@ function LinearProgress({ progress }: { progress: number }) {
 }
 
 function CircularProgress({ progress }: { progress: number }) {
-  const size = 260;
+  const size = 220;
   const stroke = 14;
   const r = (size - stroke) / 2;
   const C = 2 * Math.PI * r;
   const offset = C * (1 - clamp(progress));
   return (
-    <svg
-      width={size}
-      height={size}
-      className="rounded-2xl border border-slate-900/10 bg-white/70 backdrop-blur-xl shadow-xl"
-    >
-      <g transform={`translate(${size / 2}, ${size / 2})`}>
-        <circle r={r} fill="none" stroke="rgba(2,6,23,0.1)" strokeWidth={stroke} />
-        <circle
-          r={r}
-          fill="none"
-          stroke="url(#grad)"
-          strokeWidth={stroke}
-          strokeDasharray={C}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-        />
-        <defs>
-          <linearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.85" />
-            <stop offset="50%" stopColor="#0ea5e9" stopOpacity="0.9" />
-            <stop offset="100%" stopColor="#10b981" stopOpacity="0.95" />
-          </linearGradient>
-        </defs>
-      </g>
-    </svg>
+    <div className="rounded-2xl border border-slate-900/10 bg-white/70 backdrop-blur-xl p-6 shadow-xl">
+      <svg width={size} height={size} className="block">
+        <g transform={`translate(${size / 2}, ${size / 2})`}>
+          <circle r={r} fill="none" stroke="rgba(2,6,23,0.1)" strokeWidth={stroke} />
+          <circle
+            r={r}
+            fill="none"
+            stroke="url(#grad)"
+            strokeWidth={stroke}
+            strokeDasharray={C}
+            strokeDashoffset={offset}
+            strokeLinecap="round"
+          />
+          <defs>
+            <linearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#4f46e5" stopOpacity="0.85" />
+              <stop offset="50%" stopColor="#0ea5e9" stopOpacity="0.9" />
+              <stop offset="100%" stopColor="#10b981" stopOpacity="0.95" />
+            </linearGradient>
+          </defs>
+        </g>
+      </svg>
+    </div>
   );
 }
 
@@ -476,6 +480,21 @@ export default function FuturisticTimerApp() {
 
   const panelRef = useRef<HTMLDivElement | null>(null);
   const [panelLeft, setPanelLeft] = useState<number | null>(null);
+  const [digitalOffset, setDigitalOffset] = useState({ x: 0, y: 0 });
+  const digitalOffsetRef = useRef({ x: 0, y: 0 });
+  const digitDragMeta = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    originX: number;
+    originY: number;
+  } | null>(null);
+  const [draggingDigits, setDraggingDigits] = useState(false);
+
+  const updateDigitalOffset = useCallback((next: { x: number; y: number }) => {
+    digitalOffsetRef.current = next;
+    setDigitalOffset(next);
+  }, []);
 
   // Alerts (store as string keys for stability)
   const [alertsEnabled, setAlertsEnabled] = useState<Record<string, boolean>>({
@@ -597,12 +616,46 @@ export default function FuturisticTimerApp() {
     return () => window.clearTimeout(timeout);
   }, [alertSplash]);
 
-  const showFinal10 = running && !paused && remaining <= 10.5;
+  const showFinal10 = running && !paused && remaining <= 10;
 
   const digitalAnchor = useMemo(() => {
     if (panelLeft == null) return 160;
     return Math.max(120, panelLeft / 2);
   }, [panelLeft]);
+
+  const handleDigitsPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const { pointerId, clientX, clientY } = e;
+    digitDragMeta.current = {
+      pointerId,
+      startX: clientX,
+      startY: clientY,
+      originX: digitalOffsetRef.current.x,
+      originY: digitalOffsetRef.current.y,
+    };
+    setDraggingDigits(true);
+    e.currentTarget.setPointerCapture?.(pointerId);
+  }, []);
+
+  const handleDigitsPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!digitDragMeta.current || digitDragMeta.current.pointerId !== e.pointerId) return;
+      const dx = e.clientX - digitDragMeta.current.startX;
+      const dy = e.clientY - digitDragMeta.current.startY;
+      updateDigitalOffset({
+        x: digitDragMeta.current.originX + dx,
+        y: digitDragMeta.current.originY + dy,
+      });
+    },
+    [updateDigitalOffset]
+  );
+
+  const finishDigitDrag = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!digitDragMeta.current || digitDragMeta.current.pointerId !== e.pointerId) return;
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+    digitDragMeta.current = null;
+    setDraggingDigits(false);
+  }, []);
 
   // Enforce digits shown when type is Countdown
   useEffect(() => {
@@ -632,10 +685,14 @@ export default function FuturisticTimerApp() {
     setAlertSplash(null);
     setToasts([]);
     setRemaining(durationSec);
+    updateDigitalOffset({ x: 0, y: 0 });
+    setDraggingDigits(false);
+    digitDragMeta.current = null;
   };
 
   const ControlButton = ({ label, onClick, variant = "default" as const }) => (
     <button
+      type="button"
       onClick={onClick}
       className={
         "rounded-xl px-4 py-2 text-sm font-medium transition active:scale-95 focus:outline-none focus:ring-2 focus:ring-sky-400/50 " +
@@ -679,7 +736,10 @@ export default function FuturisticTimerApp() {
       <div className="pointer-events-none absolute inset-0 opacity-[0.06]" style={{ backgroundImage: `radial-gradient(circle at 20% 30%, #0f172a 1px, transparent 1px), radial-gradient(circle at 80% 70%, #0f172a 1px, transparent 1px)`, backgroundSize: "120px 120px, 180px 180px" }} />
 
       {/* Top-right glass control panel (force interactivity) */}
-      <div ref={panelRef} className="fixed top-5 right-5 w-[360px] max-w-[92vw] space-y-3 z-[60] pointer-events-auto">
+      <div
+        ref={panelRef}
+        className="fixed top-5 right-5 z-[60] w-[360px] max-h-[calc(100vh-40px)] max-w-[92vw] space-y-3 overflow-y-auto pr-1 pointer-events-auto"
+      >
         <div className="rounded-2xl border border-slate-900/10 bg-white/60 backdrop-blur-2xl shadow-2xl p-3">
           {/* Basic settings (no title) */}
           <PanelSection title={undefined} open={basicOpen} setOpen={setBasicOpen}>
@@ -833,29 +893,29 @@ export default function FuturisticTimerApp() {
             {timerType === "Candle" && <CandleCanvas progress={visProgress} />}
             {timerType === "Bioluminescence" && <BioluminescenceOrb progress={visProgress} />}
             {timerType === "Progress Bar" && (barShape === "linear" ? <LinearProgress progress={visProgress} /> : <CircularProgress progress={visProgress} />)}
-
-            {/* Final 10s flashing overlay (non-blocking) */}
-            {showFinal10 && (
-              <div className="pointer-events-none absolute inset-0 grid place-items-center">
-                <div className="font-mono text-6xl md:text-7xl px-6 py-3 rounded-2xl border border-amber-400/40 bg-amber-300/20 backdrop-blur-xl animate-[pulse_0.9s_ease-in-out_infinite] shadow-[0_0_40px_rgba(245,158,11,0.35)] text-slate-900">
-                  {Math.max(0, Math.ceil(remaining))}
-                </div>
-              </div>
-            )}
           </div>
-
-          {/* Sub-caption */}
-          <div className="text-xs text-slate-700 tracking-wider">Pace: {pace}</div>
         </div>
       </div>
 
       {/* Digital time readout anchored between screen edge and control panel */}
       {(timerType === "Countdown" || showDigits) && (
         <div
-          className="fixed top-6 z-[65] pointer-events-none transform -translate-x-1/2"
-          style={{ left: digitalAnchor }}
+          className="fixed z-[65] select-none"
+          style={{
+            left: digitalAnchor + digitalOffset.x,
+            top: 24 + digitalOffset.y,
+            transform: "translateX(-50%)",
+            cursor: draggingDigits ? "grabbing" : "grab",
+            userSelect: "none",
+            touchAction: "none",
+          }}
+          onPointerDown={handleDigitsPointerDown}
+          onPointerMove={handleDigitsPointerMove}
+          onPointerUp={finishDigitDrag}
+          onPointerCancel={finishDigitDrag}
+          title="Drag to reposition the timer"
         >
-          <div className="font-mono text-[clamp(3rem,6vw,8rem)] leading-none tracking-[0.4em] text-slate-900/90 drop-shadow-[0_6px_18px_rgba(2,6,23,0.08)]">
+          <div className="pointer-events-none font-mono text-[clamp(3rem,6vw,8rem)] leading-none tracking-[0.4em] text-slate-900/90 drop-shadow-[0_6px_18px_rgba(2,6,23,0.08)]">
             {toHMS(remaining)}
           </div>
         </div>
@@ -874,6 +934,12 @@ export default function FuturisticTimerApp() {
             {t.text}
           </div>
         ))}
+        {showFinal10 && (
+          <div className="rounded-2xl border border-amber-400/50 bg-amber-200/40 px-4 py-3 text-center shadow-lg">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Final seconds</div>
+            <div className="font-mono text-4xl text-slate-900">{Math.max(0, Math.floor(remaining))}</div>
+          </div>
+        )}
       </div>
 
       {/* Keyframes */}
