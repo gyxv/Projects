@@ -200,9 +200,20 @@ type IntensitySliderProps = {
   min?: number;
   max?: number;
   step?: number;
+  onInteractStart?: () => void;
+  onInteractEnd?: () => void;
 };
 
-function IntensitySlider({ value, onChange, min = 1, max = 4, step = 0.1 }: IntensitySliderProps) {
+function IntensitySlider({
+  value,
+  onChange,
+  min = 1,
+  max = 4,
+  step = 0.1,
+  onInteractStart,
+  onInteractEnd,
+}: IntensitySliderProps) {
+  const pointerIdRef = useRef<number | null>(null);
   const commitValue = useCallback(
     (next: number) => {
       const clamped = clamp(next, min, max);
@@ -220,6 +231,40 @@ function IntensitySlider({ value, onChange, min = 1, max = 4, step = 0.1 }: Inte
       }
     },
     [commitValue]
+  );
+
+  const handlePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLInputElement>) => {
+      pointerIdRef.current = event.pointerId;
+      onInteractStart?.();
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {}
+    },
+    [onInteractStart]
+  );
+
+  const handlePointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLInputElement>) => {
+      if (pointerIdRef.current !== event.pointerId) return;
+      const next = event.currentTarget.valueAsNumber;
+      if (!Number.isNaN(next)) {
+        commitValue(next);
+      }
+    },
+    [commitValue]
+  );
+
+  const finishPointer = useCallback(
+    (event: ReactPointerEvent<HTMLInputElement>) => {
+      if (pointerIdRef.current !== event.pointerId) return;
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+      pointerIdRef.current = null;
+      onInteractEnd?.();
+    },
+    [onInteractEnd]
   );
 
   const handleKeyDown = useCallback(
@@ -243,6 +288,10 @@ function IntensitySlider({ value, onChange, min = 1, max = 4, step = 0.1 }: Inte
       onChange={handleChange}
       onInput={handleChange}
       onKeyDown={handleKeyDown}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={finishPointer}
+      onPointerCancel={finishPointer}
       className="w-full accent-sky-500 cursor-pointer touch-none"
     />
   );
@@ -881,6 +930,20 @@ export default function FuturisticTimerApp() {
     };
   }, [stopDigitDrag]);
 
+  useEffect(() => {
+    const release = () => {
+      stopDigitDrag();
+    };
+    window.addEventListener("pointerup", release);
+    window.addEventListener("pointercancel", release);
+    window.addEventListener("blur", release);
+    return () => {
+      window.removeEventListener("pointerup", release);
+      window.removeEventListener("pointercancel", release);
+      window.removeEventListener("blur", release);
+    };
+  }, [stopDigitDrag]);
+
   const start = useCallback(() => {
     blurActiveTimeField();
     const sanitized = commitTimeInput();
@@ -923,6 +986,7 @@ export default function FuturisticTimerApp() {
     <button
       type="button"
       onClick={() => {
+        stopDigitDrag();
         blurActiveTimeField();
         onClick();
       }}
@@ -981,6 +1045,7 @@ export default function FuturisticTimerApp() {
       <div
         ref={panelRef}
         className="fixed top-5 right-5 z-[250] w-[360px] max-h-[calc(100vh-40px)] max-w-[92vw] space-y-3 overflow-y-auto pr-1 pointer-events-auto"
+        onPointerDownCapture={stopDigitDrag}
       >
         <div className="rounded-2xl border border-slate-900/10 bg-white/60 backdrop-blur-2xl shadow-2xl p-3">
           {/* Basic settings (no title) */}
@@ -1128,6 +1193,7 @@ export default function FuturisticTimerApp() {
                       min={1}
                       max={4}
                       step={0.1}
+                      onInteractStart={stopDigitDrag}
                     />
                     <span className="text-[11px] tracking-wide">{paceCurve.toFixed(1)}× intensity</span>
                   </label>
