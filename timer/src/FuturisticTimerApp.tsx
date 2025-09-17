@@ -182,6 +182,7 @@ function IntensitySlider({
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const pointerRef = useRef<number | null>(null);
+  const teardownRef = useRef<(() => void) | null>(null);
 
   const commitValue = useCallback(
     (next: number) => {
@@ -205,32 +206,36 @@ function IntensitySlider({
     [commitValue, max, min]
   );
 
-  const stopPointer = useCallback(
-    (id?: number) => {
-      const currentId = pointerRef.current;
-      if (currentId == null) return;
-      if (id != null && id !== currentId) return;
-      const input = inputRef.current;
-      if (input && input.releasePointerCapture) {
-        try {
-          input.releasePointerCapture(currentId);
-        } catch {}
-      }
-      pointerRef.current = null;
-    },
-    []
-  );
-
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLInputElement>) => {
       if (e.button !== undefined && e.button !== 0) return;
-      pointerRef.current = e.pointerId;
-      const input = inputRef.current;
-      if (input && input.setPointerCapture) {
-        try {
-          input.setPointerCapture(e.pointerId);
-        } catch {}
+      const pointerId = e.pointerId;
+      pointerRef.current = pointerId;
+      if (teardownRef.current) {
+        teardownRef.current();
+        teardownRef.current = null;
       }
+      const move = (event: PointerEvent) => {
+        if (pointerRef.current !== event.pointerId) return;
+        updateFromPointer(event.clientX);
+      };
+      const end = (event: PointerEvent) => {
+        if (pointerRef.current !== event.pointerId) return;
+        pointerRef.current = null;
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", end);
+        window.removeEventListener("pointercancel", end);
+        teardownRef.current = null;
+      };
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", end);
+      window.addEventListener("pointercancel", end);
+      teardownRef.current = () => {
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", end);
+        window.removeEventListener("pointercancel", end);
+        pointerRef.current = null;
+      };
       updateFromPointer(e.clientX);
       e.preventDefault();
     },
@@ -247,14 +252,23 @@ function IntensitySlider({
 
   const handlePointerUp = useCallback(
     (e: React.PointerEvent<HTMLInputElement>) => {
-      stopPointer(e.pointerId);
+      if (pointerRef.current !== e.pointerId) return;
+      if (teardownRef.current) {
+        teardownRef.current();
+      } else {
+        pointerRef.current = null;
+      }
     },
-    [stopPointer]
+    []
   );
 
   const handleLostCapture = useCallback(() => {
-    stopPointer();
-  }, [stopPointer]);
+    if (teardownRef.current) {
+      teardownRef.current();
+    } else {
+      pointerRef.current = null;
+    }
+  }, []);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -276,6 +290,14 @@ function IntensitySlider({
     },
     [commitValue, step, value]
   );
+
+  useEffect(() => {
+    return () => {
+      if (teardownRef.current) {
+        teardownRef.current();
+      }
+    };
+  }, []);
 
   return (
     <input
@@ -628,10 +650,17 @@ export default function FuturisticTimerApp() {
     caretPositionsRef.current[key] = target.selectionStart ?? target.value.length;
   }, []);
 
-  const clearActiveField = useCallback(() => {
+  const blurActiveTimeField = useCallback(() => {
     if (!activeField) return;
-    setActiveField(null);
-    caretPositionsRef.current = { h: null, m: null, s: null };
+    const refs: Record<"h" | "m" | "s", React.RefObject<HTMLInputElement>> = {
+      h: hourInputRef,
+      m: minuteInputRef,
+      s: secondInputRef,
+    };
+    const input = refs[activeField].current;
+    if (input) {
+      input.blur();
+    }
   }, [activeField]);
 
   useEffect(() => {
@@ -919,7 +948,8 @@ export default function FuturisticTimerApp() {
     };
   }, [draggingDigits, endDigitDrag, moveDigits]);
 
-  const start = () => {
+  const start = useCallback(() => {
+    blurActiveTimeField();
     const sanitized = commitTimeInput();
     const total = getDuration(sanitized);
     if (total <= 0) return;
@@ -930,12 +960,14 @@ export default function FuturisticTimerApp() {
     setRemaining(total);
     setRunning(true);
     setPaused(false);
-  };
-  const pause = () => {
+  }, [blurActiveTimeField, commitTimeInput]);
+  const pause = useCallback(() => {
+    blurActiveTimeField();
     if (!running) return;
     setPaused((p) => !p);
-  };
-  const reset = () => {
+  }, [blurActiveTimeField, running]);
+  const reset = useCallback(() => {
+    blurActiveTimeField();
     const sanitized = commitTimeInput();
     const total = getDuration(sanitized);
     setRunning(false);
@@ -947,12 +979,15 @@ export default function FuturisticTimerApp() {
     updateDigitalOffset({ x: 0, y: 0 });
     setDraggingDigits(false);
     digitDragMeta.current = null;
-  };
+  }, [blurActiveTimeField, commitTimeInput, updateDigitalOffset]);
 
   const ControlButton = ({ label, onClick, variant = "default" as const }) => (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => {
+        blurActiveTimeField();
+        onClick();
+      }}
       className={
         "rounded-xl px-4 py-2 text-sm font-medium transition active:scale-95 focus:outline-none focus:ring-2 focus:ring-sky-400/50 " +
         (variant === "ghost"
@@ -970,7 +1005,10 @@ export default function FuturisticTimerApp() {
     <div className="rounded-2xl border border-slate-900/10 bg-white/70 backdrop-blur-2xl shadow-2xl overflow-hidden">
       <div
         className="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-white/80"
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          blurActiveTimeField();
+          setOpen(!open);
+        }}
       >
         <div className="text-sm tracking-wide text-slate-700">
           {title ? title : <span className="opacity-0">(no-title)</span>}
@@ -998,13 +1036,6 @@ export default function FuturisticTimerApp() {
       <div
         ref={panelRef}
         className="fixed top-5 right-5 z-[250] w-[360px] max-h-[calc(100vh-40px)] max-w-[92vw] space-y-3 overflow-y-auto pr-1 pointer-events-auto"
-        onPointerDownCapture={(e) => {
-          const target = e.target as HTMLElement | null;
-          if (target && target.dataset && target.dataset.timeInput === "true") {
-            return;
-          }
-          clearActiveField();
-        }}
       >
         <div className="rounded-2xl border border-slate-900/10 bg-white/60 backdrop-blur-2xl shadow-2xl p-3">
           {/* Basic settings (no title) */}
@@ -1080,7 +1111,10 @@ export default function FuturisticTimerApp() {
                     <span className="text-slate-800">{label}</span>
                     <Toggle
                       checked={!!alertsEnabled[String(value)]}
-                      onChange={(v) => setAlertsEnabled((prev) => ({ ...prev, [String(value)]: v }))}
+                      onChange={(v) => {
+                        blurActiveTimeField();
+                        setAlertsEnabled((prev) => ({ ...prev, [String(value)]: v }));
+                      }}
                     />
                   </div>
                 ))}
@@ -1091,7 +1125,10 @@ export default function FuturisticTimerApp() {
             <div className="pt-3">
               <Toggle
                 checked={showDigits}
-                onChange={(v) => setShowDigits(v)}
+                onChange={(v) => {
+                  blurActiveTimeField();
+                  setShowDigits(v);
+                }}
                 label="Show digital time (##:##:##)"
               />
             </div>
@@ -1105,7 +1142,10 @@ export default function FuturisticTimerApp() {
                 <div>
                   <Segmented<TimerType>
                     value={timerType}
-                    onChange={(v) => setTimerType(v)}
+                    onChange={(v) => {
+                      blurActiveTimeField();
+                      setTimerType(v);
+                    }}
                     options={["Countdown", "Hourglass", "Candle", "Bioluminescence", "Progress Bar"]}
                     className="max-h-24 overflow-y-auto pr-1"
                   />
@@ -1116,7 +1156,10 @@ export default function FuturisticTimerApp() {
                 <legend className="text-slate-700">Pace</legend>
                 <Segmented<Pace>
                   value={pace}
-                  onChange={setPace}
+                  onChange={(v) => {
+                    blurActiveTimeField();
+                    setPace(v);
+                  }}
                   options={["normal", "accelerating", "decelerating"]}
                   className="w-fit"
                 />
@@ -1125,7 +1168,16 @@ export default function FuturisticTimerApp() {
                     <span className="font-medium text-slate-700">
                       {pace === "accelerating" ? "Acceleration rate" : "Deceleration rate"}
                     </span>
-                    <IntensitySlider value={paceCurve} onChange={setPaceCurve} min={1} max={4} step={0.1} />
+                    <IntensitySlider
+                      value={paceCurve}
+                      onChange={(next) => {
+                        blurActiveTimeField();
+                        setPaceCurve(next);
+                      }}
+                      min={1}
+                      max={4}
+                      step={0.1}
+                    />
                     <span className="text-[11px] tracking-wide">{paceCurve.toFixed(1)}× intensity</span>
                   </label>
                 )}
@@ -1136,7 +1188,10 @@ export default function FuturisticTimerApp() {
                   <legend className="text-slate-700">Progress bar style</legend>
                   <Segmented<ProgressBarShape>
                     value={barShape}
-                    onChange={setBarShape}
+                    onChange={(v) => {
+                      blurActiveTimeField();
+                      setBarShape(v);
+                    }}
                     options={["linear", "circular"]}
                     className="w-fit"
                   />
