@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Futuristic Timer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="min-h-screen bg-slate-900">
+    <div id="timer-root" class="min-h-screen"></div>
+
+    <script src="../react/react.production.min.js"></script>
+    <script src="../react/react-dom.production.min.js"></script>
+    <script src="../react/loader.js"></script>
+    <script>
+      window.require = window.require || function (name) {
+        if (name === "react") {
+          return window.React;
+        }
+        throw new Error("Cannot resolve module: " + name);
+      };
+    </script>
+    <script src="./dist/timer.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        var root = document.getElementById("timer-root");
+        if (!root) {
+          console.error("Timer root element not found");
+          return;
+        }
+        if (!window.TimerApp || !window.TimerApp.FuturisticTimerApp) {
+          console.error("Timer app bundle did not load correctly");
+          return;
+        }
+        mountReactApp(window.TimerApp.FuturisticTimerApp, root);
+      });
+    </script>
+  </body>
+</html>
