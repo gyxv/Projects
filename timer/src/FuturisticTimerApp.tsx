@@ -173,15 +173,16 @@ function IntensitySlider({
   min = 1,
   max = 4,
   step = 0.1,
-}: {
-  value: number;
-  onChange: (v: number) => void;
-  min?: number;
-  max?: number;
-  step?: number;
-}) {
+  }: {
+    value: number;
+    onChange: (v: number) => void;
+    min?: number;
+    max?: number;
+    step?: number;
+  }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const scrubbingRef = useRef<{ pointerId: number } | null>(null);
+  const [scrubbing, setScrubbing] = useState(false);
 
   const commitValue = useCallback(
     (next: number) => {
@@ -205,29 +206,41 @@ function IntensitySlider({
     [commitValue, max, min]
   );
 
+  const stopScrub = useCallback(() => {
+    scrubbingRef.current = null;
+    setScrubbing(false);
+  }, []);
+
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLInputElement>) => {
       if (e.button !== undefined && e.button !== 0) return;
       scrubbingRef.current = { pointerId: e.pointerId };
-      e.currentTarget.setPointerCapture?.(e.pointerId);
+      setScrubbing(true);
       updateFromPointer(e.clientX);
+      e.preventDefault();
     },
     [updateFromPointer]
   );
 
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent<HTMLInputElement>) => {
-      if (!scrubbingRef.current || scrubbingRef.current.pointerId !== e.pointerId) return;
-      updateFromPointer(e.clientX);
-    },
-    [updateFromPointer]
-  );
-
-  const stopScrub = useCallback((e: React.PointerEvent<HTMLInputElement>) => {
-    if (!scrubbingRef.current || scrubbingRef.current.pointerId !== e.pointerId) return;
-    scrubbingRef.current = null;
-    e.currentTarget.releasePointerCapture?.(e.pointerId);
-  }, []);
+  useEffect(() => {
+    if (!scrubbing) return;
+    const handleMove = (event: PointerEvent) => {
+      if (!scrubbingRef.current || scrubbingRef.current.pointerId !== event.pointerId) return;
+      updateFromPointer(event.clientX);
+    };
+    const handleEnd = (event: PointerEvent) => {
+      if (!scrubbingRef.current || scrubbingRef.current.pointerId !== event.pointerId) return;
+      stopScrub();
+    };
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleEnd);
+    window.addEventListener("pointercancel", handleEnd);
+    return () => {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleEnd);
+      window.removeEventListener("pointercancel", handleEnd);
+    };
+  }, [scrubbing, stopScrub, updateFromPointer]);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -260,9 +273,6 @@ function IntensitySlider({
       value={value}
       onChange={handleChange}
       onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={stopScrub}
-      onPointerCancel={stopScrub}
       onKeyDown={handleKeyDown}
       className="w-full accent-sky-500 cursor-pointer touch-none"
     />
@@ -700,7 +710,7 @@ export default function FuturisticTimerApp() {
   const pushToast = useCallback((text: string) => {
     const id = toastIdRef.current++;
     setToasts((t) => [...t, { id, text }]);
-    window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 5000);
+    window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 6500);
   }, []);
 
   useEffect(() => {
@@ -811,13 +821,12 @@ export default function FuturisticTimerApp() {
     }
   }, [alertsEnabled, linProgress, paused, running, triggered, playChime, pushToast]);
 
-  useEffect(() => {
-    if (!alertSplash) return;
-    const timeout = window.setTimeout(() => setAlertSplash(null), 3500);
-    return () => window.clearTimeout(timeout);
-  }, [alertSplash]);
-
   const showFinal10 = running && !paused && remaining <= 10;
+
+  useEffect(() => {
+    if (!showFinal10) return;
+    setAlertSplash((prev) => (prev ? null : prev));
+  }, [showFinal10]);
 
   const digitalAnchor = useMemo(() => {
     if (panelLeft == null) return 160;
@@ -830,6 +839,19 @@ export default function FuturisticTimerApp() {
     setDraggingDigits(false);
   }, []);
 
+  const moveDigits = useCallback(
+    (clientX: number, clientY: number) => {
+      if (!digitDragMeta.current) return;
+      const dx = clientX - digitDragMeta.current.startX;
+      const dy = clientY - digitDragMeta.current.startY;
+      updateDigitalOffset({
+        x: digitDragMeta.current.originX + dx,
+        y: digitDragMeta.current.originY + dy,
+      });
+    },
+    [updateDigitalOffset]
+  );
+
   const handleDigitsPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
     const { pointerId, clientX, clientY } = e;
@@ -841,43 +863,43 @@ export default function FuturisticTimerApp() {
       originY: digitalOffsetRef.current.y,
     };
     setDraggingDigits(true);
-    e.currentTarget.setPointerCapture?.(pointerId);
   }, []);
 
   const handleDigitsPointerMove = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (!digitDragMeta.current || digitDragMeta.current.pointerId !== e.pointerId) return;
-      const dx = e.clientX - digitDragMeta.current.startX;
-      const dy = e.clientY - digitDragMeta.current.startY;
-      updateDigitalOffset({
-        x: digitDragMeta.current.originX + dx,
-        y: digitDragMeta.current.originY + dy,
-      });
+      moveDigits(e.clientX, e.clientY);
     },
-    [updateDigitalOffset]
+    [moveDigits]
   );
 
   const finishDigitDrag = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (!digitDragMeta.current || digitDragMeta.current.pointerId !== e.pointerId) return;
-      e.currentTarget.releasePointerCapture?.(e.pointerId);
       endDigitDrag();
     },
     [endDigitDrag]
   );
 
   useEffect(() => {
-    const handlePointerEnd = (event: PointerEvent) => {
+    if (!draggingDigits) return;
+    const handleMove = (event: PointerEvent) => {
+      if (!digitDragMeta.current || digitDragMeta.current.pointerId !== event.pointerId) return;
+      moveDigits(event.clientX, event.clientY);
+    };
+    const handleEnd = (event: PointerEvent) => {
       if (!digitDragMeta.current || digitDragMeta.current.pointerId !== event.pointerId) return;
       endDigitDrag();
     };
-    window.addEventListener("pointerup", handlePointerEnd);
-    window.addEventListener("pointercancel", handlePointerEnd);
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleEnd);
+    window.addEventListener("pointercancel", handleEnd);
     return () => {
-      window.removeEventListener("pointerup", handlePointerEnd);
-      window.removeEventListener("pointercancel", handlePointerEnd);
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleEnd);
+      window.removeEventListener("pointercancel", handleEnd);
     };
-  }, [endDigitDrag]);
+  }, [draggingDigits, endDigitDrag, moveDigits]);
 
   const start = () => {
     const sanitized = commitTimeInput();
