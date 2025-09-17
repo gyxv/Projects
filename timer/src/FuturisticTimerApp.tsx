@@ -9,6 +9,24 @@ type ProgressBarShape = "linear" | "circular";
 const clamp = (n: number, min = 0, max = 1) => Math.max(min, Math.min(max, n));
 const clampInt = (n: number, min: number, max: number) => Math.max(min, Math.min(max, Math.floor(n)));
 const pad = (n: number) => String(n).padStart(2, "0");
+const formatTimePart = (value: number, key: "h" | "m" | "s") => (key === "h" ? String(value) : pad(value));
+
+type TimeStrings = { h: string; m: string; s: string };
+type TimeNumbers = { h: number; m: number; s: number };
+
+const INITIAL_TIME: TimeStrings = { h: "0", m: "01", s: "00" };
+const toNumbers = ({ h, m, s }: TimeStrings): TimeNumbers => ({
+  h: clampInt(Number(h || "0"), 0, 99),
+  m: clampInt(Number(m || "0"), 0, 59),
+  s: clampInt(Number(s || "0"), 0, 59),
+});
+const toStrings = ({ h, m, s }: TimeNumbers): TimeStrings => ({
+  h: formatTimePart(h, "h"),
+  m: formatTimePart(m, "m"),
+  s: formatTimePart(s, "s"),
+});
+const INITIAL_COMMITTED = toNumbers(INITIAL_TIME);
+const getDuration = ({ h, m, s }: TimeNumbers) => h * 3600 + m * 60 + s;
 const toHMS = (totalSeconds: number) => {
   totalSeconds = Math.max(0, Math.floor(totalSeconds));
   const h = Math.floor(totalSeconds / 3600);
@@ -418,31 +436,18 @@ function CircularProgress({ progress }: { progress: number }) {
 // =============== Main App =============== //
 export default function FuturisticTimerApp() {
   // Time state
-  const [timeInput, setTimeInput] = useState({ h: "0", m: "01", s: "00" });
-  const hours = useMemo(() => clampInt(Number(timeInput.h || "0"), 0, 99), [timeInput.h]);
-  const minutes = useMemo(() => clampInt(Number(timeInput.m || "0"), 0, 59), [timeInput.m]);
-  const seconds = useMemo(() => clampInt(Number(timeInput.s || "0"), 0, 59), [timeInput.s]);
-  const durationSec = useMemo(() => hours * 3600 + minutes * 60 + seconds, [hours, minutes, seconds]);
-  const [remaining, setRemaining] = useState<number>(() => hours * 3600 + minutes * 60 + seconds);
+  const [timeInput, setTimeInput] = useState<TimeStrings>(INITIAL_TIME);
+  const [committedTime, setCommittedTime] = useState<TimeNumbers>(INITIAL_COMMITTED);
+  const durationSec = useMemo(() => getDuration(committedTime), [committedTime]);
+  const [remaining, setRemaining] = useState<number>(() => getDuration(INITIAL_COMMITTED));
   const [running, setRunning] = useState(false);
   const [paused, setPaused] = useState(false);
-
-  const formatTimePart = useCallback(
-    (value: number, key: "h" | "m" | "s") => (key === "h" ? String(value) : String(value).padStart(2, "0")),
-    []
-  );
-
-  const syncTimeInputs = useCallback(() => {
-    setTimeInput((prev) => {
-      const next = {
-        h: formatTimePart(hours, "h"),
-        m: formatTimePart(minutes, "m"),
-        s: formatTimePart(seconds, "s"),
-      };
-      if (prev.h === next.h && prev.m === next.m && prev.s === next.s) return prev;
-      return next;
-    });
-  }, [formatTimePart, hours, minutes, seconds]);
+  const commitTimeInput = useCallback(() => {
+    const sanitized = toNumbers(timeInput);
+    setCommittedTime(sanitized);
+    setTimeInput(toStrings(sanitized));
+    return sanitized;
+  }, [timeInput]);
 
   const handleTimeChange = useCallback(
     (key: "h" | "m" | "s") => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -454,18 +459,9 @@ export default function FuturisticTimerApp() {
     []
   );
 
-  const handleTimeBlur = useCallback(
-    (key: "h" | "m" | "s", max: number) => () => {
-      setTimeInput((prev) => {
-        const raw = prev[key];
-        const sanitized = clampInt(Number(raw || "0"), 0, max);
-        const next = formatTimePart(sanitized, key);
-        if (raw === next) return prev;
-        return { ...prev, [key]: next };
-      });
-    },
-    [formatTimePart]
-  );
+  const handleTimeBlur = useCallback(() => {
+    commitTimeInput();
+  }, [commitTimeInput]);
 
   // UI state
   const [basicOpen, setBasicOpen] = useState(true); // default expanded
@@ -476,7 +472,7 @@ export default function FuturisticTimerApp() {
   const [paceCurve, setPaceCurve] = useState(2);
   const [barShape, setBarShape] = useState<ProgressBarShape>("linear");
 
-  const [showDigits, setShowDigits] = useState(false); // optional for non-countdown
+  const [showDigits, setShowDigits] = useState(true);
 
   const panelRef = useRef<HTMLDivElement | null>(null);
   const [panelLeft, setPanelLeft] = useState<number | null>(null);
@@ -657,19 +653,15 @@ export default function FuturisticTimerApp() {
     setDraggingDigits(false);
   }, []);
 
-  // Enforce digits shown when type is Countdown
-  useEffect(() => {
-    if (timerType === "Countdown") setShowDigits(true);
-  }, [timerType]);
-
   const start = () => {
-    if (durationSec <= 0) return;
+    const sanitized = commitTimeInput();
+    const total = getDuration(sanitized);
+    if (total <= 0) return;
     if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-    syncTimeInputs();
     setTriggered(new Set());
     setAlertSplash(null);
     setToasts([]);
-    setRemaining(durationSec);
+    setRemaining(total);
     setRunning(true);
     setPaused(false);
   };
@@ -678,13 +670,14 @@ export default function FuturisticTimerApp() {
     setPaused((p) => !p);
   };
   const reset = () => {
-    syncTimeInputs();
+    const sanitized = commitTimeInput();
+    const total = getDuration(sanitized);
     setRunning(false);
     setPaused(false);
     setTriggered(new Set());
     setAlertSplash(null);
     setToasts([]);
-    setRemaining(durationSec);
+    setRemaining(total);
     updateDigitalOffset({ x: 0, y: 0 });
     setDraggingDigits(false);
     digitDragMeta.current = null;
@@ -753,8 +746,7 @@ export default function FuturisticTimerApp() {
                   pattern="[0-9]*"
                   value={timeInput.h}
                   onChange={handleTimeChange("h")}
-                  onBlur={handleTimeBlur("h", 99)}
-                  disabled={running}
+                  onBlur={handleTimeBlur}
                   autoComplete="off"
                   className="rounded-xl bg-white border border-slate-900/10 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
                 />
@@ -767,8 +759,7 @@ export default function FuturisticTimerApp() {
                   pattern="[0-9]*"
                   value={timeInput.m}
                   onChange={handleTimeChange("m")}
-                  onBlur={handleTimeBlur("m", 59)}
-                  disabled={running}
+                  onBlur={handleTimeBlur}
                   autoComplete="off"
                   className="rounded-xl bg-white border border-slate-900/10 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
                 />
@@ -781,8 +772,7 @@ export default function FuturisticTimerApp() {
                   pattern="[0-9]*"
                   value={timeInput.s}
                   onChange={handleTimeChange("s")}
-                  onBlur={handleTimeBlur("s", 59)}
-                  disabled={running}
+                  onBlur={handleTimeBlur}
                   autoComplete="off"
                   className="rounded-xl bg-white border border-slate-900/10 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
                 />
@@ -815,13 +805,10 @@ export default function FuturisticTimerApp() {
 
             <div className="pt-3">
               <Toggle
-                checked={timerType === "Countdown" ? true : showDigits}
+                checked={showDigits}
                 onChange={(v) => setShowDigits(v)}
                 label="Show digital time (##:##:##)"
               />
-              {timerType === "Countdown" && (
-                <div className="text-[11px] text-slate-600 mt-1">(Always on for Countdown)</div>
-              )}
             </div>
           </PanelSection>
 
@@ -898,7 +885,7 @@ export default function FuturisticTimerApp() {
       </div>
 
       {/* Digital time readout anchored between screen edge and control panel */}
-      {(timerType === "Countdown" || showDigits) && (
+      {showDigits && (
         <div
           className="fixed z-[65] select-none"
           style={{
