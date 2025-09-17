@@ -173,16 +173,15 @@ function IntensitySlider({
   min = 1,
   max = 4,
   step = 0.1,
-  }: {
-    value: number;
-    onChange: (v: number) => void;
-    min?: number;
-    max?: number;
-    step?: number;
-  }) {
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+}) {
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const scrubbingRef = useRef<{ pointerId: number } | null>(null);
-  const [scrubbing, setScrubbing] = useState(false);
+  const pointerRef = useRef<number | null>(null);
 
   const commitValue = useCallback(
     (next: number) => {
@@ -206,41 +205,56 @@ function IntensitySlider({
     [commitValue, max, min]
   );
 
-  const stopScrub = useCallback(() => {
-    scrubbingRef.current = null;
-    setScrubbing(false);
-  }, []);
+  const stopPointer = useCallback(
+    (id?: number) => {
+      const currentId = pointerRef.current;
+      if (currentId == null) return;
+      if (id != null && id !== currentId) return;
+      const input = inputRef.current;
+      if (input && input.releasePointerCapture) {
+        try {
+          input.releasePointerCapture(currentId);
+        } catch {}
+      }
+      pointerRef.current = null;
+    },
+    []
+  );
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLInputElement>) => {
       if (e.button !== undefined && e.button !== 0) return;
-      scrubbingRef.current = { pointerId: e.pointerId };
-      setScrubbing(true);
+      pointerRef.current = e.pointerId;
+      const input = inputRef.current;
+      if (input && input.setPointerCapture) {
+        try {
+          input.setPointerCapture(e.pointerId);
+        } catch {}
+      }
       updateFromPointer(e.clientX);
       e.preventDefault();
     },
     [updateFromPointer]
   );
 
-  useEffect(() => {
-    if (!scrubbing) return;
-    const handleMove = (event: PointerEvent) => {
-      if (!scrubbingRef.current || scrubbingRef.current.pointerId !== event.pointerId) return;
-      updateFromPointer(event.clientX);
-    };
-    const handleEnd = (event: PointerEvent) => {
-      if (!scrubbingRef.current || scrubbingRef.current.pointerId !== event.pointerId) return;
-      stopScrub();
-    };
-    window.addEventListener("pointermove", handleMove);
-    window.addEventListener("pointerup", handleEnd);
-    window.addEventListener("pointercancel", handleEnd);
-    return () => {
-      window.removeEventListener("pointermove", handleMove);
-      window.removeEventListener("pointerup", handleEnd);
-      window.removeEventListener("pointercancel", handleEnd);
-    };
-  }, [scrubbing, stopScrub, updateFromPointer]);
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLInputElement>) => {
+      if (pointerRef.current !== e.pointerId) return;
+      updateFromPointer(e.clientX);
+    },
+    [updateFromPointer]
+  );
+
+  const handlePointerUp = useCallback(
+    (e: React.PointerEvent<HTMLInputElement>) => {
+      stopPointer(e.pointerId);
+    },
+    [stopPointer]
+  );
+
+  const handleLostCapture = useCallback(() => {
+    stopPointer();
+  }, [stopPointer]);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -273,6 +287,10 @@ function IntensitySlider({
       value={value}
       onChange={handleChange}
       onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onLostPointerCapture={handleLostCapture}
       onKeyDown={handleKeyDown}
       className="w-full accent-sky-500 cursor-pointer touch-none"
     />
@@ -710,7 +728,7 @@ export default function FuturisticTimerApp() {
   const pushToast = useCallback((text: string) => {
     const id = toastIdRef.current++;
     setToasts((t) => [...t, { id, text }]);
-    window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 6500);
+    window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 1500);
   }, []);
 
   useEffect(() => {
@@ -1168,7 +1186,7 @@ export default function FuturisticTimerApp() {
         </div>
       )}
 
-      {/* Toasts and alerts pinned to the left */}
+      {/* Milestones on the left */}
       <div className="fixed top-32 left-6 z-[55] flex max-w-[320px] flex-col gap-3 pointer-events-none">
         {alertSplash && (
           <div key={alertSplash.id} className="rounded-2xl border border-sky-400/40 bg-sky-100/90 px-4 py-3 shadow-lg">
@@ -1176,17 +1194,24 @@ export default function FuturisticTimerApp() {
             <div className="text-lg font-bold text-slate-900">{alertSplash.label} reached</div>
           </div>
         )}
-        {toasts.map((t) => (
-          <div key={t.id} className="rounded-xl border border-slate-900/10 bg-white px-4 py-3 text-sm text-slate-800 shadow-lg">
-            {t.text}
-          </div>
-        ))}
         {showFinal10 && (
           <div className="rounded-2xl border border-amber-400/50 bg-amber-200/40 px-4 py-3 text-center shadow-lg">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Final seconds</div>
             <div className="font-mono text-4xl text-slate-900">{Math.max(0, Math.floor(remaining))}</div>
           </div>
         )}
+      </div>
+
+      {/* Progress alerts centered at the bottom */}
+      <div className="pointer-events-none fixed bottom-12 left-1/2 z-[60] flex -translate-x-1/2 flex-col items-center gap-3">
+        {toasts.map((t) => (
+          <div
+            key={t.id}
+            className="rounded-xl border border-slate-900/10 bg-white px-4 py-3 text-sm text-slate-800 shadow-lg"
+          >
+            {t.text}
+          </div>
+        ))}
       </div>
 
       {/* Keyframes */}
