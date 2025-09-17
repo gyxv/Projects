@@ -442,6 +442,11 @@ export default function FuturisticTimerApp() {
   const [remaining, setRemaining] = useState<number>(() => getDuration(INITIAL_COMMITTED));
   const [running, setRunning] = useState(false);
   const [paused, setPaused] = useState(false);
+  const [activeField, setActiveField] = useState<null | "h" | "m" | "s">(null);
+  const caretPositionsRef = useRef<Record<"h" | "m" | "s", number | null>>({ h: null, m: null, s: null });
+  const hourInputRef = useRef<HTMLInputElement | null>(null);
+  const minuteInputRef = useRef<HTMLInputElement | null>(null);
+  const secondInputRef = useRef<HTMLInputElement | null>(null);
   const commitTimeInput = useCallback(() => {
     const sanitized = toNumbers(timeInput);
     setCommittedTime(sanitized);
@@ -453,15 +458,52 @@ export default function FuturisticTimerApp() {
     (key: "h" | "m" | "s") => (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.target.value;
       if (/^\d*$/.test(value)) {
+        caretPositionsRef.current[key] = e.target.selectionStart ?? value.length;
         setTimeInput((prev) => ({ ...prev, [key]: value }));
       }
     },
     []
   );
 
-  const handleTimeBlur = useCallback(() => {
-    commitTimeInput();
-  }, [commitTimeInput]);
+  const handleTimeBlur = useCallback(
+    (key: "h" | "m" | "s") => () => {
+      if (activeField === key) {
+        setActiveField(null);
+      }
+      caretPositionsRef.current[key] = null;
+      commitTimeInput();
+    },
+    [activeField, commitTimeInput]
+  );
+
+  const handleTimeFocus = useCallback((key: "h" | "m" | "s") => () => {
+    setActiveField(key);
+    caretPositionsRef.current[key] = null;
+  }, []);
+
+  const handleTimeSelect = useCallback((key: "h" | "m" | "s") => (e: React.SyntheticEvent<HTMLInputElement>) => {
+    const target = e.currentTarget;
+    caretPositionsRef.current[key] = target.selectionStart ?? target.value.length;
+  }, []);
+
+  useEffect(() => {
+    if (typeof document === "undefined" || !activeField) return;
+    const refs: Record<"h" | "m" | "s", React.RefObject<HTMLInputElement>> = {
+      h: hourInputRef,
+      m: minuteInputRef,
+      s: secondInputRef,
+    };
+    const input = refs[activeField].current;
+    if (!input) return;
+    if (document.activeElement !== input) {
+      input.focus({ preventScroll: true });
+    }
+    const caret = caretPositionsRef.current[activeField];
+    if (caret != null) {
+      const pos = Math.min(caret, input.value.length);
+      input.setSelectionRange(pos, pos);
+    }
+  }, [activeField, timeInput.h, timeInput.m, timeInput.s]);
 
   // UI state
   const [basicOpen, setBasicOpen] = useState(true); // default expanded
@@ -746,8 +788,11 @@ export default function FuturisticTimerApp() {
                   pattern="[0-9]*"
                   value={timeInput.h}
                   onChange={handleTimeChange("h")}
-                  onBlur={handleTimeBlur}
+                  onBlur={handleTimeBlur("h")}
+                  onFocus={handleTimeFocus("h")}
+                  onSelect={handleTimeSelect("h")}
                   autoComplete="off"
+                  ref={hourInputRef}
                   className="rounded-xl bg-white border border-slate-900/10 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
                 />
               </label>
@@ -759,8 +804,11 @@ export default function FuturisticTimerApp() {
                   pattern="[0-9]*"
                   value={timeInput.m}
                   onChange={handleTimeChange("m")}
-                  onBlur={handleTimeBlur}
+                  onBlur={handleTimeBlur("m")}
+                  onFocus={handleTimeFocus("m")}
+                  onSelect={handleTimeSelect("m")}
                   autoComplete="off"
+                  ref={minuteInputRef}
                   className="rounded-xl bg-white border border-slate-900/10 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
                 />
               </label>
@@ -772,8 +820,11 @@ export default function FuturisticTimerApp() {
                   pattern="[0-9]*"
                   value={timeInput.s}
                   onChange={handleTimeChange("s")}
-                  onBlur={handleTimeBlur}
+                  onBlur={handleTimeBlur("s")}
+                  onFocus={handleTimeFocus("s")}
+                  onSelect={handleTimeSelect("s")}
                   autoComplete="off"
+                  ref={secondInputRef}
                   className="rounded-xl bg-white border border-slate-900/10 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
                 />
               </label>
@@ -887,7 +938,7 @@ export default function FuturisticTimerApp() {
       {/* Digital time readout anchored between screen edge and control panel */}
       {showDigits && (
         <div
-          className="fixed z-[65] select-none"
+          className="fixed select-none"
           style={{
             left: digitalAnchor + digitalOffset.x,
             top: 24 + digitalOffset.y,
@@ -895,6 +946,7 @@ export default function FuturisticTimerApp() {
             cursor: draggingDigits ? "grabbing" : "grab",
             userSelect: "none",
             touchAction: "none",
+            zIndex: draggingDigits ? 80 : 45,
           }}
           onPointerDown={handleDigitsPointerDown}
           onPointerMove={handleDigitsPointerMove}
