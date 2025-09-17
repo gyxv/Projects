@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Futuristic Timer</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="./dist/tailwind.css" />
   </head>
   <body class="min-h-screen bg-slate-900">
     <div id="timer-root" class="min-h-screen"></div>
@@ -14,8 +14,11 @@
     <script src="../react/loader.js"></script>
     <script>
       window.require = window.require || function (name) {
-        if (name === "react") {
+        if (name === "react" || name === "react/jsx-runtime") {
           return window.React;
+        }
+        if (name === "react-dom" || name === "react-dom/client") {
+          return window.ReactDOM;
         }
         throw new Error("Cannot resolve module: " + name);
       };
