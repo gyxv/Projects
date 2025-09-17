@@ -8,6 +8,7 @@ type ProgressBarShape = "linear" | "circular";
 // === Utilities ===
 const clamp = (n: number, min = 0, max = 1) => Math.max(min, Math.min(max, n));
 const clampInt = (n: number, min: number, max: number) => Math.max(min, Math.min(max, Math.floor(n)));
+const roundToStep = (value: number, step: number) => Math.round(value / step) * step;
 const pad = (n: number) => String(n).padStart(2, "0");
 const formatTimePart = (value: number, key: "h" | "m" | "s") => (key === "h" ? String(value) : pad(value));
 
@@ -163,6 +164,108 @@ function Segmented<T extends string>({
         </button>
       ))}
     </div>
+  );
+}
+
+function IntensitySlider({
+  value,
+  onChange,
+  min = 1,
+  max = 4,
+  step = 0.1,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+}) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const scrubbingRef = useRef<{ pointerId: number } | null>(null);
+
+  const commitValue = useCallback(
+    (next: number) => {
+      const clamped = clamp(next, min, max);
+      const rounded = Number(roundToStep(clamped, step).toFixed(2));
+      onChange(rounded);
+    },
+    [max, min, onChange, step]
+  );
+
+  const updateFromPointer = useCallback(
+    (clientX: number) => {
+      const input = inputRef.current;
+      if (!input) return;
+      const rect = input.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const ratio = clamp((clientX - rect.left) / rect.width, 0, 1);
+      const raw = min + ratio * (max - min);
+      commitValue(raw);
+    },
+    [commitValue, max, min]
+  );
+
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLInputElement>) => {
+      if (e.button !== undefined && e.button !== 0) return;
+      scrubbingRef.current = { pointerId: e.pointerId };
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+      updateFromPointer(e.clientX);
+    },
+    [updateFromPointer]
+  );
+
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLInputElement>) => {
+      if (!scrubbingRef.current || scrubbingRef.current.pointerId !== e.pointerId) return;
+      updateFromPointer(e.clientX);
+    },
+    [updateFromPointer]
+  );
+
+  const stopScrub = useCallback((e: React.PointerEvent<HTMLInputElement>) => {
+    if (!scrubbingRef.current || scrubbingRef.current.pointerId !== e.pointerId) return;
+    scrubbingRef.current = null;
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+  }, []);
+
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const next = e.target.valueAsNumber;
+      if (!Number.isNaN(next)) {
+        commitValue(next);
+      }
+    },
+    [commitValue]
+  );
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+        const delta = e.key === "ArrowRight" ? step : -step;
+        commitValue(value + delta);
+      }
+    },
+    [commitValue, step, value]
+  );
+
+  return (
+    <input
+      ref={inputRef}
+      type="range"
+      min={min}
+      max={max}
+      step={step}
+      value={value}
+      onChange={handleChange}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={stopScrub}
+      onPointerCancel={stopScrub}
+      onKeyDown={handleKeyDown}
+      className="w-full accent-sky-500 cursor-pointer touch-none"
+    />
   );
 }
 
@@ -497,6 +600,12 @@ export default function FuturisticTimerApp() {
     caretPositionsRef.current[key] = target.selectionStart ?? target.value.length;
   }, []);
 
+  const clearActiveField = useCallback(() => {
+    if (!activeField) return;
+    setActiveField(null);
+    caretPositionsRef.current = { h: null, m: null, s: null };
+  }, [activeField]);
+
   useEffect(() => {
     if (typeof document === "undefined" || !activeField) return;
     const refs: Record<"h" | "m" | "s", React.RefObject<HTMLInputElement>> = {
@@ -715,6 +824,12 @@ export default function FuturisticTimerApp() {
     return Math.max(120, panelLeft / 2);
   }, [panelLeft]);
 
+  const endDigitDrag = useCallback(() => {
+    if (!digitDragMeta.current) return;
+    digitDragMeta.current = null;
+    setDraggingDigits(false);
+  }, []);
+
   const handleDigitsPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
     const { pointerId, clientX, clientY } = e;
@@ -742,12 +857,27 @@ export default function FuturisticTimerApp() {
     [updateDigitalOffset]
   );
 
-  const finishDigitDrag = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!digitDragMeta.current || digitDragMeta.current.pointerId !== e.pointerId) return;
-    e.currentTarget.releasePointerCapture?.(e.pointerId);
-    digitDragMeta.current = null;
-    setDraggingDigits(false);
-  }, []);
+  const finishDigitDrag = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!digitDragMeta.current || digitDragMeta.current.pointerId !== e.pointerId) return;
+      e.currentTarget.releasePointerCapture?.(e.pointerId);
+      endDigitDrag();
+    },
+    [endDigitDrag]
+  );
+
+  useEffect(() => {
+    const handlePointerEnd = (event: PointerEvent) => {
+      if (!digitDragMeta.current || digitDragMeta.current.pointerId !== event.pointerId) return;
+      endDigitDrag();
+    };
+    window.addEventListener("pointerup", handlePointerEnd);
+    window.addEventListener("pointercancel", handlePointerEnd);
+    return () => {
+      window.removeEventListener("pointerup", handlePointerEnd);
+      window.removeEventListener("pointercancel", handlePointerEnd);
+    };
+  }, [endDigitDrag]);
 
   const start = () => {
     const sanitized = commitTimeInput();
@@ -827,7 +957,14 @@ export default function FuturisticTimerApp() {
       {/* Top-right glass control panel (force interactivity) */}
       <div
         ref={panelRef}
-        className="fixed top-5 right-5 z-[200] w-[360px] max-h-[calc(100vh-40px)] max-w-[92vw] space-y-3 overflow-y-auto pr-1 pointer-events-auto"
+        className="fixed top-5 right-5 z-[250] w-[360px] max-h-[calc(100vh-40px)] max-w-[92vw] space-y-3 overflow-y-auto pr-1 pointer-events-auto"
+        onPointerDownCapture={(e) => {
+          const target = e.target as HTMLElement | null;
+          if (target && target.dataset && target.dataset.timeInput === "true") {
+            return;
+          }
+          clearActiveField();
+        }}
       >
         <div className="rounded-2xl border border-slate-900/10 bg-white/60 backdrop-blur-2xl shadow-2xl p-3">
           {/* Basic settings (no title) */}
@@ -847,6 +984,7 @@ export default function FuturisticTimerApp() {
                   onSelect={handleTimeSelect("h")}
                   autoComplete="off"
                   ref={hourInputRef}
+                  data-time-input="true"
                   className="rounded-xl bg-white border border-slate-900/10 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
                 />
               </label>
@@ -863,6 +1001,7 @@ export default function FuturisticTimerApp() {
                   onSelect={handleTimeSelect("m")}
                   autoComplete="off"
                   ref={minuteInputRef}
+                  data-time-input="true"
                   className="rounded-xl bg-white border border-slate-900/10 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
                 />
               </label>
@@ -879,6 +1018,7 @@ export default function FuturisticTimerApp() {
                   onSelect={handleTimeSelect("s")}
                   autoComplete="off"
                   ref={secondInputRef}
+                  data-time-input="true"
                   className="rounded-xl bg-white border border-slate-900/10 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
                 />
               </label>
@@ -945,15 +1085,7 @@ export default function FuturisticTimerApp() {
                     <span className="font-medium text-slate-700">
                       {pace === "accelerating" ? "Acceleration rate" : "Deceleration rate"}
                     </span>
-                    <input
-                      type="range"
-                      min={1}
-                      max={4}
-                      step={0.1}
-                      value={paceCurve}
-                      onChange={(e) => setPaceCurve(Number(e.target.value))}
-                      className="w-full accent-sky-500"
-                    />
+                    <IntensitySlider value={paceCurve} onChange={setPaceCurve} min={1} max={4} step={0.1} />
                     <span className="text-[11px] tracking-wide">{paceCurve.toFixed(1)}× intensity</span>
                   </label>
                 )}
