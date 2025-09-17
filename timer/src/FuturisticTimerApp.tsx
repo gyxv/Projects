@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 // === Types ===
 type TimerType = "Countdown" | "Hourglass" | "Candle" | "Bioluminescence" | "Progress Bar";
@@ -17,15 +17,16 @@ const toHMS = (totalSeconds: number) => {
   return `${pad(h)}:${pad(m)}:${pad(s)}`;
 };
 
-const easeByPace = (p: number, pace: Pace) => {
+const easeByPace = (p: number, pace: Pace, curve: number) => {
   p = clamp(p);
+  const exponent = clamp(curve, 1, 5);
   switch (pace) {
     case "accelerating":
-      return p * p * p; // easeInCubic
+      return Math.pow(p, exponent);
     case "decelerating":
-      return 1 - Math.pow(1 - p, 3); // easeOutCubic
+      return 1 - Math.pow(1 - p, exponent);
     default:
-      return p; // normal/linear
+      return p;
   }
 };
 
@@ -88,27 +89,39 @@ const Toggle = ({ checked, onChange, label }: { checked: boolean; onChange: (v: 
   <button
     type="button"
     onClick={() => onChange(!checked)}
-    className={"group inline-flex items-center gap-2 select-none"}
+    className="group inline-flex items-center gap-3 select-none"
     aria-pressed={checked}
   >
-    <span
-      className={`relative h-6 w-11 rounded-full transition shadow-inner ${checked ? "bg-sky-500/80" : "bg-slate-300"}`}
-    >
+    <span className={`relative h-7 w-12 rounded-full transition shadow-inner ${checked ? "bg-sky-500/90" : "bg-slate-300"}`}>
       <span
-        className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-[22px]" : "translate-x-0"}`}
+        className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-[26px]" : "translate-x-0"}`}
       />
     </span>
     {label && <span className="text-sm text-slate-700">{label}</span>}
   </button>
 );
 
-function Segmented<T extends string>({ value, onChange, options }: { value: T; onChange: (v: T) => void; options: T[] }) {
+function Segmented<T extends string>({
+  value,
+  onChange,
+  options,
+  className = "",
+}: {
+  value: T;
+  onChange: (v: T) => void;
+  options: T[];
+  className?: string;
+}) {
   return (
-    <div className="inline-flex rounded-xl border border-slate-900/10 bg-white/70 backdrop-blur px-1 py-1 shadow-sm">
+    <div
+      className={`inline-flex flex-wrap items-center gap-1 rounded-xl border border-slate-900/10 bg-white/70 px-1 py-1 shadow-sm ${className}`}
+    >
       {options.map((opt) => (
         <button
           key={opt}
-          className={`px-3 py-1.5 text-sm rounded-lg transition shadow-sm ${value === opt ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-200/60"}`}
+          className={`px-3 py-1.5 text-sm rounded-lg transition shadow-sm whitespace-nowrap ${
+            value === opt ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-200/60"
+          }`}
           onClick={() => onChange(opt)}
         >
           {String(opt)}
@@ -398,68 +411,57 @@ function CircularProgress({ progress }: { progress: number }) {
   );
 }
 
-// ===== Draggable Digital Time ===== //
-function useDrag(initial: { x: number; y: number }) {
-  const [pos, setPos] = useState(initial);
-  const dragging = useRef(false);
-  const offset = useRef({ x: 0, y: 0 });
-
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      if (!dragging.current) return;
-      setPos({ x: e.clientX - offset.current.x, y: e.clientY - offset.current.y });
-    };
-    const onUp = () => (dragging.current = false);
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, []);
-
-  const bind = {
-    onMouseDown: (e: React.MouseEvent) => {
-      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      offset.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-      dragging.current = true;
-    },
-  } as const;
-
-  return { pos, setPos, bind };
-}
-
-function DraggableTime({ text, defaultTop = 120 }: { text: string; defaultTop?: number }) {
-  const { pos, setPos, bind } = useDrag({ x: window.innerWidth / 2 - 240, y: defaultTop });
-  useEffect(() => {
-    const onResize = () => setPos((p) => ({ x: Math.max(16, Math.min(p.x, window.innerWidth - 16)), y: p.y }));
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, [setPos]);
-  return (
-    <div
-      style={{ position: "fixed", left: pos.x, top: pos.y, zIndex: 45 }}
-      className="cursor-grab active:cursor-grabbing select-none"
-      {...bind}
-    >
-      <div className="font-mono text-[9rem] leading-none tracking-widest text-slate-900/90 drop-shadow-[0_6px_18px_rgba(2,6,23,0.08)]">
-        {text}
-      </div>
-    </div>
-  );
-}
-
 // =============== Main App =============== //
 export default function FuturisticTimerApp() {
   // Time state
-  const [h, setH] = useState(0);
-  const [m, setM] = useState(1);
-  const [s, setS] = useState(0);
-
-  const durationSec = useMemo(() => clampInt(h, 0, 99) * 3600 + clampInt(m, 0, 59) * 60 + clampInt(s, 0, 59), [h, m, s]);
-  const [remaining, setRemaining] = useState<number>(durationSec);
+  const [timeInput, setTimeInput] = useState({ h: "0", m: "01", s: "00" });
+  const hours = useMemo(() => clampInt(Number(timeInput.h || "0"), 0, 99), [timeInput.h]);
+  const minutes = useMemo(() => clampInt(Number(timeInput.m || "0"), 0, 59), [timeInput.m]);
+  const seconds = useMemo(() => clampInt(Number(timeInput.s || "0"), 0, 59), [timeInput.s]);
+  const durationSec = useMemo(() => hours * 3600 + minutes * 60 + seconds, [hours, minutes, seconds]);
+  const [remaining, setRemaining] = useState<number>(() => hours * 3600 + minutes * 60 + seconds);
   const [running, setRunning] = useState(false);
   const [paused, setPaused] = useState(false);
+
+  const formatTimePart = useCallback(
+    (value: number, key: "h" | "m" | "s") => (key === "h" ? String(value) : String(value).padStart(2, "0")),
+    []
+  );
+
+  const syncTimeInputs = useCallback(() => {
+    setTimeInput((prev) => {
+      const next = {
+        h: formatTimePart(hours, "h"),
+        m: formatTimePart(minutes, "m"),
+        s: formatTimePart(seconds, "s"),
+      };
+      if (prev.h === next.h && prev.m === next.m && prev.s === next.s) return prev;
+      return next;
+    });
+  }, [formatTimePart, hours, minutes, seconds]);
+
+  const handleTimeChange = useCallback(
+    (key: "h" | "m" | "s") => (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      if (/^\d*$/.test(value)) {
+        setTimeInput((prev) => ({ ...prev, [key]: value }));
+      }
+    },
+    []
+  );
+
+  const handleTimeBlur = useCallback(
+    (key: "h" | "m" | "s", max: number) => () => {
+      setTimeInput((prev) => {
+        const raw = prev[key];
+        const sanitized = clampInt(Number(raw || "0"), 0, max);
+        const next = formatTimePart(sanitized, key);
+        if (raw === next) return prev;
+        return { ...prev, [key]: next };
+      });
+    },
+    [formatTimePart]
+  );
 
   // UI state
   const [basicOpen, setBasicOpen] = useState(true); // default expanded
@@ -467,9 +469,13 @@ export default function FuturisticTimerApp() {
 
   const [timerType, setTimerType] = useState<TimerType>("Countdown");
   const [pace, setPace] = useState<Pace>("normal");
+  const [paceCurve, setPaceCurve] = useState(2);
   const [barShape, setBarShape] = useState<ProgressBarShape>("linear");
 
   const [showDigits, setShowDigits] = useState(false); // optional for non-countdown
+
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const [panelLeft, setPanelLeft] = useState<number | null>(null);
 
   // Alerts (store as string keys for stability)
   const [alertsEnabled, setAlertsEnabled] = useState<Record<string, boolean>>({
@@ -485,7 +491,7 @@ export default function FuturisticTimerApp() {
 
   // Audio (gentle chime) — initialized on first interaction
   const audioCtxRef = useRef<AudioContext | null>(null);
-  const playChime = (freq = 660) => {
+  const playChime = useCallback((freq = 660) => {
     try {
       if (!audioCtxRef.current) return;
       const ctx = audioCtxRef.current;
@@ -502,7 +508,7 @@ export default function FuturisticTimerApp() {
       o.start();
       o.stop(now + 0.65);
     } catch {}
-  };
+  }, []);
 
   // Big alert overlay
   const [alertSplash, setAlertSplash] = useState<null | { label: string; id: number }>(null);
@@ -511,11 +517,31 @@ export default function FuturisticTimerApp() {
   // Toasts (secondary, smaller)
   const [toasts, setToasts] = useState<{ id: number; text: string }[]>([]);
   const toastIdRef = useRef(1);
-  const pushToast = (text: string) => {
+  const pushToast = useCallback((text: string) => {
     const id = toastIdRef.current++;
     setToasts((t) => [...t, { id, text }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 5000);
-  };
+    window.setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 5000);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const update = () => {
+      if (!panelRef.current) return;
+      const rect = panelRef.current.getBoundingClientRect();
+      setPanelLeft(rect.left);
+    };
+    update();
+    window.addEventListener("resize", update);
+    let observer: ResizeObserver | null = null;
+    if (panelRef.current && "ResizeObserver" in window) {
+      observer = new ResizeObserver(update);
+      observer.observe(panelRef.current);
+    }
+    return () => {
+      window.removeEventListener("resize", update);
+      observer?.disconnect();
+    };
+  }, []);
 
   // Keep remaining in sync when duration changes and timer not running
   useEffect(() => {
@@ -531,30 +557,52 @@ export default function FuturisticTimerApp() {
 
   // Progress
   const linProgress = useMemo(() => (durationSec > 0 ? clamp(1 - remaining / durationSec) : 0), [remaining, durationSec]);
-  const visProgress = useMemo(() => easeByPace(linProgress, pace), [linProgress, pace]);
+  const visProgress = useMemo(() => easeByPace(linProgress, pace, paceCurve), [linProgress, pace, paceCurve]);
 
   // Alerts trigger
   useEffect(() => {
+    if (!running || paused) return;
+    const nextTriggered = new Set(triggered);
+    let updated = false;
+
     ALERTS.forEach(({ label, value }) => {
       const key = String(value);
-      if (alertsEnabled[key] && !triggered.has(key) && linProgress >= value) {
-        setTriggered((prev) => new Set(prev).add(key));
+      if (alertsEnabled[key] && !nextTriggered.has(key) && linProgress >= value) {
+        nextTriggered.add(key);
+        updated = true;
         setAlertSplash({ label, id: splashId.current++ });
         pushToast(`Alert: ${label} reached`);
         playChime(660 + value * 240);
       }
     });
-    // Completion 100%
-    if (!triggered.has("1") && linProgress >= 1) {
-      setTriggered((prev) => new Set(prev).add("1"));
+
+    if (!nextTriggered.has("1") && linProgress >= 1) {
+      nextTriggered.add("1");
+      updated = true;
       setAlertSplash({ label: "100%", id: splashId.current++ });
       pushToast("Time's up! ✅");
       playChime(880);
       setRunning(false);
+      setPaused(false);
     }
-  }, [linProgress, alertsEnabled, triggered]);
 
-  const showFinal10 = running && remaining <= 10.5;
+    if (updated) {
+      setTriggered(nextTriggered);
+    }
+  }, [alertsEnabled, linProgress, paused, running, triggered, playChime, pushToast]);
+
+  useEffect(() => {
+    if (!alertSplash) return;
+    const timeout = window.setTimeout(() => setAlertSplash(null), 3500);
+    return () => window.clearTimeout(timeout);
+  }, [alertSplash]);
+
+  const showFinal10 = running && !paused && remaining <= 10.5;
+
+  const digitalAnchor = useMemo(() => {
+    if (panelLeft == null) return 160;
+    return Math.max(120, panelLeft / 2);
+  }, [panelLeft]);
 
   // Enforce digits shown when type is Countdown
   useEffect(() => {
@@ -564,15 +612,25 @@ export default function FuturisticTimerApp() {
   const start = () => {
     if (durationSec <= 0) return;
     if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    syncTimeInputs();
     setTriggered(new Set());
+    setAlertSplash(null);
+    setToasts([]);
+    setRemaining(durationSec);
     setRunning(true);
     setPaused(false);
   };
-  const pause = () => setPaused((p) => !p);
+  const pause = () => {
+    if (!running) return;
+    setPaused((p) => !p);
+  };
   const reset = () => {
+    syncTimeInputs();
     setRunning(false);
     setPaused(false);
     setTriggered(new Set());
+    setAlertSplash(null);
+    setToasts([]);
     setRemaining(durationSec);
   };
 
@@ -621,7 +679,7 @@ export default function FuturisticTimerApp() {
       <div className="pointer-events-none absolute inset-0 opacity-[0.06]" style={{ backgroundImage: `radial-gradient(circle at 20% 30%, #0f172a 1px, transparent 1px), radial-gradient(circle at 80% 70%, #0f172a 1px, transparent 1px)`, backgroundSize: "120px 120px, 180px 180px" }} />
 
       {/* Top-right glass control panel (force interactivity) */}
-      <div className="fixed top-5 right-5 w-[360px] max-w-[92vw] space-y-3 z-[60] pointer-events-auto">
+      <div ref={panelRef} className="fixed top-5 right-5 w-[360px] max-w-[92vw] space-y-3 z-[60] pointer-events-auto">
         <div className="rounded-2xl border border-slate-900/10 bg-white/60 backdrop-blur-2xl shadow-2xl p-3">
           {/* Basic settings (no title) */}
           <PanelSection title={undefined} open={basicOpen} setOpen={setBasicOpen}>
@@ -630,36 +688,42 @@ export default function FuturisticTimerApp() {
               <label className="grid gap-1 text-xs">
                 <span className="text-slate-700">Hours</span>
                 <input
-                  type="number"
-                  min={0}
-                  max={99}
-                  value={h}
-                  onChange={(e) => setH(clampInt(Number(e.target.value || 0), 0, 99))}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={timeInput.h}
+                  onChange={handleTimeChange("h")}
+                  onBlur={handleTimeBlur("h", 99)}
                   disabled={running}
+                  autoComplete="off"
                   className="rounded-xl bg-white border border-slate-900/10 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
                 />
               </label>
               <label className="grid gap-1 text-xs">
                 <span className="text-slate-700">Minutes</span>
                 <input
-                  type="number"
-                  min={0}
-                  max={59}
-                  value={m}
-                  onChange={(e) => setM(clampInt(Number(e.target.value || 0), 0, 59))}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={timeInput.m}
+                  onChange={handleTimeChange("m")}
+                  onBlur={handleTimeBlur("m", 59)}
                   disabled={running}
+                  autoComplete="off"
                   className="rounded-xl bg-white border border-slate-900/10 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
                 />
               </label>
               <label className="grid gap-1 text-xs">
                 <span className="text-slate-700">Seconds</span>
                 <input
-                  type="number"
-                  min={0}
-                  max={59}
-                  value={s}
-                  onChange={(e) => setS(clampInt(Number(e.target.value || 0), 0, 59))}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={timeInput.s}
+                  onChange={handleTimeChange("s")}
+                  onBlur={handleTimeBlur("s", 59)}
                   disabled={running}
+                  autoComplete="off"
                   className="rounded-xl bg-white border border-slate-900/10 px-2 py-1 focus:outline-none focus:ring-2 focus:ring-sky-400/50"
                 />
               </label>
@@ -672,9 +736,12 @@ export default function FuturisticTimerApp() {
 
             <div className="pt-3">
               <div className="text-[11px] uppercase tracking-wide text-slate-600 mb-2">Alerts</div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {ALERTS.map(({ label, value }) => (
-                  <div key={label} className="flex items-center justify-between gap-2 text-sm bg-white rounded-xl px-3 py-2 border border-slate-900/10 shadow-sm">
+                  <div
+                    key={label}
+                    className="flex items-center justify-between gap-3 text-sm bg-white rounded-xl px-4 py-3 border border-slate-900/10 shadow-sm min-h-[60px]"
+                  >
                     <span className="text-slate-800">{label}</span>
                     <Toggle
                       checked={!!alertsEnabled[String(value)]}
@@ -708,13 +775,36 @@ export default function FuturisticTimerApp() {
                     value={timerType}
                     onChange={(v) => setTimerType(v)}
                     options={["Countdown", "Hourglass", "Candle", "Bioluminescence", "Progress Bar"]}
+                    className="max-h-24 overflow-y-auto pr-1"
                   />
                 </div>
               </label>
 
               <fieldset className="grid gap-2 text-sm">
                 <legend className="text-slate-700">Pace</legend>
-                <Segmented<Pace> value={pace} onChange={setPace} options={["normal", "accelerating", "decelerating"]} />
+                <Segmented<Pace>
+                  value={pace}
+                  onChange={setPace}
+                  options={["normal", "accelerating", "decelerating"]}
+                  className="w-fit"
+                />
+                {(pace === "accelerating" || pace === "decelerating") && (
+                  <label className="grid gap-1 text-xs text-slate-600">
+                    <span className="font-medium text-slate-700">
+                      {pace === "accelerating" ? "Acceleration rate" : "Deceleration rate"}
+                    </span>
+                    <input
+                      type="range"
+                      min={1}
+                      max={4}
+                      step={0.1}
+                      value={paceCurve}
+                      onChange={(e) => setPaceCurve(Number(e.target.value))}
+                      className="w-full accent-sky-500"
+                    />
+                    <span className="text-[11px] tracking-wide">{paceCurve.toFixed(1)}× intensity</span>
+                  </label>
+                )}
               </fieldset>
 
               {timerType === "Progress Bar" && (
@@ -724,6 +814,7 @@ export default function FuturisticTimerApp() {
                     value={barShape}
                     onChange={setBarShape}
                     options={["linear", "circular"]}
+                    className="w-fit"
                   />
                 </fieldset>
               )}
@@ -758,37 +849,32 @@ export default function FuturisticTimerApp() {
         </div>
       </div>
 
-      {/* Draggable digital time (always for Countdown; optional for others). Defaults ABOVE visuals */}
+      {/* Digital time readout anchored between screen edge and control panel */}
       {(timerType === "Countdown" || showDigits) && (
-        <DraggableTime text={toHMS(remaining)} />
+        <div
+          className="fixed top-6 z-[65] pointer-events-none transform -translate-x-1/2"
+          style={{ left: digitalAnchor }}
+        >
+          <div className="font-mono text-[clamp(3rem,6vw,8rem)] leading-none tracking-[0.4em] text-slate-900/90 drop-shadow-[0_6px_18px_rgba(2,6,23,0.08)]">
+            {toHMS(remaining)}
+          </div>
+        </div>
       )}
 
-      {/* Toasts */}
-      <div className="pointer-events-none fixed top-5 left-1/2 -translate-x-1/2 space-y-2 z-[55]">
+      {/* Toasts and alerts pinned to the left */}
+      <div className="fixed top-32 left-6 z-[55] flex max-w-[320px] flex-col gap-3 pointer-events-none">
+        {alertSplash && (
+          <div key={alertSplash.id} className="rounded-2xl border border-sky-400/40 bg-sky-100/90 px-4 py-3 shadow-lg">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-sky-700">Milestone</div>
+            <div className="text-lg font-bold text-slate-900">{alertSplash.label} reached</div>
+          </div>
+        )}
         {toasts.map((t) => (
-          <div
-            key={t.id}
-            className="px-4 py-2 rounded-xl bg-slate-900/70 text-white border border-slate-900/10 backdrop-blur-xl shadow-lg text-sm animate-[fade_0.2s_ease-out]"
-          >
+          <div key={t.id} className="rounded-xl border border-slate-900/10 bg-white px-4 py-3 text-sm text-slate-800 shadow-lg">
             {t.text}
           </div>
         ))}
       </div>
-
-      {/* Fullscreen alert splash */}
-      {alertSplash && (
-        <div key={alertSplash.id} className="fixed inset-0 z-[50] pointer-events-none grid place-items-center">
-          <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px] animate-[fade_0.2s_ease-out]" />
-          <div className="relative grid place-items-center">
-            <div className="w-72 h-72 rounded-full bg-sky-400/30 animate-[ring_1.6s_ease-out_forwards]" />
-            <div className="absolute inset-0 grid place-items-center">
-              <div className="px-6 py-3 rounded-2xl bg-slate-900 text-white shadow-2xl border border-white/20 text-2xl font-semibold animate-[fade_0.2s_ease-out]">
-                {alertSplash.label} reached
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Keyframes */}
       <style>{`
