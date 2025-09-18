@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timer Test</title>
+    <link rel="stylesheet" href="./dist/tailwind.css" />
+</head>
+<body class="min-h-screen bg-slate-900">
+    <div id="timer-root" class="min-h-screen"></div>
+    <div id="debug" style="color: white; padding: 20px;"></div>
+
+    <script>
+        console.log("Starting debug...");
+        document.getElementById('debug').innerHTML = 'Loading React...';
+    </script>
+
+    <script src="../react/react.production.min.js"></script>
+    <script>
+        console.log("React loaded:", !!window.React);
+        document.getElementById('debug').innerHTML += '<br>React loaded: ' + !!window.React;
+    </script>
+
+    <script src="../react/react-dom.production.min.js"></script>
+    <script>
+        console.log("ReactDOM loaded:", !!window.ReactDOM);
+        document.getElementById('debug').innerHTML += '<br>ReactDOM loaded: ' + !!window.ReactDOM;
+    </script>
+
+    <script src="../react/loader.js"></script>
+    <script>
+        console.log("Loader loaded, mountReactApp:", !!window.mountReactApp);
+        document.getElementById('debug').innerHTML += '<br>Loader loaded: ' + !!window.mountReactApp;
+    </script>
+
+    <script src="./dist/timer.js"></script>
+    <script>
+        console.log("Timer bundle loaded:", !!window.TimerApp);
+        document.getElementById('debug').innerHTML += '<br>Timer bundle loaded: ' + !!window.TimerApp;
+        
+        if (window.TimerApp) {
+            console.log("FuturisticTimerApp:", !!window.TimerApp.FuturisticTimerApp);
+            document.getElementById('debug').innerHTML += '<br>FuturisticTimerApp: ' + !!window.TimerApp.FuturisticTimerApp;
+        }
+    </script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            console.log("DOM loaded, attempting to mount...");
+            var root = document.getElementById("timer-root");
+            if (!root) {
+                console.error("Timer root element not found");
+                document.getElementById('debug').innerHTML += '<br>ERROR: Timer root element not found';
+                return;
+            }
+            if (!window.TimerApp || !window.TimerApp.FuturisticTimerApp) {
+                console.error("Timer app bundle did not load correctly");
+                document.getElementById('debug').innerHTML += '<br>ERROR: Timer app bundle did not load correctly';
+                return;
+            }
+            try {
+                mountReactApp(window.TimerApp.FuturisticTimerApp, root);
+                console.log("App mounted successfully");
+                document.getElementById('debug').innerHTML += '<br>SUCCESS: App mounted!';
+            } catch (error) {
+                console.error("Error mounting app:", error);
+                document.getElementById('debug').innerHTML += '<br>ERROR mounting app: ' + error.message;
+            }
+        });
+    </script>
+</body>
+</html>

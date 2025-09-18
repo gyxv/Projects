@@ -24,9 +24,24 @@
   }
 
   global.mountReactApp = function(Component, container, props) {
-    // Using React 18's concurrent root API.
-    const root = global.ReactDOM.createRoot(container);
-    root.render(global.React.createElement(Component, props));
-    return root;
+    try {
+      // Try React 18's concurrent root API first
+      if (global.ReactDOM.createRoot) {
+        const root = global.ReactDOM.createRoot(container);
+        root.render(global.React.createElement(Component, props));
+        return root;
+      }
+      // Fallback to React 17 and earlier
+      else if (global.ReactDOM.render) {
+        global.ReactDOM.render(global.React.createElement(Component, props), container);
+        return container;
+      }
+      else {
+        throw new Error('No compatible ReactDOM render method found');
+      }
+    } catch (error) {
+      console.error('Error in mountReactApp:', error);
+      throw error;
+    }
   };
 })(window);

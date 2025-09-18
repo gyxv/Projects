@@ -13,7 +13,7 @@ import React, {
 } from "react";
 
 // === Types ===
-type TimerType = "Countdown" | "Hourglass" | "Candle" | "Bioluminescence" | "Progress Bar";
+type TimerType = "Countdown" | "Hourglass" | "Candle" | "Bioluminescence" | "Progress Bar" | "Singularity";
 type Pace = "normal" | "accelerating" | "decelerating";
 type ProgressBarShape = "linear" | "circular";
 
@@ -23,6 +23,7 @@ const TIMER_TYPES: readonly TimerType[] = [
   "Candle",
   "Bioluminescence",
   "Progress Bar",
+  "Singularity",
 ];
 
 const PACES: readonly Pace[] = ["normal", "accelerating", "decelerating"];
@@ -507,6 +508,166 @@ function BioluminescenceOrb({ progress }: { progress: number }) {
         }}
       />
     </div>
+  );
+}
+
+function SingularityCanvas({ progress, pace }: { progress: number; pace: Pace }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const animRef = useRef<number | null>(null);
+  const particlesRef = useRef<Array<{
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+    size: number;
+    color: string;
+    originalDistance: number;
+  }>>([]);
+  const timeRef = useRef(0);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const W = canvas.width;
+    const H = canvas.height;
+    const centerX = W / 2;
+    const centerY = H / 2;
+
+    // Initialize particles if not already done
+    if (particlesRef.current.length === 0) {
+      const colors = ["#1e1b4b", "#4c1d95", "#374151", "#111827", "#0f172a", "#1e293b"];
+      for (let i = 0; i < 150; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const distance = 120 + Math.random() * 180;
+        const x = centerX + Math.cos(angle) * distance;
+        const y = centerY + Math.sin(angle) * distance;
+        
+        particlesRef.current.push({
+          x,
+          y,
+          vx: 0,
+          vy: 0,
+          size: 1 + Math.random() * 3,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          originalDistance: distance,
+        });
+      }
+    }
+
+    let running = true;
+    const animate = () => {
+      if (!running) return;
+      
+      timeRef.current += 0.016;
+      ctx.clearRect(0, 0, W, H);
+
+      // Draw space background
+      const bgGrad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, Math.max(W, H) / 2);
+      bgGrad.addColorStop(0, "rgba(15, 23, 42, 0.95)");
+      bgGrad.addColorStop(0.7, "rgba(30, 27, 75, 0.8)");
+      bgGrad.addColorStop(1, "rgba(0, 0, 0, 0.9)");
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, W, H);
+
+      // Calculate singularity strength based on progress and pace
+      const paceMultiplier = pace === "accelerating" ? 1 + progress * 2 : 
+                           pace === "decelerating" ? 2 - progress : 1;
+      const singularityStrength = progress * paceMultiplier;
+
+      // Draw and update particles
+      particlesRef.current.forEach(particle => {
+        const dx = centerX - particle.x;
+        const dy = centerY - particle.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance > 1) {
+          // Gravitational pull towards center, stronger as progress increases
+          const force = (singularityStrength * 0.8) / (distance * 0.1);
+          particle.vx += (dx / distance) * force;
+          particle.vy += (dy / distance) * force;
+          
+          // Apply some drag
+          particle.vx *= 0.98;
+          particle.vy *= 0.98;
+          
+          // Update position
+          particle.x += particle.vx;
+          particle.y += particle.vy;
+        }
+
+        // Draw particle with trail effect
+        const alpha = Math.max(0.3, 1 - (distance / 300));
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = particle.color;
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = particle.color;
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // Draw the singularity (black hole) at center
+      const singularitySize = 8 + singularityStrength * 25;
+      const eventHorizonSize = singularitySize * 1.8;
+      
+      // Event horizon glow
+      const horizonGrad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, eventHorizonSize);
+      horizonGrad.addColorStop(0, "rgba(0, 0, 0, 1)");
+      horizonGrad.addColorStop(0.6, "rgba(30, 27, 75, 0.8)");
+      horizonGrad.addColorStop(0.8, "rgba(76, 29, 149, 0.4)");
+      horizonGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+      
+      ctx.fillStyle = horizonGrad;
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, eventHorizonSize, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Central singularity
+      ctx.fillStyle = "#000000";
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, singularitySize, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Accretion disk effect
+      if (singularityStrength > 0.3) {
+        ctx.save();
+        ctx.globalAlpha = singularityStrength * 0.6;
+        const diskGrad = ctx.createRadialGradient(centerX, centerY, singularitySize, centerX, centerY, singularitySize * 3);
+        diskGrad.addColorStop(0, "rgba(139, 69, 19, 0)");
+        diskGrad.addColorStop(0.3, "rgba(255, 140, 0, 0.4)");
+        diskGrad.addColorStop(0.7, "rgba(220, 20, 60, 0.2)");
+        diskGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+        
+        ctx.fillStyle = diskGrad;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, singularitySize * 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      animRef.current = requestAnimationFrame(animate);
+    };
+
+    animRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      running = false;
+      if (animRef.current) cancelAnimationFrame(animRef.current);
+    };
+  }, [progress, pace]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={360}
+      height={360}
+      className="rounded-2xl border border-slate-900/10 bg-gradient-to-b from-slate-900 to-black backdrop-blur-xl shadow-xl"
+    />
   );
 }
 
@@ -1141,20 +1302,22 @@ export default function FuturisticTimerApp() {
 
             <div className="pt-3">
               <div className="text-[11px] uppercase tracking-wide text-slate-600 mb-2">Alerts</div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3 max-w-md">
                 {ALERTS.map(({ label, value }) => (
                   <div
                     key={label}
-                    className="flex items-center justify-between gap-3 text-sm bg-white rounded-xl px-4 py-3 border border-slate-900/10 shadow-sm min-h-[60px]"
+                    className="flex items-center justify-between gap-3 text-sm bg-white rounded-xl px-4 py-3 border border-slate-900/10 shadow-sm min-h-[56px] w-full"
                   >
-                    <span className="text-slate-800">{label}</span>
-                    <Toggle
-                      checked={!!alertsEnabled[String(value)]}
-                      onChange={(v) => {
-                        blurActiveTimeField();
-                        setAlertsEnabled((prev) => ({ ...prev, [String(value)]: v }));
-                      }}
-                    />
+                    <span className="text-slate-800 font-medium flex-shrink-0">{label}</span>
+                    <div className="flex-shrink-0">
+                      <Toggle
+                        checked={!!alertsEnabled[String(value)]}
+                        onChange={(v) => {
+                          blurActiveTimeField();
+                          setAlertsEnabled((prev) => ({ ...prev, [String(value)]: v }));
+                        }}
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1250,6 +1413,7 @@ export default function FuturisticTimerApp() {
             {timerType === "Hourglass" && <HourglassCanvas progress={visProgress} />}
             {timerType === "Candle" && <CandleCanvas progress={visProgress} />}
             {timerType === "Bioluminescence" && <BioluminescenceOrb progress={visProgress} />}
+            {timerType === "Singularity" && <SingularityCanvas progress={visProgress} pace={pace} />}
             {timerType === "Progress Bar" && (barShape === "linear" ? <LinearProgress progress={visProgress} /> : <CircularProgress progress={visProgress} />)}
           </div>
         </div>
