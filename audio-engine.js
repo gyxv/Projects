@@ -796,16 +796,27 @@ class AudioEngine {
         
         // Convert to MB and return
         const memoryMB = totalBytes / (1024 * 1024);
-        console.log(`=== TOTAL BUFFER MEMORY: ${totalBytes} bytes = ${memoryMB.toFixed(2)} MB ===`);
         return memoryMB;
     }
     
     /**
-     * Get available audio duration in seconds
+     * Get audio duration available in buffer (in seconds)
      */
     getAvailableAudioDuration() {
         if (this.audioBuffer.length === 0) return 0;
         return (Date.now() - this.audioBuffer[0].timestamp) / 1000;
+    }
+    
+    /**
+     * Get actual buffer duration for display (respects buffer time limit)
+     */
+    getActualBufferDuration() {
+        if (this.audioBuffer.length === 0) return 0;
+        
+        const totalRecordedSeconds = (Date.now() - this.audioBuffer[0].timestamp) / 1000;
+        const bufferLimitSeconds = this.bufferTimeMinutes * 60;
+        
+        return Math.min(totalRecordedSeconds, bufferLimitSeconds);
     }
     
     /**
@@ -936,10 +947,10 @@ class AudioEngine {
                 this.onTimeUpdate(this.elapsedTime);
             }
             
-            // Update buffer display synchronized with main timer
+            // Update buffer display with actual buffer duration
             if (this.onBufferUpdate) {
-                const bufferMinutes = Math.min(this.elapsedTime / 60, this.bufferTimeMinutes);
-                this.onBufferUpdate(bufferMinutes, this.bufferTimeMinutes);
+                const actualBufferMinutes = this.getActualBufferDuration() / 60;
+                this.onBufferUpdate(actualBufferMinutes, this.bufferTimeMinutes);
             }
         }, 1000);
         
@@ -962,10 +973,10 @@ class AudioEngine {
                 this.onTimeUpdate(this.elapsedTime);
             }
             
-            // Update buffer display synchronized with main timer
+            // Update buffer display with actual buffer duration
             if (this.onBufferUpdate) {
-                const bufferMinutes = Math.min(this.elapsedTime / 60, this.bufferTimeMinutes);
-                this.onBufferUpdate(bufferMinutes, this.bufferTimeMinutes);
+                const actualBufferMinutes = this.getActualBufferDuration() / 60;
+                this.onBufferUpdate(actualBufferMinutes, this.bufferTimeMinutes);
             }
         }, 1000);
     }
@@ -1186,9 +1197,15 @@ class AudioEngine {
     }
     
     /**
-     * Format buffer time as "xm xs"
+     * Format buffer time as "xm xs" for current, "xm" for max
      */
-    formatBufferTime(minutes) {
+    formatBufferTime(minutes, isMaxValue = false) {
+        if (isMaxValue) {
+            // For max value, show only minutes (e.g., "20m")
+            return `${Math.floor(minutes)}m`;
+        }
+        
+        // For current value, show minutes and seconds (e.g., "5m 23s")
         const totalSeconds = Math.floor(minutes * 60);
         const mins = Math.floor(totalSeconds / 60);
         const secs = totalSeconds % 60;

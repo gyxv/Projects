@@ -23,6 +23,9 @@ class ModoruApp {
         
         // Initialize the app
         this.initialize();
+        
+        // Load preset settings
+        this.loadPresets();
     }
     
     /**
@@ -392,8 +395,8 @@ class ModoruApp {
      * Update buffer information display
      */
     updateBufferInfo(currentMinutes, maxMinutes) {
-        const currentFormatted = this.audioEngine.formatBufferTime(currentMinutes);
-        const maxFormatted = this.audioEngine.formatBufferTime(maxMinutes);
+        const currentFormatted = this.audioEngine.formatBufferTime(currentMinutes, false);
+        const maxFormatted = this.audioEngine.formatBufferTime(maxMinutes, true);
         this.elements.bufferInfo.textContent = `Buffer: ${currentFormatted} / ${maxFormatted}`;
         
         // Update save button states
@@ -830,7 +833,8 @@ class ModoruApp {
         
         // Reset UI displays to initial state (synchronized)
         this.elements.timeDisplay.textContent = '00:00:00';
-        this.elements.bufferInfo.textContent = 'Buffer: 0s / 20m 0s';
+        const maxFormatted = this.audioEngine.formatBufferTime(this.audioEngine.bufferTimeMinutes, true);
+        this.elements.bufferInfo.textContent = `Buffer: 0m 0s / ${maxFormatted}`;
         this.elements.statusText.textContent = 'Ready to Record';
         this.elements.statusIndicator.className = 'status-indicator';
         
@@ -889,6 +893,155 @@ class ModoruApp {
         if (bytes < 1024) return bytes + ' B';
         if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
         return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+    
+    /**
+     * Load preset values from localStorage or use defaults
+     */
+    loadPresets() {
+        const defaultPresets = [
+            { min: 0, sec: 30 },   // 30s
+            { min: 1, sec: 0 },    // 1m
+            { min: 2, sec: 0 },    // 2m
+            { min: 5, sec: 0 },    // 5m
+            { min: 10, sec: 0 }    // 10m
+        ];
+        
+        const savedPresets = localStorage.getItem('presets');
+        const presets = savedPresets ? JSON.parse(savedPresets) : defaultPresets;
+        
+        // Update UI inputs
+        for (let i = 0; i < 5; i++) {
+            const preset = presets[i] || defaultPresets[i];
+            this.elements[`preset${i + 1}_min`].value = preset.min;
+            this.elements[`preset${i + 1}_sec`].value = preset.sec;
+        }
+        
+        // Update button labels and durations
+        this.updatePresetButtons();
+    }
+    
+    /**
+     * Update preset button labels and data-duration attributes
+     */
+    updatePresetButtons() {
+        const buttons = Array.from(this.elements.saveButtons);
+        
+        for (let i = 0; i < 5 && i < buttons.length; i++) {
+            const min = parseInt(this.elements[`preset${i + 1}_min`].value) || 0;
+            const sec = parseInt(this.elements[`preset${i + 1}_sec`].value) || 0;
+            
+            const totalSeconds = (min * 60) + sec;
+            const label = this.formatPresetLabel(min, sec);
+            
+            buttons[i].textContent = label;
+            buttons[i].setAttribute('data-duration', totalSeconds.toString());
+        }
+        
+        console.log('Preset buttons updated');
+    }
+    
+    /**
+     * Format preset label (e.g., "1m45s" or "45s" or "2m")
+     */
+    formatPresetLabel(min, sec) {
+        if (min > 0 && sec > 0) {
+            return `${min}m${sec}s`;
+        } else if (min > 0) {
+            return `${min}m`;
+        } else {
+            return `${sec}s`;
+        }
+    }
+    
+    /**
+     * Save preset settings to localStorage and update buttons
+     */
+    saveSettings() {
+        const presets = [];
+        
+        // Collect preset values
+        for (let i = 1; i <= 5; i++) {
+            const min = parseInt(this.elements[`preset${i}_min`].value) || 0;
+            const sec = parseInt(this.elements[`preset${i}_sec`].value) || 0;
+            
+            // Validate minimum 5 seconds
+            const totalSeconds = (min * 60) + sec;
+            if (totalSeconds < 5) {
+                this.showToast(`Button ${i} must be at least 5 seconds`, 'error');
+                return;
+            }
+            
+            presets.push({ min, sec });
+        }
+        
+        // Save buffer time
+        const bufferTime = parseInt(this.elements.bufferTime.value);
+        if (bufferTime >= 5 && bufferTime <= 120) {
+            localStorage.setItem('bufferTime', bufferTime.toString());
+            this.audioEngine.bufferTimeMinutes = bufferTime;
+            this.audioEngine.bufferTimeLimitMs = bufferTime * 60 * 1000;
+        }
+        
+        // Save presets
+        localStorage.setItem('presets', JSON.stringify(presets));
+        
+        // Update buttons immediately
+        this.updatePresetButtons();
+        
+        // Update buffer display with new limit
+        if (this.audioEngine.onBufferUpdate) {
+            const actualBufferMinutes = this.audioEngine.getActualBufferDuration() / 60;
+            this.audioEngine.onBufferUpdate(actualBufferMinutes, this.audioEngine.bufferTimeMinutes);
+        }
+        
+        // Show success message
+        this.showToast('Settings saved successfully', 'success');
+        
+        console.log('Settings saved:', { presets, bufferTime });
+    }
+    
+    /**
+     * Reset settings to defaults
+     */
+    resetSettings() {
+        // Clear localStorage
+        localStorage.removeItem('presets');
+        localStorage.removeItem('bufferTime');
+        
+        // Reset buffer time
+        this.elements.bufferTime.value = 20;
+        this.audioEngine.bufferTimeMinutes = 20;
+        this.audioEngine.bufferTimeLimitMs = 20 * 60 * 1000;
+        
+        // Load default presets
+        this.loadPresets();
+        
+        this.showToast('Settings reset to defaults', 'success');
+        
+        console.log('Settings reset to defaults');
+    }
+    
+    /**
+     * Show settings page
+     */
+    showSettings() {
+        this.elements.mainInterface.style.display = 'none';
+        this.elements.settingsPage.style.display = 'block';
+        
+        // Load current settings into inputs
+        this.loadPresets();
+        
+        // Load buffer time
+        this.elements.bufferTime.value = this.audioEngine.bufferTimeMinutes;
+    }
+    
+    /**
+     * Hide settings page
+     */
+    hideSettings() {
+        this.elements.settingsPage.style.display = 'none';
+        this.elements.mainInterface.style.display = 'flex';
     }
 }
 
