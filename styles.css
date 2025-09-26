@@ -71,48 +71,67 @@ body {
     display: flex;
     gap: 20px;
     align-items: center;
+    justify-content: center;
 }
 
 .resume-btn, .reset-btn {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
-    border: 2px solid rgba(255, 255, 255, 0.3);
+    gap: 12px;
     border-radius: 50px;
-    padding: 20px;
-    min-width: 120px;
+    padding: 25px 30px;
+    min-width: 140px;
+    min-height: 140px;
     color: white;
-    font-size: 16px;
-    transform: scale(1.05);
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
-.primary-btn {
+.resume-btn {
     background: linear-gradient(135deg, 
-        rgba(76, 175, 80, 0.95) 0%, 
-        rgba(56, 142, 60, 0.95) 50%, 
-        rgba(46, 125, 50, 0.95) 100%);
-    color: white;
-    border: 2px solid rgba(255, 255, 255, 0.3);
+        rgba(76, 175, 80, 0.9) 0%, 
+        rgba(56, 142, 60, 0.9) 100%);
+    border: 3px solid rgba(76, 175, 80, 0.8);
     box-shadow: 
-        0 8px 32px rgba(76, 175, 80, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.2);
-    position: relative;
-    overflow: hidden;
+        0 0 25px rgba(76, 175, 80, 0.4),
+        0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
-.primary-btn::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, 
-        transparent, 
-        rgba(255, 255, 255, 0.2), 
-        transparent);
-    transition: left 0.6s;
+.resume-btn:hover {
+    background: linear-gradient(135deg, 
+        rgba(76, 175, 80, 1) 0%, 
+        rgba(56, 142, 60, 1) 100%);
+    border-color: rgba(76, 175, 80, 1);
+    box-shadow: 
+        0 0 35px rgba(76, 175, 80, 0.6),
+        0 12px 40px rgba(0, 0, 0, 0.4);
+    transform: scale(1.05) translateY(-2px);
+}
+
+.reset-btn {
+    background: linear-gradient(135deg, 
+        rgba(255, 152, 0, 0.9) 0%, 
+        rgba(230, 126, 34, 0.9) 100%);
+    border: 3px solid rgba(255, 152, 0, 0.8);
+    box-shadow: 
+        0 0 25px rgba(255, 152, 0, 0.4),
+        0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.reset-btn:hover {
+    background: linear-gradient(135deg, 
+        rgba(255, 152, 0, 1) 0%, 
+        rgba(230, 126, 34, 1) 100%);
+    border-color: rgba(255, 152, 0, 1);
+    box-shadow: 
+        0 0 35px rgba(255, 152, 0, 0.6),
+        0 12px 40px rgba(0, 0, 0, 0.4);
+    transform: scale(1.05) translateY(-2px);
 }
 
 .primary-btn:hover::before {
@@ -226,14 +245,33 @@ body {
 /* Status Display */
 .status-display {
     margin-bottom: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    text-align: center;
 }
 
 .recording-status {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 15px;
     font-size: 18px;
+    font-weight: 600;
+}
+
+.time-display {
+    font-size: 32px;
+    font-weight: 700;
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    margin: 8px 0;
+}
+
+.buffer-info {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 500;
 }
 
 .status-indicator {
@@ -281,20 +319,32 @@ body {
     justify-content: center;
 }
 
+/* Recording Controls Container */
+.recording-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    margin: 20px 0;
+}
+
 .record-btn, .pause-btn {
     background: rgba(255, 255, 255, 0.2);
     border: 3px solid rgba(255, 255, 255, 0.3);
     border-radius: 50%;
-    width: 120px;
-    height: 120px;
+    width: 180px;
+    height: 180px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    color: white;
     cursor: pointer;
     transition: all 0.3s ease;
-    color: white;
-    font-size: 14px;
+    font-size: 16px;
+    font-weight: 600;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
 .record-btn:hover, .pause-btn:hover {
@@ -745,14 +795,18 @@ body {
 }
 
 .confirm-btn, .cancel-btn {
-    padding: 12px 25px;
+    padding: 20px 32px;
     border: none;
-    border-radius: 8px;
-    font-size: 16px;
-    font-weight: 500;
+    border-radius: 20px;
+    font-size: 18px;
+    font-weight: 700;
     cursor: pointer;
     transition: all 0.3s ease;
-    min-width: 80px;
+    backdrop-filter: blur(10px);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    width: 100%;
+    min-height: 60px;
 }
 
 .confirm-btn {
@@ -1134,6 +1188,118 @@ body {
     .time-display {
         font-size: 24px;
     }
+}
+
+/* Settings Actions */
+.settings-actions {
+    margin-top: 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+}
+
+.primary-btn, .secondary-btn {
+    padding: 24px 32px;
+    border: none;
+    border-radius: 20px;
+    font-size: 20px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    width: 100%;
+    min-height: 70px;
+}
+
+.primary-btn {
+    background: linear-gradient(135deg, 
+        rgba(76, 175, 80, 0.95) 0%, 
+        rgba(56, 142, 60, 0.95) 50%, 
+        rgba(46, 125, 50, 0.95) 100%);
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 
+        0 8px 32px rgba(76, 175, 80, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.primary-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, 
+        transparent, 
+        rgba(255, 255, 255, 0.2), 
+        transparent);
+    transition: left 0.6s;
+}
+
+.primary-btn:hover::before {
+    left: 100%;
+}
+
+.primary-btn:hover {
+    background: linear-gradient(135deg, 
+        rgba(76, 175, 80, 1) 0%, 
+        rgba(56, 142, 60, 1) 50%, 
+        rgba(46, 125, 50, 1) 100%);
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 
+        0 12px 40px rgba(76, 175, 80, 0.6),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.secondary-btn {
+    background: linear-gradient(135deg, 
+        rgba(255, 87, 34, 0.9) 0%, 
+        rgba(230, 74, 25, 0.9) 50%, 
+        rgba(191, 54, 12, 0.9) 100%);
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 
+        0 8px 32px rgba(255, 87, 34, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.secondary-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, 
+        transparent, 
+        rgba(255, 255, 255, 0.2), 
+        transparent);
+    transition: left 0.6s;
+}
+
+.secondary-btn:hover::before {
+    left: 100%;
+}
+
+.secondary-btn:hover {
+    background: linear-gradient(135deg, 
+        rgba(255, 87, 34, 1) 0%, 
+        rgba(230, 74, 25, 1) 50%, 
+        rgba(191, 54, 12, 1) 100%);
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 
+        0 12px 40px rgba(255, 87, 34, 0.6),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
 }
 
 /* Dark Mode Support */
