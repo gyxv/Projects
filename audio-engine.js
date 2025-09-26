@@ -138,6 +138,14 @@ class AudioEngine {
             
             this.startTimer();
             
+            // Initialize both displays to 0 immediately
+            if (this.onTimeUpdate) {
+                this.onTimeUpdate(0);
+            }
+            if (this.onBufferUpdate) {
+                this.onBufferUpdate(0, this.bufferTimeMinutes);
+            }
+            
             if (this.onStatusChange) {
                 this.onStatusChange('recording', 'Recording...');
             }
@@ -232,14 +240,8 @@ class AudioEngine {
         
         console.log(`Rolling buffer: ${this.audioBuffer.length} chunks, ${this.getAvailableAudioDuration()}s`);
         
-        // Update buffer info
-        if (this.onBufferUpdate) {
-            const bufferDurationMs = this.audioBuffer.length > 0 
-                ? Date.now() - this.audioBuffer[0].timestamp 
-                : 0;
-            const bufferMinutes = Math.min(bufferDurationMs / (1000 * 60), this.bufferTimeMinutes);
-            this.onBufferUpdate(bufferMinutes, this.bufferTimeMinutes);
-        }
+        // Buffer info will be updated by timer sync - don't update here
+        // This prevents double updates and timing conflicts
     }
     
     /**
@@ -928,8 +930,16 @@ class AudioEngine {
         this.timerInterval = setInterval(() => {
             this.elapsedTime++;
             console.log('Timer tick:', this.elapsedTime);
+            
+            // Update main timer display
             if (this.onTimeUpdate) {
                 this.onTimeUpdate(this.elapsedTime);
+            }
+            
+            // Update buffer display synchronized with main timer
+            if (this.onBufferUpdate) {
+                const bufferMinutes = Math.min(this.elapsedTime / 60, this.bufferTimeMinutes);
+                this.onBufferUpdate(bufferMinutes, this.bufferTimeMinutes);
             }
         }, 1000);
         
@@ -945,8 +955,17 @@ class AudioEngine {
         }
         this.timerInterval = setInterval(() => {
             this.elapsedTime++;
+            console.log('Timer resume tick:', this.elapsedTime);
+            
+            // Update main timer display
             if (this.onTimeUpdate) {
                 this.onTimeUpdate(this.elapsedTime);
+            }
+            
+            // Update buffer display synchronized with main timer
+            if (this.onBufferUpdate) {
+                const bufferMinutes = Math.min(this.elapsedTime / 60, this.bufferTimeMinutes);
+                this.onBufferUpdate(bufferMinutes, this.bufferTimeMinutes);
             }
         }, 1000);
     }

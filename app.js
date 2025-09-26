@@ -828,9 +828,9 @@ class ModoruApp {
         this.isRecording = false;
         this.isPaused = false;
         
-        // Reset UI displays to initial state
+        // Reset UI displays to initial state (synchronized)
         this.elements.timeDisplay.textContent = '00:00:00';
-        this.elements.bufferInfo.textContent = 'Buffer: 0 / 20 min';
+        this.elements.bufferInfo.textContent = 'Buffer: 0s / 20m 0s';
         this.elements.statusText.textContent = 'Ready to Record';
         this.elements.statusIndicator.className = 'status-indicator';
         
