@@ -101,11 +101,7 @@ class ModoruApp {
         
         // Main control buttons
         this.elements.recordBtn.addEventListener('click', () => {
-            if (this.isRecording) {
-                this.stopRecording();
-            } else {
-                this.startRecording();
-            }
+            this.startRecording();
         });
         
         this.elements.pauseBtn.addEventListener('click', () => {
@@ -242,8 +238,12 @@ class ModoruApp {
         try {
             await this.audioEngine.startRecording();
             this.isRecording = true;
-            this.updateRecordButton();
-            this.updatePauseButton();
+            
+            // Hide record button, show pause button with pulsating red glow
+            this.elements.recordBtn.style.display = 'none';
+            this.elements.pauseBtn.style.display = 'block';
+            this.elements.pauseBtn.classList.add('pulsating-red');
+            
             this.elements.quickSaveSection.style.display = 'block';
             this.elements.audioVisualization.style.display = 'block';
             
@@ -264,7 +264,8 @@ class ModoruApp {
         this.audioEngine.pauseRecording();
         this.isPaused = true;
         
-        // Show paused controls instead of record/pause buttons
+        // Remove pulsating glow and show paused controls
+        this.elements.pauseBtn.classList.remove('pulsating-red');
         this.elements.pauseBtn.style.display = 'none';
         this.elements.recordBtn.style.display = 'none';
         this.elements.pausedControls.style.display = 'block';
@@ -279,10 +280,11 @@ class ModoruApp {
         this.audioEngine.resumeRecording();
         this.isPaused = false;
         
-        // Show pause button when resumed
+        // Show pause button with pulsating red glow when resumed
         this.elements.pausedControls.style.display = 'none';
         this.elements.recordBtn.style.display = 'none';
         this.elements.pauseBtn.style.display = 'block';
+        this.elements.pauseBtn.classList.add('pulsating-red');
         
         this.showToast('Recording resumed', 'success');
     }
