@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modoru - Audio Recorder</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icon-192x192.svg">
+</head>
+<body>
+    <!-- Main App Container -->
+    <div id="app">
+        <!-- Header -->
+        <header class="header">
+            <h1 class="logo">Modoru</h1>
+            <div class="header-controls">
+                <div class="memory-usage" id="memoryUsage">
+                    <span class="memory-text">Buffer: 0.00 MB</span>
+                    <button id="refreshMemory" class="refresh-memory-btn" title="Refresh Memory">🔄</button>
+                </div>
+                <button id="settingsBtn" class="settings-btn">⚙️</button>
+            </div>
+        </header>
+
+        <!-- Main Recording Interface -->
+        <main class="main-interface" id="mainInterface">
+            <!-- Status Display -->
+            <div class="status-display">
+                <div class="recording-status" id="recordingStatus">
+                    <div class="status-indicator" id="statusIndicator"></div>
+                    <span id="statusText">Ready to Record</span>
+                <div class="time-display" id="timeDisplay">00:00:00</div>
+                <div class="buffer-info" id="bufferInfo">Buffer: 0 / 20 min</div>
+            </div>
+
+            <!-- Recording Controls -->
+            <div class="recording-controls">
+                <button class="record-btn" id="recordBtn">
+                    <span class="record-icon" id="recordIcon">●</span>
+                    <span class="record-text" id="recordText">Record</span>
+                </button>
+                
+                <button class="pause-btn" id="pauseBtn" style="display: none;">
+                    <span class="pause-icon" id="pauseIcon">⏸️</span>
+                    <span class="pause-text" id="pauseText">Pause</span>
+                </button>
+                
+                <div class="paused-controls" id="pausedControls" style="display: none;">
+                    <button class="resume-btn" id="resumeBtn">
+                        <span class="resume-icon">▶️</span>
+                        <span class="resume-text">Resume</span>
+                    </button>
+                    <button class="reset-btn" id="resetBtn">
+                        <span class="reset-icon">🔄</span>
+                        <span class="reset-text">Reset</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Audio Visualization -->
+            <div class="audio-visualization" id="audioVisualization" style="display: none;">
+                <div class="visualization-header">
+                    <div class="visualization-controls">
+                        <button id="startPointBtn" class="control-btn start-point" title="Set start point">🟢</button>
+                        <button id="endPointBtn" class="control-btn end-point" title="Set end point">🔴</button>
+                        <button id="clearPointsBtn" class="control-btn clear-points" title="Clear points">∅</button>
+                        <div class="zoom-controls">
+                            <button id="zoomInBtn" class="zoom-btn">🔍+</button>
+                            <button id="zoomOutBtn" class="zoom-btn">🔍-</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="waveform-container">
+                    <canvas id="waveformCanvas" width="400" height="120"></canvas>
+                    <div class="timeline" id="timeline"></div>
+                    <div class="scroll-container">
+                        <div class="scroll-track" id="scrollTrack">
+                            <div class="scroll-thumb" id="scrollThumb"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Save Buttons -->
+            <div class="quick-save-section" id="quickSaveSection" style="display: none;">
+                <div class="save-header">
+                    <h3>Save Recent Audio</h3>
+                    <div class="format-toggle">
+                        <span class="format-label">Format:</span>
+                        <div class="toggle-switch" id="formatToggle">
+                            <input type="checkbox" id="formatCheckbox" class="toggle-checkbox">
+                            <label for="formatCheckbox" class="toggle-label">
+                                <span class="toggle-inner">
+                                    <span class="toggle-switch-left">WAV</span>
+                                    <span class="toggle-switch-right">MP3</span>
+                                </span>
+                                <span class="toggle-switch-button"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="quick-save-buttons">
+                    <button class="save-btn" data-duration="30">30s</button>
+                    <button class="save-btn" data-duration="60">1m</button>
+                    <button class="save-btn" data-duration="120">2m</button>
+                    <button class="save-btn" data-duration="300">5m</button>
+                    <button class="save-btn" data-duration="600">10m</button>
+                    <button class="save-btn manual-save" id="manualSaveBtn" disabled>Manual</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Settings Page -->
+        <div class="settings-page" id="settingsPage" style="display: none;">
+            <header class="settings-header">
+                <button id="backBtn" class="back-btn">←</button>
+                <h2>Settings</h2>
+            </header>
+
+            <div class="settings-content">
+                <div class="setting-group">
+                    <label for="bufferTime">Buffer Time (minutes)</label>
+                    <input type="number" id="bufferTime" min="5" max="120" value="20">
+                    <small>Audio buffer duration (5-120 minutes)</small>
+                </div>
+
+                <div class="preset-input">
+                    <label>Button 1:</label>
+                    <div class="time-input-group">
+                        <input type="number" id="preset1_min" min="0" max="59" value="0" class="time-input">
+                        <span class="time-label">m</span>
+                        <input type="number" id="preset1_sec" min="5" max="59" value="30" class="time-input">
+                        <span class="time-label">s</span>
+                    </div>
+                </div>
+                
+                <div class="preset-input">
+                    <label>Button 2:</label>
+                    <div class="time-input-group">
+                        <input type="number" id="preset2_min" min="0" max="59" value="1" class="time-input">
+                        <span class="time-label">m</span>
+                        <input type="number" id="preset2_sec" min="0" max="59" value="0" class="time-input">
+                        <span class="time-label">s</span>
+                    </div>
+                </div>
+                
+                <div class="preset-input">
+                    <label>Button 3:</label>
+                    <div class="time-input-group">
+                        <input type="number" id="preset3_min" min="0" max="59" value="2" class="time-input">
+                        <span class="time-label">m</span>
+                        <input type="number" id="preset3_sec" min="0" max="59" value="0" class="time-input">
+                        <span class="time-label">s</span>
+                    </div>
+                </div>
+                
+                <div class="preset-input">
+                    <label>Button 4:</label>
+                    <div class="time-input-group">
+                        <input type="number" id="preset4_min" min="0" max="59" value="5" class="time-input">
+                        <span class="time-label">m</span>
+                        <input type="number" id="preset4_sec" min="0" max="59" value="0" class="time-input">
+                        <span class="time-label">s</span>
+                    </div>
+                </div>
+                
+                <div class="preset-input">
+                    <label>Button 5:</label>
+                    <div class="time-input-group">
+                        <input type="number" id="preset5_min" min="0" max="59" value="10" class="time-input">
+                        <span class="time-label">m</span>
+                        <input type="number" id="preset5_sec" min="0" max="59" value="0" class="time-input">
+                        <span class="time-label">s</span>
+                    </div>
+                </div>
+                
+                <div class="settings-actions">
+                    <button id="saveSettings" class="primary-btn">Save Settings</button>
+                    <button id="resetSettings" class="secondary-btn">Reset to Defaults</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Confirmation Modal -->
+        <div class="modal-overlay" id="modalOverlay" style="display: none;">
+            <div class="modal">
+                <h3>Save Audio Recording</h3>
+                <p id="modalMessage">Save the last 5 minutes of audio?</p>
+                <div class="modal-filename">
+                    <label for="filename">Filename:</label>
+                    <input type="text" id="filename" placeholder="Recording_2024-01-01_12-00-00">
+                </div>
+                <div class="modal-actions">
+                    <button id="confirmSave" class="confirm-btn">Save</button>
+                    <button id="cancelSave" class="cancel-btn">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div class="toast" id="toast"></div>
+    </div>
+
+    <script src="audio-engine.js"></script>
+    <script src="waveform-visualizer.js"></script>
+    <!-- MP3 Encoder Library -->
+    <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.0/lame.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

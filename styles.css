@@ -1,0 +1,1049 @@
+/* Global Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    color: white;
+    overflow-x: hidden;
+}
+
+#app {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.memory-usage {
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 6px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.memory-text {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 500;
+    white-space: nowrap;
+    margin-right: 8px;
+}
+
+.refresh-memory-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.refresh-memory-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Paused Controls */
+.paused-controls {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+.resume-btn, .reset-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50px;
+    padding: 20px;
+    min-width: 120px;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.resume-btn:hover {
+    background: rgba(76, 175, 80, 0.8);
+    border-color: rgba(76, 175, 80, 1);
+    transform: scale(1.05);
+}
+
+.reset-btn:hover {
+    background: rgba(244, 67, 54, 0.8);
+    border-color: rgba(244, 67, 54, 1);
+    transform: scale(1.05);
+}
+
+.settings-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.settings-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: rotate(90deg);
+}
+
+/* Main Interface */
+.main-interface {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    text-align: center;
+}
+
+/* Status Display */
+.status-display {
+    margin-bottom: 40px;
+}
+
+.recording-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 15px;
+    font-size: 18px;
+}
+
+.status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #4CAF50;
+    margin-right: 10px;
+    transition: all 0.3s ease;
+}
+
+.status-indicator.recording {
+    background: #f44336;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.1); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+.time-display {
+    font-size: 36px;
+    font-weight: bold;
+    font-family: 'Courier New', monospace;
+    margin-bottom: 10px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.buffer-info {
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+/* Record Controls */
+.record-section {
+    margin-bottom: 40px;
+}
+
+.record-controls {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    justify-content: center;
+}
+
+.record-btn, .pause-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    width: 120px;
+    height: 120px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: white;
+    font-size: 14px;
+}
+
+.record-btn:hover, .pause-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.05);
+}
+
+.record-btn.recording {
+    background: rgba(244, 67, 54, 0.3);
+    border-color: rgba(244, 67, 54, 0.5);
+    animation: recordingPulse 2s infinite;
+}
+
+.record-btn.paused {
+    background: rgba(255, 193, 7, 0.3);
+    border-color: rgba(255, 193, 7, 0.5);
+}
+
+.pause-btn {
+    width: 80px;
+    height: 80px;
+}
+
+.pause-btn.active {
+    background: rgba(255, 193, 7, 0.3);
+    border-color: rgba(255, 193, 7, 0.5);
+}
+
+@keyframes recordingPulse {
+    0% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7); }
+    70% { box-shadow: 0 0 0 20px rgba(244, 67, 54, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0); }
+}
+
+.record-icon, .pause-icon {
+    font-size: 36px;
+    margin-bottom: 5px;
+}
+
+.pause-icon {
+    font-size: 24px;
+}
+
+.record-text, .pause-text {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.pause-text {
+    font-size: 10px;
+}
+
+/* Quick Save Section */
+.quick-save-section {
+    width: 100%;
+    max-width: 400px;
+}
+
+.save-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.quick-save-section h3 {
+    margin: 0;
+    font-size: 18px;
+    opacity: 0.9;
+}
+
+.format-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.format-label {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.8);
+    white-space: nowrap;
+}
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+}
+
+.toggle-checkbox {
+    display: none;
+}
+
+.toggle-label {
+    display: block;
+    width: 90px;
+    height: 36px;
+    background: rgba(255, 152, 0, 0.8); /* MP3 = Orange (default - checked) */
+    border-radius: 18px;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.3s;
+}
+
+.toggle-checkbox:checked + .toggle-label {
+    background: rgba(255, 152, 0, 0.8); /* MP3 = Orange (checked) */
+}
+
+.toggle-checkbox:not(:checked) + .toggle-label {
+    background: rgba(76, 175, 80, 0.8); /* WAV = Green (unchecked) */
+}
+
+.toggle-inner {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 8px;
+    font-size: 11px;
+    font-weight: bold;
+    color: white;
+    position: relative;
+    z-index: 1;
+}
+
+.toggle-switch-button {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 42px;
+    height: 30px;
+    border-radius: 15px;
+    background: white;
+    transition: transform 0.3s;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: bold;
+    color: black;
+}
+
+.toggle-checkbox:checked + .toggle-label .toggle-switch-button {
+    transform: translateX(45px);
+}
+
+.toggle-checkbox:checked + .toggle-label .toggle-switch-button::after {
+    content: 'MP3';
+    color: black;
+}
+
+.toggle-checkbox:not(:checked) + .toggle-label .toggle-switch-button::after {
+    content: 'WAV';
+    color: black;
+}
+
+.toggle-checkbox:checked + .toggle-label .toggle-switch-left {
+    color: white;
+}
+
+.toggle-checkbox:checked + .toggle-label .toggle-switch-right {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.toggle-checkbox:not(:checked) + .toggle-label .toggle-switch-left {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.toggle-checkbox:not(:checked) + .toggle-label .toggle-switch-right {
+    color: white;
+}
+
+.toggle-switch-left,
+.toggle-switch-right {
+    font-size: 10px;
+    font-weight: bold;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+.quick-save-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+}
+
+.save-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 25px;
+    padding: 12px 20px;
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 60px;
+}
+
+.save-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+}
+
+.save-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.manual-save {
+    background: rgba(76, 175, 80, 0.2);
+    border-color: rgba(76, 175, 80, 0.3);
+}
+
+.manual-save:hover:not(:disabled) {
+    background: rgba(76, 175, 80, 0.3);
+}
+
+.manual-save:disabled {
+    background: rgba(128, 128, 128, 0.2);
+    border-color: rgba(128, 128, 128, 0.3);
+}
+
+/* Settings Page */
+.settings-page {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    z-index: 1000;
+    overflow-y: auto;
+}
+
+.settings-header {
+    display: flex;
+    align-items: center;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.back-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    margin-right: 15px;
+    padding: 5px;
+    border-radius: 50%;
+    transition: background 0.3s ease;
+}
+
+.back-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.settings-content {
+    padding: 30px 20px;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.setting-group {
+    margin-bottom: 30px;
+}
+
+.setting-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    font-size: 16px;
+}
+
+.setting-group input[type="number"] {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    font-size: 16px;
+}
+
+.setting-group input[type="number"]::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.setting-group small {
+    display: block;
+    margin-top: 5px;
+    opacity: 0.7;
+    font-size: 12px;
+}
+
+.preset-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.preset-input {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.preset-input label {
+    min-width: 70px;
+    margin-bottom: 0;
+    font-size: 14px;
+}
+
+.time-input-group {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: 1;
+}
+
+.time-input {
+    width: 50px;
+    padding: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    font-size: 14px;
+    text-align: center;
+}
+
+.time-label {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.8);
+    margin: 0 3px;
+}
+
+.preset-input input {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    font-size: 14px;
+}
+
+.save-settings-btn, .reset-settings-btn {
+    width: 100%;
+    padding: 15px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-bottom: 15px;
+}
+
+.save-settings-btn {
+    background: #4CAF50;
+    color: white;
+}
+
+.save-settings-btn:hover {
+    background: #45a049;
+    transform: translateY(-2px);
+}
+
+.reset-settings-btn {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.reset-settings-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Modal */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 20px;
+}
+
+.modal {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 15px;
+    padding: 30px;
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.modal h3 {
+    margin-bottom: 15px;
+    font-size: 20px;
+}
+
+.modal p {
+    margin-bottom: 20px;
+    opacity: 0.9;
+}
+
+.modal-filename {
+    margin-bottom: 25px;
+    text-align: left;
+}
+
+.modal-filename label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.modal-filename input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    font-size: 14px;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.confirm-btn, .cancel-btn {
+    padding: 12px 25px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 80px;
+}
+
+.confirm-btn {
+    background: #4CAF50;
+    color: white;
+}
+
+.confirm-btn:hover {
+    background: #45a049;
+    transform: translateY(-2px);
+}
+
+.cancel-btn {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.cancel-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Toast Notifications */
+.toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    z-index: 3000;
+    opacity: 0;
+    transition: all 0.3s ease;
+    pointer-events: none;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(10px);
+}
+
+.toast.success {
+    background: rgba(76, 175, 80, 0.9);
+}
+
+.toast.error {
+    background: rgba(244, 67, 54, 0.9);
+}
+
+/* Audio Visualization */
+.audio-visualization {
+    width: 100%;
+    max-width: 500px;
+    margin: 30px 0;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 15px;
+    padding: 20px;
+    backdrop-filter: blur(10px);
+}
+
+.visualization-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.visualization-header h3 {
+    font-size: 16px;
+    margin: 0;
+    opacity: 0.9;
+}
+
+.visualization-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.control-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.control-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
+
+.control-btn.active {
+    background: rgba(76, 175, 80, 0.4);
+    border-color: rgba(76, 175, 80, 0.6);
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.4);
+}
+
+.start-point {
+    /* Let emoji show its natural green color */
+    font-size: 14px;
+}
+
+.start-point.active {
+    background: rgba(76, 175, 80, 0.4);
+    border-color: rgba(76, 175, 80, 0.6);
+}
+
+.end-point {
+    /* Let emoji show its natural red color */
+    font-size: 14px;
+}
+
+.end-point.active {
+    background: rgba(244, 67, 54, 0.4);
+    border-color: rgba(244, 67, 54, 0.6);
+}
+
+.clear-points {
+    color: #333333;
+    background: rgba(255, 255, 255, 0.8);
+    border-color: rgba(255, 255, 255, 0.6);
+}
+
+.clear-points:hover {
+    background: rgba(255, 255, 255, 0.9);
+    color: #000000;
+}
+
+.zoom-controls {
+    display: flex;
+    gap: 4px;
+    margin-left: 8px;
+    padding-left: 8px;
+    border-left: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.zoom-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    transition: all 0.3s ease;
+}
+
+.zoom-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.waveform-container {
+    position: relative;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#waveformCanvas {
+    width: 100%;
+    height: 120px;
+    display: block;
+    cursor: crosshair;
+}
+
+#waveformCanvas.setting-point {
+    cursor: crosshair;
+}
+
+.timeline {
+    height: 20px;
+    background: rgba(0, 0, 0, 0.3);
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.timeline-marker {
+    position: absolute;
+    font-size: 9px;
+    white-space: nowrap;
+}
+
+.scroll-container {
+    height: 15px;
+    background: rgba(0, 0, 0, 0.3);
+    position: relative;
+    cursor: pointer;
+}
+
+.scroll-track {
+    height: 100%;
+    position: relative;
+}
+
+.scroll-thumb {
+    height: 100%;
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 7px;
+    position: absolute;
+    cursor: grab;
+    transition: background 0.2s ease;
+    min-width: 20px;
+}
+
+.scroll-thumb:hover {
+    background: rgba(255, 255, 255, 0.6);
+}
+
+.scroll-thumb:active {
+    cursor: grabbing;
+    background: rgba(255, 255, 255, 0.8);
+}
+
+/* Waveform visual elements */
+.start-line {
+    position: absolute;
+    top: 0;
+    width: 2px;
+    height: 120px;
+    background: #4CAF50;
+    box-shadow: 0 0 8px rgba(76, 175, 80, 0.6);
+    z-index: 10;
+}
+
+.end-line {
+    position: absolute;
+    top: 0;
+    width: 2px;
+    height: 120px;
+    background: #f44336;
+    box-shadow: 0 0 8px rgba(244, 67, 54, 0.6);
+    z-index: 10;
+}
+
+.selection-area {
+    position: absolute;
+    top: 0;
+    height: 120px;
+    background: rgba(76, 175, 80, 0.1);
+    border: 1px solid rgba(76, 175, 80, 0.3);
+    z-index: 5;
+@media (max-width: 480px) {
+    .record-controls {
+        flex-direction: column;
+        gap: 15px;
+    }
+        width: 100px;
+        height: 100px;
+    }
+    
+    .pause-btn {
+        width: 70px;
+        height: 70px;
+    }
+    
+    .record-icon {
+        font-size: 30px;
+    }
+    
+    .pause-icon {
+        font-size: 20px;
+    }
+    
+    .audio-visualization {
+        padding: 15px;
+        margin: 20px 0;
+    }
+    
+    .visualization-header {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+    }
+    
+    .visualization-controls {
+        justify-content: center;
+    }
+    
+    #waveformCanvas {
+        height: 100px;
+    }
+    
+    .quick-save-buttons {
+        gap: 8px;
+    }
+    
+    .save-btn {
+        padding: 10px 16px;
+        font-size: 13px;
+        min-width: 50px;
+    }
+    
+    .settings-content {
+        padding: 20px 15px;
+    }
+    
+    .modal {
+        padding: 25px 20px;
+    }
+}
+
+/* Landscape Phone Adjustments */
+@media (max-height: 500px) and (orientation: landscape) {
+    .main-interface {
+        flex-direction: row;
+        justify-content: space-around;
+        align-items: center;
+        padding: 10px;
+    }
+    
+    .status-display {
+        margin-bottom: 0;
+        margin-right: 20px;
+    }
+    
+    .record-section {
+        margin-bottom: 0;
+        margin-right: 20px;
+    }
+    
+    .record-controls {
+        flex-direction: row;
+        gap: 10px;
+    }
+    
+    .audio-visualization {
+        display: none !important;
+    }
+    
+    .quick-save-section {
+        max-width: 200px;
+    }
+    
+    .save-header {
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .format-toggle {
+        gap: 6px;
+    }
+    
+    .toggle-label {
+        width: 70px;
+        height: 26px;
+    }
+    
+    .toggle-switch-button {
+        width: 22px;
+        height: 22px;
+    }
+    
+    .toggle-checkbox:checked + .toggle-label .toggle-switch-button {
+        transform: translateX(42px);
+    }
+    
+    .time-display {
+        font-size: 24px;
+    }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+    body {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    }
+}
