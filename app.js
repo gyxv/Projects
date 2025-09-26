@@ -256,8 +256,16 @@ class ModoruApp {
      */
     async startRecording() {
         try {
-            await this.audioEngine.startRecording();
+            console.log('App startRecording called');
+            const success = await this.audioEngine.startRecording();
+            
+            if (!success) {
+                console.error('Audio engine failed to start recording');
+                return;
+            }
+            
             this.isRecording = true;
+            console.log('App recording state updated');
             
             // RECORDING STATE: Show only Pause button (center-aligned)
             this.elements.recordBtn.style.display = 'none';
@@ -810,21 +818,21 @@ class ModoruApp {
     }
     
     /**
-     * Reset recording completely and start fresh
+     * Reset recording completely and return to initial state
      */
     async resetRecording() {
-        // First stop and reset the audio engine
+        // First stop and reset the audio engine completely
         this.audioEngine.resetBuffer();
         
-        // Reset state
+        // Reset app state
         this.isRecording = false;
         this.isPaused = false;
         
-        // Reset UI displays immediately
+        // Reset UI displays to initial state
         this.elements.timeDisplay.textContent = '00:00:00';
-        this.elements.bufferInfo.textContent = 'Buffer: 0s / 20m 0s';
-        this.elements.statusText.textContent = 'Recording';
-        this.elements.statusIndicator.className = 'status-indicator recording';
+        this.elements.bufferInfo.textContent = 'Buffer: 0 / 20 min';
+        this.elements.statusText.textContent = 'Ready to Record';
+        this.elements.statusIndicator.className = 'status-indicator';
         
         // RESET STATE: Return to initial state with only Record button
         this.elements.pausedControls.style.display = 'none';
@@ -832,13 +840,17 @@ class ModoruApp {
         this.elements.pauseBtn.classList.remove('pulsating-red');
         this.elements.recordBtn.style.display = 'block';
         
-        // Reset status to initial state
-        this.elements.statusText.textContent = 'Ready to Record';
-        this.elements.statusIndicator.className = 'status-indicator';
-        
         // Hide sections that should only show during recording
         this.elements.quickSaveSection.style.display = 'none';
         this.elements.audioVisualization.style.display = 'none';
+        
+        // Clear any manual selections
+        this.clearSelectionPoints();
+        
+        // Reset waveform visualizer
+        if (this.waveformVisualizer) {
+            this.waveformVisualizer.updateAudioData([]);
+        }
         
         this.showToast('Recording reset - ready to record', 'success');
     }

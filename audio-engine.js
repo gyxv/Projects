@@ -67,12 +67,24 @@ class AudioEngine {
      */
     async startRecording() {
         try {
-            if (this.isRecording) return;
+            console.log('Starting recording - current state:', {
+                isRecording: this.isRecording,
+                isPaused: this.isPaused,
+                elapsedTime: this.elapsedTime,
+                timerInterval: !!this.timerInterval
+            });
+            
+            if (this.isRecording) {
+                console.log('Already recording, returning early');
+                return false;
+            }
             
             // Reset audio buffer and data for fresh start
             this.audioBuffer = [];
             this.audioData = [];
+            this.audioChunks = [];
             this.bufferStartTime = null;
+            this.elapsedTime = 0;
             
             // Request microphone permission
             this.audioStream = await navigator.mediaDevices.getUserMedia({ 
@@ -129,6 +141,9 @@ class AudioEngine {
             if (this.onStatusChange) {
                 this.onStatusChange('recording', 'Recording...');
             }
+            
+            console.log('Recording started successfully');
+            return true;
             
         } catch (error) {
             console.error('Failed to start recording:', error);
@@ -795,15 +810,25 @@ class AudioEngine {
      * Reset audio buffer completely
      */
     resetBuffer() {
-        // Clear audio buffer
+        // Stop recording completely
+        this.isRecording = false;
+        this.isPaused = false;
+        
+        // Stop media recorder if active
+        if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+            this.mediaRecorder.stop();
+        }
+        
+        // Clean up audio stream
+        this.cleanupStream();
+        
+        // Clear audio buffer and data
         this.audioBuffer = [];
+        this.audioData = [];
+        this.audioChunks = [];
         this.elapsedTime = 0;
         this.bufferStartTime = null;
-        
-        // Stop recording if active
-        if (this.recorder && this.recorder.state !== 'inactive') {
-            this.recorder.stop();
-        }
+        this.startTime = null;
         
         // Reset timer completely
         if (this.timerInterval) {
@@ -818,7 +843,10 @@ class AudioEngine {
             this.analyser = null;
         }
         
-        console.log('Audio buffer and timers reset completely');
+        // Reset media recorder
+        this.mediaRecorder = null;
+        
+        console.log('Audio engine completely reset - ready for fresh recording');
     }
     
     /**
@@ -888,13 +916,24 @@ class AudioEngine {
      * Start timer for recording duration
      */
     startTimer() {
+        console.log('Starting timer - resetting elapsed time to 0');
+        
+        // Clear any existing timer first
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+            this.timerInterval = null;
+        }
+        
         this.elapsedTime = 0;
         this.timerInterval = setInterval(() => {
             this.elapsedTime++;
+            console.log('Timer tick:', this.elapsedTime);
             if (this.onTimeUpdate) {
                 this.onTimeUpdate(this.elapsedTime);
             }
         }, 1000);
+        
+        console.log('Timer started successfully');
     }
     
     /**
