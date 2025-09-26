@@ -795,6 +795,7 @@ class AudioEngine {
      * Reset audio buffer completely
      */
     resetBuffer() {
+        // Clear audio buffer
         this.audioBuffer = [];
         this.elapsedTime = 0;
         this.bufferStartTime = null;
@@ -804,13 +805,20 @@ class AudioEngine {
             this.recorder.stop();
         }
         
-        // Reset timer
+        // Reset timer completely
         if (this.timerInterval) {
             clearInterval(this.timerInterval);
             this.timerInterval = null;
         }
         
-        console.log('Audio buffer reset');
+        // Reset audio context and analyzer
+        if (this.audioContext) {
+            this.audioContext.close();
+            this.audioContext = null;
+            this.analyser = null;
+        }
+        
+        console.log('Audio buffer and timers reset completely');
     }
     
     /**

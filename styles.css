@@ -66,40 +66,31 @@ body {
     background: rgba(255, 255, 255, 0.3);
 }
 
-/* Paused Controls */
+/* Paused Controls - HORIZONTAL LAYOUT (when visible) */
 .paused-controls {
-    display: flex;
-    gap: 20px;
+    flex-direction: row;
+    gap: 40px;
     align-items: center;
     justify-content: center;
+    width: 100%;
+    margin: 20px 0;
 }
 
-.resume-btn, .reset-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    border-radius: 50px;
-    padding: 25px 30px;
-    min-width: 140px;
-    min-height: 140px;
-    color: white;
-    font-size: 18px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+/* Show paused controls when displayed */
+.paused-controls[style*="block"] {
+    display: flex !important;
 }
+
+/* Resume and Reset button colors */
 
 .resume-btn {
     background: linear-gradient(135deg, 
         rgba(76, 175, 80, 0.9) 0%, 
-        rgba(56, 142, 60, 0.9) 100%);
-    border: 3px solid rgba(76, 175, 80, 0.8);
+        rgba(56, 142, 60, 0.9) 100%) !important;
+    border: 3px solid rgba(76, 175, 80, 0.8) !important;
     box-shadow: 
         0 0 25px rgba(76, 175, 80, 0.4),
-        0 8px 32px rgba(0, 0, 0, 0.3);
+        0 8px 32px rgba(0, 0, 0, 0.3) !important;
 }
 
 .resume-btn:hover {
@@ -116,11 +107,11 @@ body {
 .reset-btn {
     background: linear-gradient(135deg, 
         rgba(255, 152, 0, 0.9) 0%, 
-        rgba(230, 126, 34, 0.9) 100%);
-    border: 3px solid rgba(255, 152, 0, 0.8);
+        rgba(230, 126, 34, 0.9) 100%) !important;
+    border: 3px solid rgba(255, 152, 0, 0.8) !important;
     box-shadow: 
         0 0 25px rgba(255, 152, 0, 0.4),
-        0 8px 32px rgba(0, 0, 0, 0.3);
+        0 8px 32px rgba(0, 0, 0, 0.3) !important;
 }
 
 .reset-btn:hover {
@@ -328,12 +319,13 @@ body {
     margin: 20px 0;
 }
 
-.record-btn, .pause-btn {
+/* ALL BUTTONS - CONSISTENT SIZE AND STYLING */
+.record-btn, .pause-btn, .resume-btn, .reset-btn {
     background: rgba(255, 255, 255, 0.2);
     border: 3px solid rgba(255, 255, 255, 0.3);
-    border-radius: 50%;
-    width: 180px;
-    height: 180px;
+    border-radius: 50px;
+    width: 160px !important;
+    height: 160px !important;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -361,11 +353,6 @@ body {
 .record-btn.paused {
     background: rgba(255, 193, 7, 0.3);
     border-color: rgba(255, 193, 7, 0.5);
-}
-
-.pause-btn {
-    width: 80px;
-    height: 80px;
 }
 
 .pause-btn.active {
@@ -1078,10 +1065,7 @@ body {
         height: 100px;
     }
     
-    .pause-btn {
-        width: 70px;
-        height: 70px;
-    }
+    /* Pause button uses main button sizing */
     
     .record-icon {
         font-size: 30px;

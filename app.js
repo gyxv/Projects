@@ -61,6 +61,9 @@ class ModoruApp {
             return;
         }
         
+        // INITIAL STATE: Show only Record button (center-aligned)
+        this.setInitialButtonState();
+        
         // Set up audio engine callbacks
         this.audioEngine.onStatusChange = (status, message) => {
             this.updateRecordingStatus(status, message);
@@ -232,6 +235,23 @@ class ModoruApp {
     }
     
     /**
+     * Set initial button state (only Record button visible)
+     */
+    setInitialButtonState() {
+        // INITIAL STATE: Only Record button visible and centered
+        this.elements.recordBtn.style.display = 'block';
+        this.elements.pauseBtn.style.display = 'none';
+        this.elements.pausedControls.style.display = 'none';
+        
+        // Ensure clean state
+        this.elements.pauseBtn.classList.remove('pulsating-red');
+        
+        // Hide recording-specific sections initially
+        this.elements.quickSaveSection.style.display = 'none';
+        this.elements.audioVisualization.style.display = 'none';
+    }
+    
+    /**
      * Start audio recording
      */
     async startRecording() {
@@ -239,9 +259,10 @@ class ModoruApp {
             await this.audioEngine.startRecording();
             this.isRecording = true;
             
-            // Hide record button, show pause button with pulsating red glow
+            // RECORDING STATE: Show only Pause button (center-aligned)
             this.elements.recordBtn.style.display = 'none';
             this.elements.pauseBtn.style.display = 'block';
+            this.elements.pausedControls.style.display = 'none';
             this.elements.pauseBtn.classList.add('pulsating-red');
             
             this.elements.quickSaveSection.style.display = 'block';
@@ -264,7 +285,7 @@ class ModoruApp {
         this.audioEngine.pauseRecording();
         this.isPaused = true;
         
-        // Remove pulsating glow and show paused controls
+        // PAUSED STATE: Show only Resume and Reset buttons (horizontal)
         this.elements.pauseBtn.classList.remove('pulsating-red');
         this.elements.pauseBtn.style.display = 'none';
         this.elements.recordBtn.style.display = 'none';
@@ -280,7 +301,7 @@ class ModoruApp {
         this.audioEngine.resumeRecording();
         this.isPaused = false;
         
-        // Show pause button with pulsating red glow when resumed
+        // RESUMED STATE: Show only Pause button (center-aligned) 
         this.elements.pausedControls.style.display = 'none';
         this.elements.recordBtn.style.display = 'none';
         this.elements.pauseBtn.style.display = 'block';
@@ -789,25 +810,37 @@ class ModoruApp {
     }
     
     /**
-     * Reset recording completely
+     * Reset recording completely and start fresh
      */
-    resetRecording() {
+    async resetRecording() {
+        // First stop and reset the audio engine
         this.audioEngine.resetBuffer();
+        
+        // Reset state
         this.isRecording = false;
         this.isPaused = false;
         
-        // Reset UI
-        this.elements.recordBtn.style.display = 'block';
-        this.elements.pauseBtn.style.display = 'none';
-        this.elements.pausedControls.style.display = 'none';
-        
-        // Reset displays
+        // Reset UI displays immediately
         this.elements.timeDisplay.textContent = '00:00:00';
         this.elements.bufferInfo.textContent = 'Buffer: 0s / 20m 0s';
+        this.elements.statusText.textContent = 'Recording';
+        this.elements.statusIndicator.className = 'status-indicator recording';
+        
+        // RESET STATE: Return to initial state with only Record button
+        this.elements.pausedControls.style.display = 'none';
+        this.elements.pauseBtn.style.display = 'none';
+        this.elements.pauseBtn.classList.remove('pulsating-red');
+        this.elements.recordBtn.style.display = 'block';
+        
+        // Reset status to initial state
         this.elements.statusText.textContent = 'Ready to Record';
         this.elements.statusIndicator.className = 'status-indicator';
         
-        this.showToast('Recording reset', 'success');
+        // Hide sections that should only show during recording
+        this.elements.quickSaveSection.style.display = 'none';
+        this.elements.audioVisualization.style.display = 'none';
+        
+        this.showToast('Recording reset - ready to record', 'success');
     }
     
     /**

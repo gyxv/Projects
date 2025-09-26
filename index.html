@@ -33,22 +33,26 @@
                 <div class="recording-status" id="recordingStatus">
                     <div class="status-indicator" id="statusIndicator"></div>
                     <span id="statusText">Ready to Record</span>
+                </div>
                 <div class="time-display" id="timeDisplay">00:00:00</div>
                 <div class="buffer-info" id="bufferInfo">Buffer: 0 / 20 min</div>
             </div>
 
             <!-- Recording Controls -->
             <div class="recording-controls">
-                <button class="record-btn" id="recordBtn">
+                <!-- INITIAL STATE: Only Record button visible -->
+                <button class="record-btn" id="recordBtn" style="display: block;">
                     <span class="record-icon" id="recordIcon">●</span>
                     <span class="record-text" id="recordText">Record</span>
                 </button>
                 
+                <!-- RECORDING STATE: Only Pause button visible -->
                 <button class="pause-btn" id="pauseBtn" style="display: none;">
                     <span class="pause-icon" id="pauseIcon">⏸️</span>
                     <span class="pause-text" id="pauseText">Pause</span>
                 </button>
                 
+                <!-- PAUSED STATE: Resume and Reset buttons visible -->
                 <div class="paused-controls" id="pausedControls" style="display: none;">
                     <button class="resume-btn" id="resumeBtn">
                         <span class="resume-icon">▶️</span>
